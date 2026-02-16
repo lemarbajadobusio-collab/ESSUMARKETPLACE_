@@ -1047,8 +1047,6 @@ function closeItemModal() {
 
 // Sell Panel Functions
 function openSellPanel() {
-  localStorage.removeItem("buyer");
-  localStorage.removeItem("buyer_user_id");
   const buyerId = currentBuyerId();
   if (buyerId) {
     apiRequest(`/users/${buyerId}`, {
@@ -1056,6 +1054,8 @@ function openSellPanel() {
       body: JSON.stringify({ role: "seller" })
     }).catch(() => {});
   }
+  localStorage.removeItem("buyer");
+  localStorage.removeItem("buyer_user_id");
   localStorage.setItem("essu_preferred_role", "seller");
   window.location.href = "seller.html";
 }
