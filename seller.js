@@ -851,13 +851,24 @@ const savedSection = localStorage.getItem(STORAGE_KEYS.section);
 const savedProductIndex = Number(localStorage.getItem(STORAGE_KEYS.productIndex) || 0);
 const savedListingOpen = localStorage.getItem(STORAGE_KEYS.listingOpen) === "true";
 const savedActiveConversation = localStorage.getItem(STORAGE_KEYS.activeConversation) || "";
-const currentUserEmail = getCurrentUserEmail();
+let currentUserEmail = getCurrentUserEmail();
 if (savedActiveConversation) {
   activeConversationId = savedActiveConversation;
 }
 
 async function initSellerApp() {
-  if (savedAppState === "app" && currentUserEmail) {
+  if (!currentUserEmail) {
+    try {
+      const cachedUser = JSON.parse(localStorage.getItem("currentUser") || "null");
+      if (cachedUser?.email && cachedUser.role === "seller") {
+        setCurrentUserEmail(cachedUser.email);
+        currentUserEmail = cachedUser.email;
+        if (cachedUser.id) setCurrentUserId(cachedUser.id);
+      }
+    } catch {}
+  }
+
+  if ((savedAppState === "app" || currentUserEmail) && currentUserEmail) {
     showApp();
     try {
       await loadUserData();
