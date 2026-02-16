@@ -1101,8 +1101,8 @@ body {
   display: grid;
   gap: 14px;
   background: white;
-  width: 50%;
-  margin-left: 50px;
+  width: 90%;
+  margin-left: 60px;
 }
 
 .cart-header h2 {
