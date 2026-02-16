@@ -12,6 +12,7 @@ app.use(express.json({ limit: "5mb" }));
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET || "essu_marketplace";
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY are required in .env");
@@ -25,6 +26,58 @@ const supabase = createClient(
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function getExtensionFromMime(mimeType) {
+  if (!mimeType) return "bin";
+  if (mimeType.includes("jpeg")) return "jpg";
+  if (mimeType.includes("png")) return "png";
+  if (mimeType.includes("webp")) return "webp";
+  if (mimeType.includes("gif")) return "gif";
+  const fallback = mimeType.split("/")[1] || "bin";
+  return fallback.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
+}
+
+function isLikelyHttpUrl(value) {
+  return typeof value === "string" && /^https?:\/\//i.test(value.trim());
+}
+
+async function uploadDataUrlToBucket(dataUrl, folder) {
+  const match = String(dataUrl || "").match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) return dataUrl;
+
+  const mimeType = match[1];
+  const base64Payload = match[2];
+  const fileBytes = Buffer.from(base64Payload, "base64");
+  const ext = getExtensionFromMime(mimeType);
+  const filePath = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+
+  const uploaded = await supabase.storage.from(SUPABASE_BUCKET).upload(filePath, fileBytes, {
+    contentType: mimeType,
+    upsert: false
+  });
+  if (uploaded.error) {
+    throw new Error(`Storage upload failed: ${uploaded.error.message}`);
+  }
+
+  const publicUrl = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(filePath);
+  return publicUrl?.data?.publicUrl || dataUrl;
+}
+
+async function normalizeImageInput(imageValue, folder) {
+  if (typeof imageValue !== "string" || !imageValue.trim()) return "";
+  if (isLikelyHttpUrl(imageValue)) return imageValue.trim();
+  return uploadDataUrlToBucket(imageValue, folder);
+}
+
+async function normalizeImagesArray(images, folder) {
+  if (!Array.isArray(images)) return [];
+  const normalized = [];
+  for (const img of images) {
+    if (typeof img !== "string" || !img.trim()) continue;
+    normalized.push(await normalizeImageInput(img, folder));
+  }
+  return normalized;
 }
 
 function sanitizeUser(row) {
@@ -143,7 +196,7 @@ app.patch("/api/users/:id", async (req, res) => {
   const updatePayload = { updated_at: nowIso() };
   if (typeof fullname === "string") updatePayload.fullname = fullname.trim();
   if (typeof mobile === "string") updatePayload.mobile = mobile.trim();
-  if (typeof photo === "string") updatePayload.photo = photo;
+  if (typeof photo === "string") updatePayload.photo = await normalizeImageInput(photo, "profiles");
   if (typeof status === "string") updatePayload.status = status;
   if (typeof role === "string") updatePayload.role = role;
   if (typeof email === "string") updatePayload.email = email.trim().toLowerCase();
@@ -209,6 +262,9 @@ app.post("/api/products", async (req, res) => {
   if (seller.error) return res.status(500).json({ error: seller.error.message });
   if (!seller.data) return res.status(404).json({ error: "Seller not found." });
 
+  const normalizedImages = await normalizeImagesArray(images, "products");
+  const normalizedCover = await normalizeImageInput(image || normalizedImages[0] || "", "products");
+
   const inserted = await supabase
     .from("products")
     .insert({
@@ -219,8 +275,8 @@ app.post("/api/products", async (req, res) => {
       item_condition: condition,
       location,
       description,
-      cover_image: image || (images[0] || ""),
-      images_json: Array.isArray(images) ? images : [],
+      cover_image: normalizedCover,
+      images_json: normalizedImages,
       status: "available",
       posted_label: "Just now",
       views: 0,
@@ -253,8 +309,8 @@ app.patch("/api/products/:id", async (req, res) => {
   if (typeof condition === "string") updatePayload.item_condition = condition;
   if (typeof location === "string") updatePayload.location = location;
   if (typeof description === "string") updatePayload.description = description;
-  if (typeof image === "string") updatePayload.cover_image = image;
-  if (Array.isArray(images)) updatePayload.images_json = images;
+  if (typeof image === "string") updatePayload.cover_image = await normalizeImageInput(image, "products");
+  if (Array.isArray(images)) updatePayload.images_json = await normalizeImagesArray(images, "products");
 
   const updated = await supabase.from("products").update(updatePayload).eq("id", productId).select("*").maybeSingle();
   if (updated.error) return res.status(500).json({ error: updated.error.message });
@@ -564,5 +620,7 @@ seedDefaultAdmin()
       console.log(`ESSU Marketplace API running on http://localhost:${PORT}`);
       // eslint-disable-next-line no-console
       console.log(`Supabase project: ${SUPABASE_URL}`);
+      // eslint-disable-next-line no-console
+      console.log(`Supabase bucket: ${SUPABASE_BUCKET}`);
     });
   });

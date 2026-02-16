@@ -104,3 +104,32 @@ ALTER TABLE transactions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE conversations DISABLE ROW LEVEL SECURITY;
 ALTER TABLE conversation_participants DISABLE ROW LEVEL SECURITY;
 ALTER TABLE messages DISABLE ROW LEVEL SECURITY;
+
+-- Storage bucket for uploaded photos
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('essu_marketplace', 'essu_marketplace', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Public read access to bucket objects
+DROP POLICY IF EXISTS "Public read essu_marketplace" ON storage.objects;
+CREATE POLICY "Public read essu_marketplace"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'essu_marketplace');
+
+-- Allow uploads/updates/deletes for anon/authenticated roles to this bucket.
+-- Recommended: use SUPABASE_SERVICE_ROLE_KEY in backend for stricter security.
+DROP POLICY IF EXISTS "Write essu_marketplace anon" ON storage.objects;
+CREATE POLICY "Write essu_marketplace anon"
+ON storage.objects FOR INSERT TO anon, authenticated
+WITH CHECK (bucket_id = 'essu_marketplace');
+
+DROP POLICY IF EXISTS "Update essu_marketplace anon" ON storage.objects;
+CREATE POLICY "Update essu_marketplace anon"
+ON storage.objects FOR UPDATE TO anon, authenticated
+USING (bucket_id = 'essu_marketplace')
+WITH CHECK (bucket_id = 'essu_marketplace');
+
+DROP POLICY IF EXISTS "Delete essu_marketplace anon" ON storage.objects;
+CREATE POLICY "Delete essu_marketplace anon"
+ON storage.objects FOR DELETE TO anon, authenticated
+USING (bucket_id = 'essu_marketplace');
