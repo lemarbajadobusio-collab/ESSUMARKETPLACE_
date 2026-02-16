@@ -48,8 +48,11 @@ const profileForgotBtn = document.getElementById("profileForgotBtn");
 const discoverSection = document.getElementById("discoverSection");
 const dashboardSection = document.getElementById("dashboardSection");
 const messagesSection = document.getElementById("messagesSection");
+const cartSection = document.getElementById("cartSection");
 const productDetailSection = document.getElementById("productDetailSection");
 const transactionsBtn = document.getElementById("transactionsBtn");
+const cartBtn = document.getElementById("cartBtn");
+const cartCountBadge = document.getElementById("cartCountBadge");
 const messagesBtn = document.getElementById("messagesBtn");
 const chatMessageInput = document.getElementById("chatMessageInput");
 const chatSendBtn = document.getElementById("chatSendBtn");
@@ -69,6 +72,10 @@ const totalPurchasesCountEl = document.getElementById("totalPurchasesCount");
 const totalPendingCountEl = document.getElementById("totalPendingCount");
 const transactionRows = document.getElementById("transactionRows");
 const txnFilter = document.getElementById("txnFilter");
+const backFromCart = document.getElementById("backFromCart");
+const cartItemsEl = document.getElementById("cartItems");
+const cartTotalEl = document.getElementById("cartTotal");
+const checkoutCartBtn = document.getElementById("checkoutCartBtn");
 const backToListingsBtn = document.getElementById("backToListingsBtn");
 const detailMainImage = document.getElementById("detailMainImage");
 const detailThumbs = document.getElementById("detailThumbs");
@@ -83,6 +90,7 @@ const detailDescription = document.getElementById("detailDescription");
 const detailSellerName = document.getElementById("detailSellerName");
 const detailSellerRole = document.getElementById("detailSellerRole");
 const viewSellerProfileBtn = document.getElementById("viewSellerProfileBtn");
+const addToCartBtn = document.getElementById("addToCartBtn");
 const contactSellerBtn = document.getElementById("contactSellerBtn");
 const listingGridCards = document.querySelector(".listing-grid-cards");
 const conversationList = document.getElementById("conversationList");
@@ -100,12 +108,14 @@ const STORAGE_KEYS = {
   listings: "essu_listings",
   transactions: "essu_transactions",
   users: "essu_users",
+  cart: "essu_cart",
   currentUser: "essu_current_user",
   activeConversation: "essu_active_conversation",
   conversations: "essu_conversations"
 };
 
 let transactions = []
+let cartItems = []
 
 function formatCurrency(value) {
   return `PHP ${value.toLocaleString()}`;
@@ -161,6 +171,7 @@ function persistData() {
     // keep existing namespaced storage
     saveStoredArray(STORAGE_KEYS.products, products);
     saveStoredArray(getUserStorageKey(STORAGE_KEYS.transactions), transactions);
+    saveStoredArray(getUserStorageKey(STORAGE_KEYS.cart), cartItems);
     saveStoredArray(STORAGE_KEYS.users, loadUsers()); // optional: keep users in sync if you use this helper
 
     // Add backward-compatible/global keys consumed by the dashboard
@@ -199,6 +210,8 @@ function loadUserData() {
   myListings = products.filter(item => item.sellerEmail === getCurrentUserEmail());
   transactions.length = 0;
   transactions.push(...loadStoredArray(getUserStorageKey(STORAGE_KEYS.transactions)));
+  cartItems.length = 0;
+  cartItems.push(...loadStoredArray(getUserStorageKey(STORAGE_KEYS.cart)));
 }
 
 loadUserData();
@@ -496,6 +509,213 @@ function removeProductForListing(item) {
   }
 }
 
+function isOwnListing(product) {
+  const currentEmail = getCurrentUserEmail().toLowerCase();
+  const sellerEmail = (resolveSellerEmail(product) || product?.sellerEmail || "").toLowerCase();
+  return Boolean(currentEmail && sellerEmail && currentEmail === sellerEmail);
+}
+
+function updateCartBadge() {
+  if (!cartCountBadge) return;
+  if (!cartItems.length) {
+    cartCountBadge.setAttribute("hidden", "hidden");
+    cartCountBadge.textContent = "0";
+    return;
+  }
+  cartCountBadge.removeAttribute("hidden");
+  cartCountBadge.textContent = String(cartItems.length);
+}
+
+function removeProductFromAllCarts(productId) {
+  const keys = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (!key) continue;
+    if (key === STORAGE_KEYS.cart || key.startsWith(`${STORAGE_KEYS.cart}:`)) {
+      keys.push(key);
+    }
+  }
+  keys.forEach(key => {
+    const items = loadStoredArray(key);
+    const filtered = items.filter(item => String(item.productId) !== String(productId));
+    if (filtered.length !== items.length) {
+      saveStoredArray(key, filtered);
+    }
+  });
+}
+
+function getCartProducts() {
+  const validItems = [];
+  const productMap = [];
+  cartItems.forEach(item => {
+    const product = products.find(p => String(p.id) === String(item.productId));
+    if (!product) return;
+    if ((product.status || "available") === "sold") return;
+    if (isOwnListing(product)) return;
+    validItems.push(item);
+    productMap.push(product);
+  });
+  if (validItems.length !== cartItems.length) {
+    cartItems = validItems;
+    persistData();
+  }
+  return productMap;
+}
+
+function renderCart() {
+  if (!cartItemsEl || !cartTotalEl || !checkoutCartBtn) return;
+  const cartProducts = getCartProducts();
+  if (!cartProducts.length) {
+    cartItemsEl.innerHTML = `<div class="cart-empty">Your cart is empty.</div>`;
+    cartTotalEl.textContent = formatCurrency(0);
+    checkoutCartBtn.disabled = true;
+    updateCartBadge();
+    return;
+  }
+
+  const total = cartProducts.reduce((sum, product) => sum + (Number(product.price) || 0), 0);
+  cartItemsEl.innerHTML = cartProducts
+    .map(product => {
+      const seller = product.sellerName || getUserDisplayName(product.sellerEmail || "") || "Seller";
+      return `
+        <div class="cart-item">
+          <img src="${product.image}" alt="${product.name}">
+          <div>
+            <h4>${product.name}</h4>
+            <p>Seller: ${seller}</p>
+            <div class="price">${formatCurrency(product.price)}</div>
+          </div>
+          <button type="button" class="remove-cart-btn" data-product-id="${product.id}">Remove</button>
+        </div>
+      `;
+    })
+    .join("");
+  cartTotalEl.textContent = formatCurrency(total);
+  checkoutCartBtn.disabled = false;
+  updateCartBadge();
+}
+
+function addToCart(productId) {
+  if (!getCurrentUserEmail()) {
+    alert("Please log in first.");
+    return;
+  }
+  const product = products.find(item => String(item.id) === String(productId));
+  if (!product) {
+    alert("Item not found.");
+    return;
+  }
+  if ((product.status || "available") === "sold") {
+    alert("This item is already sold.");
+    return;
+  }
+  if (isOwnListing(product)) {
+    alert("You cannot add your own listing to cart.");
+    return;
+  }
+  const exists = cartItems.some(item => String(item.productId) === String(product.id));
+  if (exists) {
+    alert("Item is already in your cart.");
+    return;
+  }
+  cartItems.unshift({
+    id: Date.now(),
+    productId: product.id,
+    addedAt: new Date().toISOString()
+  });
+  persistData();
+  renderCart();
+  updateCartBadge();
+  alert("Item added to cart.");
+}
+
+function completeSellerSale(product, date) {
+  const sellerEmail = (resolveSellerEmail(product) || product.sellerEmail || "").toLowerCase();
+  if (!sellerEmail) return;
+  const sellerTxnKey = `${STORAGE_KEYS.transactions}:${sellerEmail}`;
+  const sellerTransactions = loadStoredArray(sellerTxnKey);
+  const existingIndex = sellerTransactions.findIndex(txn => String(txn.listingId) === String(product.id));
+  if (existingIndex >= 0) {
+    sellerTransactions[existingIndex] = {
+      ...sellerTransactions[existingIndex],
+      date,
+      item: product.name,
+      type: "Sale",
+      status: "Completed",
+      amount: Number(product.price) || 0
+    };
+  } else {
+    sellerTransactions.unshift({
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      listingId: product.id,
+      date,
+      item: product.name,
+      type: "Sale",
+      status: "Completed",
+      amount: Number(product.price) || 0
+    });
+  }
+  saveStoredArray(sellerTxnKey, sellerTransactions);
+}
+
+function checkoutCart() {
+  const currentEmail = getCurrentUserEmail();
+  if (!currentEmail) {
+    alert("Please log in first.");
+    return;
+  }
+  const cartProducts = getCartProducts();
+  if (!cartProducts.length) {
+    alert("Your cart is empty.");
+    return;
+  }
+
+  const date = new Date().toISOString().slice(0, 10);
+  let count = 0;
+  let total = 0;
+
+  cartProducts.forEach(product => {
+    if (isOwnListing(product)) return;
+    if ((product.status || "available") === "sold") return;
+    const productIndex = products.findIndex(item => String(item.id) === String(product.id));
+    if (productIndex < 0) return;
+
+    products[productIndex] = {
+      ...products[productIndex],
+      status: "sold"
+    };
+
+    transactions.unshift({
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      listingId: product.id,
+      date,
+      item: product.name,
+      type: "Purchase",
+      status: "Completed",
+      amount: Number(product.price) || 0
+    });
+
+    completeSellerSale(product, date);
+    removeProductFromAllCarts(product.id);
+    count += 1;
+    total += Number(product.price) || 0;
+  });
+
+  cartItems = [];
+  persistData();
+  myListings = products.filter(item => item.sellerEmail === getCurrentUserEmail());
+  render(products);
+  renderMyListings();
+  renderDashboard(txnFilter?.value || "All");
+  renderCart();
+
+  if (!count) {
+    alert("No available items were checked out.");
+    return;
+  }
+  alert(`Purchase completed for ${count} item(s), total ${formatCurrency(total)}.`);
+}
+
 function render(data) {
   list.innerHTML = "";
   const visible = data.filter(product => (product.status || "available") !== "sold");
@@ -503,6 +723,7 @@ function render(data) {
     const description = p.description ? p.description : "No description provided.";
     const seller = p.sellerName || getUserDisplayName(p.sellerEmail || "") || "Seller";
     const sellerEmail = p.sellerEmail || resolveSellerEmail(p) || "";
+    const canAddToCart = !isOwnListing(p);
     const sellerPhoto = getUserPhoto(sellerEmail);
     const sellerInitials = getInitials(seller);
     const sellerAvatarMarkup = sellerPhoto
@@ -523,6 +744,11 @@ function render(data) {
             ${sellerAvatarMarkup}
             <span>${seller}</span>
           </div>
+          <div class="card-actions">
+            <button type="button" class="mini-cart-btn" data-action="add-to-cart" data-id="${p.id}" ${canAddToCart ? "" : "disabled"}>
+              Add to cart
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -531,6 +757,8 @@ function render(data) {
 
 render(products);
 renderMyListings();
+renderCart();
+updateCartBadge();
 
 function showProductDetail(product, index = 0) {
   if (!productDetailSection) return;
@@ -548,6 +776,14 @@ function showProductDetail(product, index = 0) {
   if (detailSellerName) detailSellerName.textContent = product.sellerName || "Seller";
   if (detailSellerRole) detailSellerRole.textContent = "Seller";
   currentProduct = product;
+  if (addToCartBtn) {
+    const sold = (product.status || "available") === "sold";
+    const own = isOwnListing(product);
+    addToCartBtn.disabled = sold || own;
+    if (sold) addToCartBtn.textContent = "Sold";
+    else if (own) addToCartBtn.textContent = "Your listing";
+    else addToCartBtn.textContent = "Add to Cart";
+  }
 
   const images = product.images && product.images.length ? product.images : [product.image];
   if (detailMainImage) detailMainImage.src = images[0];
@@ -568,6 +804,12 @@ function showProductDetail(product, index = 0) {
 
 if (list) {
   list.addEventListener("click", event => {
+    const addToCartCardBtn = event.target.closest(".mini-cart-btn");
+    if (addToCartCardBtn) {
+      event.stopPropagation();
+      addToCart(addToCartCardBtn.dataset.id);
+      return;
+    }
     const card = event.target.closest(".card");
     if (!card) return;
     const cardId = card.dataset.id;
@@ -648,10 +890,11 @@ if (txnFilter) {
 }
 
 function showSection(target) {
-  if (!discoverSection || !dashboardSection || !messagesSection || !profileSection || !profileEditSection || !productDetailSection || !passwordResetSection) return;
+  if (!discoverSection || !dashboardSection || !messagesSection || !cartSection || !profileSection || !profileEditSection || !productDetailSection || !passwordResetSection) return;
   discoverSection.setAttribute("hidden", "hidden");
   dashboardSection.setAttribute("hidden", "hidden");
   messagesSection.setAttribute("hidden", "hidden");
+  cartSection.setAttribute("hidden", "hidden");
   profileSection.setAttribute("hidden", "hidden");
   profileEditSection.setAttribute("hidden", "hidden");
   passwordResetSection.setAttribute("hidden", "hidden");
@@ -663,6 +906,8 @@ function showSection(target) {
     localStorage.setItem(STORAGE_KEYS.section, "dashboard");
   } else if (target === messagesSection) {
     localStorage.setItem(STORAGE_KEYS.section, "messages");
+  } else if (target === cartSection) {
+    localStorage.setItem(STORAGE_KEYS.section, "cart");
   } else if (target === profileSection) {
     localStorage.setItem(STORAGE_KEYS.section, "profile");
   } else if (target === profileEditSection) {
@@ -714,6 +959,8 @@ if (savedAppState === "app" && currentUserEmail) {
   render(products);
   renderMyListings();
   renderDashboard(txnFilter?.value || "All");
+  renderCart();
+  updateCartBadge();
   const users = loadUsers();
   const user = users.find(u => u.email?.toLowerCase() === currentUserEmail.toLowerCase());
   applyUserProfile(user);
@@ -722,6 +969,10 @@ if (savedAppState === "app" && currentUserEmail) {
   renderConversations();
   if (savedSection === "dashboard") showSection(dashboardSection);
   else if (savedSection === "messages") showSection(messagesSection);
+  else if (savedSection === "cart") {
+    renderCart();
+    showSection(cartSection);
+  }
   else if (savedSection === "profile") showSection(profileSection);
   else if (savedSection === "profileEdit") showSection(profileEditSection);
   else if (savedSection === "passwordReset") showSection(passwordResetSection);
@@ -920,6 +1171,8 @@ if (loginForm) {
     render(products);
     renderMyListings();
     renderDashboard(txnFilter?.value || "All");
+    renderCart();
+    updateCartBadge();
     migrateLegacyMessages();
     renderConversations();
     applyUserProfile(user);
@@ -1048,9 +1301,12 @@ if (signoutBtn) {
     products.length = 0;
     myListings.length = 0;
     transactions.length = 0;
+    cartItems.length = 0;
     render(products);
     renderMyListings();
     renderDashboard("All");
+    renderCart();
+    updateCartBadge();
     renderChatMessages([]);
     renderConversations();
     applyProfilePhoto("");
@@ -1292,6 +1548,34 @@ if (transactionsBtn && dashboardSection) {
   });
 }
 
+if (cartBtn && cartSection) {
+  cartBtn.addEventListener("click", () => {
+    renderCart();
+    showSection(cartSection);
+  });
+}
+
+if (backFromCart) {
+  backFromCart.addEventListener("click", () => {
+    showDiscover();
+  });
+}
+
+if (cartItemsEl) {
+  cartItemsEl.addEventListener("click", event => {
+    const removeBtn = event.target.closest(".remove-cart-btn");
+    if (!removeBtn) return;
+    const productId = removeBtn.dataset.productId;
+    cartItems = cartItems.filter(item => String(item.productId) !== String(productId));
+    persistData();
+    renderCart();
+  });
+}
+
+if (checkoutCartBtn) {
+  checkoutCartBtn.addEventListener("click", checkoutCart);
+}
+
 if (messagesBtn && messagesSection) {
   messagesBtn.addEventListener("click", () => {
     renderConversations();
@@ -1348,6 +1632,13 @@ if (contactSellerBtn) {
     }
     ensureConversationForCurrentProduct();
     showSection(messagesSection);
+  });
+}
+
+if (addToCartBtn) {
+  addToCartBtn.addEventListener("click", () => {
+    if (!currentProduct) return;
+    addToCart(currentProduct.id);
   });
 }
 
@@ -1456,6 +1747,8 @@ if (listingGridCards) {
         if (productIndex >= 0) {
           products[productIndex] = { ...products[productIndex], status: "sold" };
         }
+        removeProductFromAllCarts(item.id);
+        cartItems = cartItems.filter(cartItem => String(cartItem.productId) !== String(item.id));
         const txnIndex = transactions.findIndex(txn => txn.listingId === item.id);
         if (txnIndex >= 0) {
           transactions[txnIndex] = { ...transactions[txnIndex], status: "Completed" };
@@ -1464,6 +1757,7 @@ if (listingGridCards) {
         persistData();
         renderMyListings();
         render(products);
+        renderCart();
         renderDashboard(txnFilter?.value || "All");
         return;
       }
@@ -1503,6 +1797,8 @@ if (listingGridCards) {
         if (productIndex >= 0) {
           products.splice(productIndex, 1);
         }
+        removeProductFromAllCarts(item.id);
+        cartItems = cartItems.filter(cartItem => String(cartItem.productId) !== String(item.id));
         const txnIndex = transactions.findIndex(txn => txn.listingId === item.id);
         if (txnIndex >= 0) {
           transactions.splice(txnIndex, 1);
@@ -1511,6 +1807,7 @@ if (listingGridCards) {
         persistData();
         render(products);
         renderMyListings();
+        renderCart();
         renderDashboard(txnFilter?.value || "All");
         alert("Item deleted.");
       }
