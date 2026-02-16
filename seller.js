@@ -167,7 +167,8 @@ function getPhotoStorageKey(email) {
   return email ? `essu_user_photo:${email.toLowerCase()}` : "essu_user_photo";
 }
 
-const LEGACY_MESSAGES_KEY = "essu_messages";
+let conversationsCache = [];
+let conversationMessages = {};
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -194,9 +195,7 @@ function setCurrentUserId(id) {
 }
 
 function persistData() {
-  // backend is now source of truth; keep lightweight cache for compatibility only
-  localStorage.setItem("products", JSON.stringify(products));
-  localStorage.setItem("orders", JSON.stringify(transactions));
+  // backend is now source of truth; no local database persistence
 }
 
 async function loadUserData() {
@@ -238,33 +237,26 @@ async function loadUserData() {
   persistData();
 }
 
-function loadConversations() {
-  return loadStoredArray(STORAGE_KEYS.conversations);
+async function loadConversations() {
+  if (!currentUserId) {
+    conversationsCache = [];
+    return conversationsCache;
+  }
+  const data = await apiRequest(`/conversations?userId=${currentUserId}`);
+  conversationsCache = data.conversations || [];
+  return conversationsCache;
 }
 
-function saveConversations(conversations) {
-  saveStoredArray(STORAGE_KEYS.conversations, conversations);
+function getConversationById(conversationId) {
+  return conversationsCache.find(c => String(c.id) === String(conversationId));
 }
 
-function migrateLegacyMessages() {
-  const currentEmail = getCurrentUserEmail();
-  if (!currentEmail) return;
-  const legacy = loadStoredArray(getUserStorageKey(LEGACY_MESSAGES_KEY));
-  if (!legacy.length) return;
-  const conversations = loadConversations();
-  const hasLegacy = conversations.some(c => c.id === `legacy:${currentEmail}`);
-  if (hasLegacy) return;
-  conversations.push({
-    id: `legacy:${currentEmail}`,
-    listingId: "legacy",
-    participants: [currentEmail, "legacy"],
-    messages: legacy.map(msg => ({
-      sender: currentEmail,
-      text: msg.text || msg,
-      time: msg.time || "Just now"
-    }))
-  });
-  saveConversations(conversations);
+async function loadConversationMessages(conversationId) {
+  if (!conversationId) return [];
+  const data = await apiRequest(`/conversations/${conversationId}/messages`);
+  const messages = data.messages || [];
+  conversationMessages[String(conversationId)] = messages;
+  return messages;
 }
 
 function getConversationId(buyerEmail, sellerEmail, listingId) {
@@ -290,53 +282,60 @@ function resolveSellerEmail(product) {
   return "";
 }
 
-function ensureConversationForCurrentProduct() {
-  if (!currentProduct) return "";
-  const buyerEmail = getCurrentUserEmail();
-  const sellerEmail = resolveSellerEmail(currentProduct) || currentProduct.sellerEmail;
-  if (!buyerEmail || !sellerEmail) return "";
-  const convoId = getConversationId(buyerEmail, sellerEmail, currentProduct.id);
-  const conversations = loadConversations();
-  let convo = conversations.find(c => c.id === convoId);
-  if (!convo) {
-    convo = {
-      id: convoId,
-      listingId: currentProduct.id,
-      participants: [buyerEmail, sellerEmail],
-      messages: []
-    };
-    conversations.push(convo);
-    saveConversations(conversations);
-  }
-  activeConversationId = convoId;
+async function openConversation(conversationId) {
+  const convo = getConversationById(conversationId);
+  if (!convo) return;
+  activeConversationId = String(convo.id);
   localStorage.setItem(STORAGE_KEYS.activeConversation, activeConversationId);
-  const otherName = currentProduct.sellerName || getUserDisplayName(sellerEmail) || "Seller";
+
+  const otherParticipant = (convo.participants || []).find(p => Number(p.id) !== Number(currentUserId));
+  const otherName = otherParticipant?.fullname || getUserDisplayName(otherParticipant?.email || "") || "User";
+  const otherEmail = otherParticipant?.email || "";
+
   if (chatUserName) chatUserName.textContent = otherName;
   if (chatUserAvatar) {
-    const photo = getUserPhoto(sellerEmail);
+    const photo = getUserPhoto(otherEmail);
     chatUserAvatar.style.backgroundImage = photo ? `url('${photo}')` : "";
     chatUserAvatar.style.backgroundSize = photo ? "cover" : "";
     chatUserAvatar.style.backgroundPosition = photo ? "center" : "";
     chatUserAvatar.textContent = photo ? "" : getInitials(otherName) || "--";
   }
   if (chatUserStatus) chatUserStatus.textContent = "Online";
+
+  const messages = await loadConversationMessages(conversationId);
+  renderChatMessages(messages);
+}
+
+async function ensureConversationForCurrentProduct() {
+  if (!currentProduct || !currentUserId) return "";
+  const otherUserId = Number(currentProduct.sellerUserId || 0);
+  if (!otherUserId || otherUserId === currentUserId) return "";
+
+  const result = await apiRequest("/conversations", {
+    method: "POST",
+    body: JSON.stringify({
+      listingProductId: currentProduct.id,
+      participantUserIds: [currentUserId, otherUserId]
+    })
+  });
+  activeConversationId = String(result.conversationId || "");
+  if (!activeConversationId) return "";
+  localStorage.setItem(STORAGE_KEYS.activeConversation, activeConversationId);
+  await loadConversations();
+  await openConversation(activeConversationId);
   renderConversations();
-  renderChatMessages(convo.messages);
-  return convoId;
+  return activeConversationId;
 }
 
 function renderChatMessages(messages) {
   if (!chatBody) return;
   chatBody.innerHTML = "";
   messages.forEach(msg => {
-    const bubbleType = msg.sender
-      ? msg.sender === getCurrentUserEmail()
-        ? "outgoing"
-        : "incoming"
-      : msg.type || "outgoing";
+    const senderId = Number(msg.sender_user_id || 0);
+    const bubbleType = senderId === Number(currentUserId) ? "outgoing" : "incoming";
     const bubble = document.createElement("div");
     bubble.className = `chat-bubble ${bubbleType}`;
-    bubble.textContent = msg.text;
+    bubble.textContent = msg.message_text || "";
     const time = document.createElement("div");
     time.className = `chat-time${bubbleType === "outgoing" ? " right" : ""}`;
     time.textContent = formatMessageTime(msg);
@@ -348,34 +347,33 @@ function renderChatMessages(messages) {
 
 function renderConversations() {
   if (!conversationList) return;
-  const currentEmail = getCurrentUserEmail();
   const searchTerm = messageSearchInput?.value?.trim().toLowerCase() || "";
-  const allConversations = loadConversations().filter(c => c.participants.includes(currentEmail));
-  const conversations = allConversations.filter(convo => {
+
+  const conversations = (conversationsCache || []).filter(convo => {
     if (!searchTerm) return true;
-    const otherEmail = convo.participants.find(e => e !== currentEmail) || currentEmail;
-    const otherName = getUserDisplayName(otherEmail).toLowerCase();
-    const preview = convo.messages.length ? String(convo.messages[convo.messages.length - 1].text || "") : "";
-    return (
-      otherName.includes(searchTerm) ||
-      otherEmail.toLowerCase().includes(searchTerm) ||
-      preview.toLowerCase().includes(searchTerm)
-    );
+    const otherParticipant = (convo.participants || []).find(p => Number(p.id) !== Number(currentUserId)) || {};
+    const otherName = String(otherParticipant.fullname || "").toLowerCase();
+    const otherEmail = String(otherParticipant.email || "").toLowerCase();
+    const preview = String(convo.lastMessage?.text || "").toLowerCase();
+    return otherName.includes(searchTerm) || otherEmail.includes(searchTerm) || preview.includes(searchTerm);
   });
+
   if (!activeConversationId && conversations.length) {
-    activeConversationId = conversations[0].id;
+    activeConversationId = String(conversations[0].id);
   }
   if (activeConversationId) {
     localStorage.setItem(STORAGE_KEYS.activeConversation, activeConversationId);
   }
+
   conversationList.innerHTML = "";
   conversations.forEach(convo => {
-    const otherEmail = convo.participants.find(e => e !== currentEmail) || currentEmail;
-    const otherName = getUserDisplayName(otherEmail);
-    const lastMessage = convo.messages.length ? convo.messages[convo.messages.length - 1] : null;
-    const preview = lastMessage ? lastMessage.text : "No messages yet";
-    const timeLabel = formatConversationTime(lastMessage?.time || lastMessage?.timestamp);
-    const isActive = convo.id === activeConversationId;
+    const otherParticipant = (convo.participants || []).find(p => Number(p.id) !== Number(currentUserId)) || {};
+    const otherName = otherParticipant.fullname || getUserDisplayName(otherParticipant.email || "") || "User";
+    const otherEmail = otherParticipant.email || "";
+    const preview = convo.lastMessage?.text || "No messages yet";
+    const timeLabel = formatConversationTime(convo.lastMessage?.created_at);
+    const isActive = String(convo.id) === String(activeConversationId);
+
     const item = document.createElement("div");
     item.className = `conversation${isActive ? " active" : ""}`;
     item.setAttribute("role", "button");
@@ -389,19 +387,10 @@ function renderConversations() {
       </div>
       <div class="conversation-time">${timeLabel}</div>
     `;
-    item.addEventListener("click", () => {
-      activeConversationId = convo.id;
-      localStorage.setItem(STORAGE_KEYS.activeConversation, activeConversationId);
-      if (chatUserName) chatUserName.textContent = otherName;
-      if (chatUserAvatar) {
-        const photo = getUserPhoto(otherEmail);
-        chatUserAvatar.style.backgroundImage = photo ? `url('${photo}')` : "";
-        chatUserAvatar.style.backgroundSize = photo ? "cover" : "";
-        chatUserAvatar.style.backgroundPosition = photo ? "center" : "";
-        chatUserAvatar.textContent = photo ? "" : getInitials(otherName) || "--";
-      }
-      if (chatUserStatus) chatUserStatus.textContent = "Online";
-      renderChatMessages(convo.messages);
+
+    item.addEventListener("click", async () => {
+      await openConversation(convo.id);
+      await loadConversations();
       renderConversations();
     });
     item.addEventListener("keydown", event => {
@@ -414,20 +403,9 @@ function renderConversations() {
   });
 
   if (activeConversationId) {
-    const activeConvo = conversations.find(c => c.id === activeConversationId);
+    const activeConvo = conversations.find(c => String(c.id) === String(activeConversationId));
     if (activeConvo) {
-      const otherEmail = activeConvo.participants.find(e => e !== currentEmail) || currentEmail;
-      const otherName = getUserDisplayName(otherEmail);
-      if (chatUserName) chatUserName.textContent = otherName;
-      if (chatUserAvatar) {
-        const photo = getUserPhoto(otherEmail);
-        chatUserAvatar.style.backgroundImage = photo ? `url('${photo}')` : "";
-        chatUserAvatar.style.backgroundSize = photo ? "cover" : "";
-        chatUserAvatar.style.backgroundPosition = photo ? "center" : "";
-        chatUserAvatar.textContent = photo ? "" : getInitials(otherName) || "--";
-      }
-      if (chatUserStatus) chatUserStatus.textContent = "Online";
-      renderChatMessages(activeConvo.messages);
+      openConversation(activeConvo.id);
     }
   }
 }
@@ -445,14 +423,12 @@ function formatConversationTime(raw) {
   return parsed.toLocaleDateString();
 }
 
-function deleteConversation(convoId) {
-  const conversations = loadConversations();
-  const index = conversations.findIndex(c => c.id === convoId);
-  if (index < 0) return;
-  conversations.splice(index, 1);
-  saveConversations(conversations);
+async function deleteConversation(convoId) {
+  if (!convoId) return;
+  await apiRequest(`/conversations/${convoId}`, { method: "DELETE" });
+  await loadConversations();
 
-  if (activeConversationId === convoId) {
+  if (String(activeConversationId) === String(convoId)) {
     activeConversationId = "";
     localStorage.removeItem(STORAGE_KEYS.activeConversation);
     if (chatUserName) chatUserName.textContent = "Select a conversation";
@@ -468,26 +444,21 @@ function deleteConversation(convoId) {
   renderConversations();
 }
 
-function appendMessage(text) {
-  const currentEmail = getCurrentUserEmail();
-  if (!currentEmail || !activeConversationId) return;
-  const conversations = loadConversations();
-  const convo = conversations.find(c => c.id === activeConversationId);
-  if (!convo) return;
-  const now = new Date();
-  convo.messages.push({
-    sender: currentEmail,
-    text,
-    time: now.toISOString()
+async function appendMessage(text) {
+  if (!currentUserId || !activeConversationId) return;
+  await apiRequest(`/conversations/${activeConversationId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ senderUserId: currentUserId, text })
   });
-  saveConversations(conversations);
-  renderChatMessages(convo.messages);
+  await loadConversations();
+  const messages = await loadConversationMessages(activeConversationId);
+  renderChatMessages(messages);
   renderConversations();
 }
 
 function formatMessageTime(msg) {
   if (!msg) return "";
-  const raw = msg.time || msg.timestamp || "";
+  const raw = msg.created_at || msg.time || msg.timestamp || "";
   if (!raw) return "";
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return String(raw);
@@ -902,7 +873,11 @@ async function initSellerApp() {
       }
       applyUserProfile(user);
       applyProfilePhoto(getUserPhoto(currentUserEmail));
+      await loadConversations();
       renderConversations();
+      if (savedActiveConversation) {
+        await openConversation(savedActiveConversation);
+      }
       if (savedSection === "dashboard") showSection(dashboardSection);
       else if (savedSection === "messages") showSection(messagesSection);
       else if (savedSection === "cart") {
@@ -1036,7 +1011,7 @@ function getUserPhoto(email) {
   const users = loadUsers();
   const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
   if (user?.photo) return user.photo;
-  return localStorage.getItem(getPhotoStorageKey(email)) || "";
+  return "";
 }
 
 function applyProfilePhoto(photoDataUrl) {
@@ -1492,7 +1467,8 @@ if (checkoutCartBtn) {
 }
 
 if (messagesBtn && messagesSection) {
-  messagesBtn.addEventListener("click", () => {
+  messagesBtn.addEventListener("click", async () => {
+    await loadConversations();
     renderConversations();
     showSection(messagesSection);
   });
@@ -1515,7 +1491,7 @@ if (chatMenuBtn && chatMenuPanel) {
 }
 
 if (deleteConversationBtn) {
-  deleteConversationBtn.addEventListener("click", event => {
+  deleteConversationBtn.addEventListener("click", async event => {
     event.stopPropagation();
     if (!activeConversationId) {
       alert("Select a conversation first.");
@@ -1523,14 +1499,14 @@ if (deleteConversationBtn) {
     }
     const confirmDelete = confirm("Delete conversation?");
     if (confirmDelete) {
-      deleteConversation(activeConversationId);
+      await deleteConversation(activeConversationId);
       if (chatMenuPanel) chatMenuPanel.classList.remove("open");
     }
   });
 }
 
 if (contactSellerBtn) {
-  contactSellerBtn.addEventListener("click", () => {
+  contactSellerBtn.addEventListener("click", async () => {
     if (!currentProduct) {
       showSection(messagesSection);
       return;
@@ -1545,7 +1521,7 @@ if (contactSellerBtn) {
       alert("This is your own listing.");
       return;
     }
-    ensureConversationForCurrentProduct();
+    await ensureConversationForCurrentProduct();
     showSection(messagesSection);
   });
 }
@@ -1853,18 +1829,18 @@ if (chatImageInput) {
   });
 }
 
-function sendChatMessage() {
+async function sendChatMessage() {
   if (!chatMessageInput || !chatBody) return;
   const message = chatMessageInput.value.trim();
   if (!message) return;
   if (!activeConversationId) {
-    const convoId = ensureConversationForCurrentProduct();
+    const convoId = await ensureConversationForCurrentProduct();
     if (!convoId) {
       alert("Select a conversation first.");
       return;
     }
   }
-  appendMessage(message);
+  await appendMessage(message);
   chatMessageInput.value = "";
 }
 

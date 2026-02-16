@@ -7,7 +7,7 @@ const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "20mb" }));
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
@@ -122,6 +122,39 @@ async function seedDefaultAdmin() {
     joined_at: nowIso(),
     updated_at: nowIso()
   });
+}
+
+async function findExistingConversation(participantUserIds, listingProductId) {
+  const participants = Array.from(new Set((participantUserIds || []).map(id => Number(id)).filter(Boolean)));
+  if (participants.length < 2) return null;
+
+  const [firstId, secondId] = participants;
+  const firstRows = await supabase
+    .from("conversation_participants")
+    .select("conversation_id")
+    .eq("user_id", firstId);
+  if (firstRows.error) return null;
+  const firstIds = (firstRows.data || []).map(row => row.conversation_id);
+  if (!firstIds.length) return null;
+
+  const secondRows = await supabase
+    .from("conversation_participants")
+    .select("conversation_id")
+    .eq("user_id", secondId)
+    .in("conversation_id", firstIds);
+  if (secondRows.error) return null;
+  const sharedIds = (secondRows.data || []).map(row => row.conversation_id);
+  if (!sharedIds.length) return null;
+
+  let query = supabase.from("conversations").select("id, listing_product_id").in("id", sharedIds);
+  if (listingProductId == null) {
+    query = query.is("listing_product_id", null);
+  } else {
+    query = query.eq("listing_product_id", listingProductId);
+  }
+  const existing = await query.order("created_at", { ascending: false }).maybeSingle();
+  if (existing.error) return null;
+  return existing.data?.id ? Number(existing.data.id) : null;
 }
 
 app.get("/api/health", async (_req, res) => {
@@ -525,13 +558,64 @@ app.get("/api/conversations", async (req, res) => {
     .in("id", ids)
     .order("created_at", { ascending: false });
   if (convos.error) return res.status(500).json({ error: convos.error.message });
-  return res.json({ conversations: convos.data || [] });
+
+  const participants = await supabase
+    .from("conversation_participants")
+    .select("conversation_id, user:users(id, fullname, email)")
+    .in("conversation_id", ids);
+  if (participants.error) return res.status(500).json({ error: participants.error.message });
+
+  const messages = await supabase
+    .from("messages")
+    .select("conversation_id, message_text, created_at, sender_user_id")
+    .in("conversation_id", ids)
+    .order("created_at", { ascending: false });
+  if (messages.error) return res.status(500).json({ error: messages.error.message });
+
+  const participantsByConversation = {};
+  (participants.data || []).forEach(row => {
+    const key = String(row.conversation_id);
+    if (!participantsByConversation[key]) participantsByConversation[key] = [];
+    if (row.user) {
+      participantsByConversation[key].push({
+        id: Number(row.user.id),
+        fullname: row.user.fullname || "",
+        email: row.user.email || ""
+      });
+    }
+  });
+
+  const lastMessageByConversation = {};
+  (messages.data || []).forEach(row => {
+    const key = String(row.conversation_id);
+    if (lastMessageByConversation[key]) return;
+    lastMessageByConversation[key] = {
+      text: row.message_text,
+      created_at: row.created_at,
+      sender_user_id: Number(row.sender_user_id)
+    };
+  });
+
+  const payload = (convos.data || []).map(convo => ({
+    id: Number(convo.id),
+    listingProductId: convo.listing_product_id ? Number(convo.listing_product_id) : null,
+    createdAt: convo.created_at,
+    participants: participantsByConversation[String(convo.id)] || [],
+    lastMessage: lastMessageByConversation[String(convo.id)] || null
+  }));
+
+  return res.json({ conversations: payload });
 });
 
 app.post("/api/conversations", async (req, res) => {
   const { listingProductId = null, participantUserIds = [] } = req.body || {};
   if (!Array.isArray(participantUserIds) || participantUserIds.length < 2) {
     return res.status(400).json({ error: "participantUserIds must contain at least 2 users." });
+  }
+
+  const existingId = await findExistingConversation(participantUserIds, listingProductId);
+  if (existingId) {
+    return res.json({ conversationId: Number(existingId), existing: true });
   }
 
   const convo = await supabase
@@ -550,6 +634,22 @@ app.post("/api/conversations", async (req, res) => {
   if (insertPart.error) return res.status(500).json({ error: insertPart.error.message });
 
   return res.status(201).json({ conversationId: Number(conversationId) });
+});
+
+app.delete("/api/conversations/:conversationId", async (req, res) => {
+  const conversationId = Number(req.params.conversationId);
+  if (!conversationId) return res.status(400).json({ error: "Invalid conversation id." });
+
+  const deleteMessages = await supabase.from("messages").delete().eq("conversation_id", conversationId);
+  if (deleteMessages.error) return res.status(500).json({ error: deleteMessages.error.message });
+
+  const deleteParticipants = await supabase.from("conversation_participants").delete().eq("conversation_id", conversationId);
+  if (deleteParticipants.error) return res.status(500).json({ error: deleteParticipants.error.message });
+
+  const deleteConversation = await supabase.from("conversations").delete().eq("id", conversationId);
+  if (deleteConversation.error) return res.status(500).json({ error: deleteConversation.error.message });
+
+  return res.json({ ok: true });
 });
 
 app.get("/api/conversations/:conversationId/messages", async (req, res) => {

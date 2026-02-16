@@ -2,6 +2,9 @@ const API_BASE = "http://localhost:3000/api";
 let usersCache = [];
 let products = [];
 let cart = [];
+let conversationsCache = [];
+let messagesCache = {};
+let activeConversationId = "";
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -38,6 +41,34 @@ async function refreshUsers() {
   const data = await apiRequest("/users");
   usersCache = data.users || [];
   return usersCache;
+}
+
+function getUserByEmail(email) {
+  if (!email) return null;
+  return usersCache.find(u => String(u.email || "").toLowerCase() === String(email).toLowerCase()) || null;
+}
+
+function getUserPhotoByEmail(email) {
+  const user = getUserByEmail(email);
+  return user?.photo || "";
+}
+
+async function loadBuyerConversations() {
+  if (!currentBuyerId()) {
+    conversationsCache = [];
+    return conversationsCache;
+  }
+  const data = await apiRequest(`/conversations?userId=${currentBuyerId()}`);
+  conversationsCache = data.conversations || [];
+  return conversationsCache;
+}
+
+async function loadBuyerMessages(conversationId) {
+  if (!conversationId) return [];
+  const data = await apiRequest(`/conversations/${conversationId}/messages`);
+  const messages = data.messages || [];
+  messagesCache[String(conversationId)] = messages;
+  return messages;
 }
 
 // Check if on dashboard and redirect to login if not authenticated
@@ -148,6 +179,7 @@ async function refreshProducts() {
     desc: p.description || "",
     seller: p.sellerName || "Seller",
     sellerEmail: p.sellerEmail || "",
+    sellerUserId: Number(p.sellerUserId || 0),
     condition: p.condition || "Used",
     category: p.category || "Other",
     status: p.status || "available"
@@ -371,12 +403,14 @@ async function bootstrapBuyerData() {
     await refreshUsers();
     await refreshProducts();
     await loadCart();
+    await loadBuyerConversations();
   } catch (error) {
     console.error(error);
   }
   renderProducts();
   renderCart();
   updateCartBadge();
+  updateMsgBadge();
 }
 
 /* Checkout modal flow (modal-based stepper) */
@@ -633,6 +667,37 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2200);
 }
 
+function compressImageFile(file, maxSize = 600, quality = 0.8) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          if (width >= height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+}
+
 // update cart badge on load via bootstrapBuyerData()
 
 // Notifications and Messages
@@ -660,92 +725,100 @@ function renderNotifications(){
   });
 }
 
-function renderMessages(){
-  const buyer = currentBuyer();
-  const msgs = JSON.parse(localStorage.getItem('messages') || '[]');
-  const convos = {};
-  msgs.forEach(m => {
-    if(m.from === buyer || m.to === buyer){
-      const other = m.from === buyer ? m.to : m.from;
-      if(!convos[other]) convos[other] = [];
-      convos[other].push(m);
-    }
-  });
+async function renderMessages(){
+  const buyerId = currentBuyerId();
   const list = document.getElementById('conversationsList');
+  if (!list) return;
   list.innerHTML = '';
-  Object.keys(convos).forEach(seller => {
-    const conv = convos[seller];
-    const lastMsg = conv[conv.length-1];
+
+  if (!buyerId) {
+    list.innerHTML = '<p class="muted">Please login to view messages.</p>';
+    updateMsgBadge();
+    return;
+  }
+
+  await loadBuyerConversations();
+  if (!conversationsCache.length) {
+    list.innerHTML = '<p class="muted">No messages yet.</p>';
+    updateMsgBadge();
+    return;
+  }
+
+  conversationsCache.forEach(convo => {
+    const other = (convo.participants || []).find(p => Number(p.id) !== Number(buyerId)) || {};
+    const otherName = other.fullname || other.email || 'Seller';
+    const photo = getUserPhotoByEmail(other.email || "");
+    const lastText = convo.lastMessage?.text || 'No messages yet';
+    const timeLabel = convo.lastMessage?.created_at ? new Date(convo.lastMessage.created_at).toLocaleString() : '';
+
     const item = document.createElement('div');
     item.className = 'conversation-item';
     item.innerHTML = `
-      <img src="https://via.placeholder.com/50" alt="${seller}">
+      <img src="${photo || "https://via.placeholder.com/50"}" alt="${otherName}">
       <div class="info">
-        <div class="name">${seller}</div>
-        <div class="last-msg">${lastMsg.text}</div>
-        <div class="time">${new Date(lastMsg.time).toLocaleString()}</div>
+        <div class="name">${otherName}</div>
+        <div class="last-msg">${lastText}</div>
+        <div class="time">${timeLabel}</div>
       </div>
     `;
-    item.onclick = () => openChat(seller);
+    item.onclick = () => openChat(convo.id);
     list.appendChild(item);
   });
-  if(!Object.keys(convos).length){
-    list.innerHTML = '<p class="muted">No messages yet.</p>';
-  }
   updateMsgBadge();
 }
 
-function openChat(seller){
-  document.getElementById('conversationsList').classList.add('hidden');
-  document.getElementById('chatView').classList.remove('hidden');
-  document.getElementById('chatSellerName').textContent = seller;
-  renderChat(seller);
+async function openChat(conversationId){
+  activeConversationId = String(conversationId || "");
+  const list = document.getElementById('conversationsList');
+  const chatView = document.getElementById('chatView');
+  if (list) list.classList.add('hidden');
+  if (chatView) chatView.classList.remove('hidden');
+
+  const convo = conversationsCache.find(c => String(c.id) === String(activeConversationId));
+  const other = (convo?.participants || []).find(p => Number(p.id) !== Number(currentBuyerId())) || {};
+  const chatName = document.getElementById('chatSellerName');
+  if (chatName) chatName.textContent = other.fullname || other.email || 'Seller';
+
+  await renderChat(activeConversationId);
 }
 
-function renderChat(seller){
-  const buyer = currentBuyer();
-  const msgs = JSON.parse(localStorage.getItem('messages') || '[]');
-  const chatMsgs = msgs.filter(m => (m.from === buyer && m.to === seller) || (m.from === seller && m.to === buyer));
+async function renderChat(conversationId){
+  if (!conversationId) return;
   const chatDiv = document.getElementById('chatMessages');
+  if (!chatDiv) return;
   chatDiv.innerHTML = '';
-  chatMsgs.forEach(m => {
+  const msgs = await loadBuyerMessages(conversationId);
+  msgs.forEach(m => {
     const msgDiv = document.createElement('div');
-    msgDiv.className = 'message ' + (m.from === buyer ? 'sent' : 'received');
-    msgDiv.innerHTML = `<div class="bubble">${m.text}</div>`;
+    const bubbleClass = Number(m.sender_user_id) === Number(currentBuyerId()) ? 'sent' : 'received';
+    msgDiv.className = 'message ' + bubbleClass;
+    msgDiv.innerHTML = `<div class="bubble">${m.message_text || ''}</div>`;
     chatDiv.appendChild(msgDiv);
   });
   chatDiv.scrollTop = chatDiv.scrollHeight;
 }
 
-function sendMessage(){
-  const buyer = currentBuyer();
-  if(!buyer) return alert('Please login first.');
+async function sendMessage(){
+  if (!currentBuyerId()) return alert('Please login first.');
   const input = document.getElementById('messageInput');
+  if (!input) return;
   const text = input.value.trim();
   if(!text) return;
-  const seller = document.getElementById('chatSellerName').textContent;
-  const msgs = JSON.parse(localStorage.getItem('messages') || '[]');
-  msgs.push({ from: buyer, to: seller, text, time: new Date().toISOString(), read: false });
-  localStorage.setItem('messages', JSON.stringify(msgs));
-  // Mirror message into seller-facing conversation store so seller UI can read it
-  try {
-    const convKey = 'essu_conversations';
-    const convos = JSON.parse(localStorage.getItem(convKey) || '[]');
-    const lid = '0';
-    const convoId = [buyer, seller].sort().join('|') + ':' + lid;
-    let convo = convos.find(c => c.id === convoId);
-    if (!convo) {
-      convo = { id: convoId, listingId: lid, participants: [buyer, seller], messages: [] };
-      convos.push(convo);
-    }
-    convo.messages.push({ sender: buyer, text: text, time: new Date().toISOString() });
-    localStorage.setItem(convKey, JSON.stringify(convos));
-  } catch (e) { console.error('Conversation sync failed', e); }
-  // Log message activity for admin (store short snippet)
-  addActivity('message_sent', buyer, { to: seller, snippet: text.slice(0,120) });
-  input.value = '';
-  renderChat(seller);
+  if (!activeConversationId) return;
+
+  await apiRequest(`/conversations/${activeConversationId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ senderUserId: currentBuyerId(), text })
+  });
+
+  await loadBuyerConversations();
+  await renderChat(activeConversationId);
   updateMsgBadge();
+
+  // Log message activity for admin (store short snippet)
+  const buyer = currentBuyer();
+  if (buyer) addActivity('message_sent', buyer, { to: document.getElementById('chatSellerName').textContent, snippet: text.slice(0,120) });
+  input.value = '';
 }
 
 function backToConversations(){
@@ -761,10 +834,14 @@ function updateNotifBadge(){
 }
 
 function updateMsgBadge(){
-  const buyer = currentBuyer();
-  const msgs = JSON.parse(localStorage.getItem('messages') || '[]');
-  const unread = msgs.filter(m => m.to === buyer && !m.read).length;
-  document.getElementById('msgBadge').textContent = unread || '';
+  const badge = document.getElementById('msgBadge');
+  if (!badge) return;
+  const buyerId = currentBuyerId();
+  const unread = (conversationsCache || []).reduce((count, convo) => {
+    if (!convo.lastMessage) return count;
+    return Number(convo.lastMessage.sender_user_id) === Number(buyerId) ? count : count + 1;
+  }, 0);
+  badge.textContent = unread || '';
 }
 
 // Add notification on order placement
@@ -821,10 +898,6 @@ window.addEventListener('storage', function(e){
     if (e.key === 'products') {
       refreshProducts().then(() => renderProducts());
     }
-    if (e.key === 'messages' || e.key === 'essu_conversations') {
-      renderMessages();
-      updateMsgBadge();
-    }
     if (e.key === 'notifications') {
       updateNotifBadge();
       renderNotifications();
@@ -833,6 +906,22 @@ window.addEventListener('storage', function(e){
 });
 
 // Item Modal Functions
+async function ensureConversationForProduct(product) {
+  if (!product || !currentBuyerId()) return "";
+  const otherUserId = Number(product.sellerUserId || 0);
+  if (!otherUserId) return "";
+
+  const result = await apiRequest("/conversations", {
+    method: "POST",
+    body: JSON.stringify({
+      listingProductId: product.id,
+      participantUserIds: [currentBuyerId(), otherUserId]
+    })
+  });
+  await loadBuyerConversations();
+  return String(result.conversationId || "");
+}
+
 function openItemModal(productId) {
   const product = products.find(p => p.id === productId);
   if (!product) return;
@@ -901,8 +990,12 @@ function openItemModal(productId) {
   const contactSellerBtn = document.getElementById('contactSellerBtn');
   if (contactSellerBtn) {
     contactSellerBtn.textContent = 'Message Seller';
-    contactSellerBtn.onclick = () => {
+    contactSellerBtn.onclick = async () => {
+      const convoId = await ensureConversationForProduct(product);
       openMessagesPanel();
+      if (convoId) {
+        openChat(convoId);
+      }
       closeItemModal();
     };
   }
@@ -1165,10 +1258,9 @@ async function updateProfileSidebar() {
     nameH3.textContent = displayName;
     emailEl.textContent = buyer;
     sidebarNameEl.textContent = 'Name: ' + displayName;
-    const avatarKey = 'avatar_' + buyer;
-    const avatarData = localStorage.getItem(avatarKey);
-    if (avatarData) {
-      avatarDiv.innerHTML = `<img src="${avatarData}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    const photo = user?.photo || "";
+    if (photo) {
+      avatarDiv.innerHTML = `<img src="${photo}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
     } else {
       avatarDiv.textContent = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
     }
@@ -1260,26 +1352,21 @@ document.addEventListener('DOMContentLoaded', function() {
       // Handle photo upload
       if (photoInput.files && photoInput.files[0]) {
         const file = photoInput.files[0];
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-          const avatarKey = 'avatar_' + buyer;
-          localStorage.setItem(avatarKey, e.target.result);
-          await apiRequest(`/users/${user.id}`, {
-            method: "PATCH",
-            body: JSON.stringify({
-              fullname: newName,
-              password: newPassword || undefined,
-              photo: e.target.result
-            })
-          });
-          await refreshUsers();
-          updateProfileSidebar();
-          closeEditProfileModal();
-          showToast('Profile updated successfully!');
-          // Log profile update for admin
-          addActivity('profile_updated', buyer, { name: newName });
-        };
-        reader.readAsDataURL(file);
+        const dataUrl = await compressImageFile(file, 600, 0.8);
+        await apiRequest(`/users/${user.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            fullname: newName,
+            password: newPassword || undefined,
+            photo: dataUrl || undefined
+          })
+        });
+        await refreshUsers();
+        updateProfileSidebar();
+        closeEditProfileModal();
+        showToast('Profile updated successfully!');
+        // Log profile update for admin
+        addActivity('profile_updated', buyer, { name: newName });
       } else {
         await apiRequest(`/users/${user.id}`, {
           method: "PATCH",
