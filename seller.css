@@ -1100,6 +1100,9 @@ body {
   padding: 0;
   display: grid;
   gap: 14px;
+  background: white;
+  width: 50%;
+  margin-left: 50px;
 }
 
 .cart-header h2 {
