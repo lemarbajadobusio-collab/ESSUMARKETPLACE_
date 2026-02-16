@@ -729,6 +729,8 @@ async function renderMessages(){
   const buyerId = currentBuyerId();
   const list = document.getElementById('conversationsList');
   if (!list) return;
+  const searchInput = document.getElementById('buyerMessageSearch');
+  const searchTerm = searchInput?.value?.trim().toLowerCase() || "";
   list.innerHTML = '';
 
   if (!buyerId) {
@@ -738,13 +740,22 @@ async function renderMessages(){
   }
 
   await loadBuyerConversations();
-  if (!conversationsCache.length) {
+  const filteredConversations = (conversationsCache || []).filter(convo => {
+    if (!searchTerm) return true;
+    const other = (convo.participants || []).find(p => Number(p.id) !== Number(buyerId)) || {};
+    const otherName = String(other.fullname || "").toLowerCase();
+    const otherEmail = String(other.email || "").toLowerCase();
+    const preview = String(convo.lastMessage?.text || "").toLowerCase();
+    return otherName.includes(searchTerm) || otherEmail.includes(searchTerm) || preview.includes(searchTerm);
+  });
+
+  if (!filteredConversations.length) {
     list.innerHTML = '<p class="muted">No messages yet.</p>';
     updateMsgBadge();
     return;
   }
 
-  conversationsCache.forEach(convo => {
+  filteredConversations.forEach(convo => {
     const other = (convo.participants || []).find(p => Number(p.id) !== Number(buyerId)) || {};
     const otherName = other.fullname || other.email || 'Seller';
     const photo = getUserPhotoByEmail(other.email || "");
@@ -771,13 +782,28 @@ async function openChat(conversationId){
   activeConversationId = String(conversationId || "");
   const list = document.getElementById('conversationsList');
   const chatView = document.getElementById('chatView');
-  if (list) list.classList.add('hidden');
+  if (list && window.innerWidth <= 900) list.classList.add('hidden');
   if (chatView) chatView.classList.remove('hidden');
 
   const convo = conversationsCache.find(c => String(c.id) === String(activeConversationId));
   const other = (convo?.participants || []).find(p => Number(p.id) !== Number(currentBuyerId())) || {};
   const chatName = document.getElementById('chatSellerName');
   if (chatName) chatName.textContent = other.fullname || other.email || 'Seller';
+  const chatStatus = document.getElementById('chatSellerStatus');
+  if (chatStatus) chatStatus.textContent = 'Online';
+  const chatAvatar = document.getElementById('chatAvatar');
+  if (chatAvatar) {
+    const photo = getUserPhotoByEmail(other.email || "");
+    if (photo) {
+      chatAvatar.style.backgroundImage = `url('${photo}')`;
+      chatAvatar.style.backgroundSize = "cover";
+      chatAvatar.style.backgroundPosition = "center";
+      chatAvatar.textContent = "";
+    } else {
+      chatAvatar.style.backgroundImage = "";
+      chatAvatar.textContent = (other.fullname || other.email || "U").trim().slice(0, 2).toUpperCase();
+    }
+  }
 
   await renderChat(activeConversationId);
 }
@@ -822,8 +848,10 @@ async function sendMessage(){
 }
 
 function backToConversations(){
-  document.getElementById('chatView').classList.add('hidden');
-  document.getElementById('conversationsList').classList.remove('hidden');
+  const chatView = document.getElementById('chatView');
+  const list = document.getElementById('conversationsList');
+  if (chatView) chatView.classList.add('hidden');
+  if (list) list.classList.remove('hidden');
 }
 
 function updateNotifBadge(){
@@ -880,8 +908,17 @@ function closeNotificationsPanel(){
 
 // Open and close messages panel
 function openMessagesPanel(){
+  const searchInput = document.getElementById('buyerMessageSearch');
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.addEventListener('input', () => renderMessages());
+    searchInput.dataset.bound = 'true';
+  }
   renderMessages();
   document.getElementById('messagesPanel').classList.add('open');
+  const chatView = document.getElementById('chatView');
+  if (chatView && window.innerWidth > 900) {
+    chatView.classList.remove('hidden');
+  }
 }
 
 function closeMessagesPanel(){
