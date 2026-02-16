@@ -8,9 +8,7 @@ if (!currentUser || currentUser.role !== "admin") {
     window.location.href = "login.html";
 }
 
-// ===============================
-// NAVIGATION
-// ===============================
+// Navigation
 function showSection(id, element) {
     document.querySelectorAll('.section').forEach(sec => sec.classList.add('d-none'));
     document.getElementById(id).classList.remove('d-none');
@@ -19,9 +17,7 @@ function showSection(id, element) {
     element.classList.add('active');
 }
 
-// ===============================
-// LOGOUT
-// ===============================
+// Logout
 function logout(){
     if(confirm("Logout now?")){
         localStorage.removeItem("currentUser");
@@ -29,9 +25,7 @@ function logout(){
     }
 }
 
-// ===============================
-// LOAD DATA
-// ===============================
+// Load Data
 function loadAdminData(){
 
     const users = JSON.parse(localStorage.getItem('users')) || [];
@@ -59,29 +53,14 @@ function loadAdminData(){
     // PRODUCTS
     const productsBody = document.querySelector("#productsTable tbody");
     productsBody.innerHTML = "";
-
-    products.forEach((product, index)=>{
-
-        const status = product.status || "Pending";
-
+    products.forEach(product=>{
         productsBody.innerHTML += `
             <tr>
                 <td>${product.name}</td>
                 <td>${product.seller}</td>
                 <td>
-                    <span class="badge bg-${status === 'Approved' ? 'success' : 'warning'}">
-                        ${status}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn btn-success btn-sm"
-                        onclick="approveProduct(${index})">
-                        Approve
-                    </button>
-                    <button class="btn btn-danger btn-sm"
-                        onclick="removeProduct(${index})">
-                        Remove
-                    </button>
+                    <button class="btn btn-success btn-sm">Approve</button>
+                    <button class="btn btn-danger btn-sm">Remove</button>
                 </td>
             </tr>
         `;
@@ -101,69 +80,4 @@ function loadAdminData(){
     });
 }
 
-// ===============================
-// APPROVE PRODUCT
-// ===============================
-function approveProduct(index){
-
-    let products = JSON.parse(localStorage.getItem('products')) || [];
-
-    products[index].status = "Approved";
-
-    localStorage.setItem('products', JSON.stringify(products));
-
-    alert("Product approved successfully!");
-    loadAdminData();
-}
-
-// ===============================
-// REMOVE PRODUCT
-// ===============================
-function removeProduct(index){
-
-    if(!confirm("Are you sure you want to remove this product?")) return;
-
-    let products = JSON.parse(localStorage.getItem('products')) || [];
-
-    products.splice(index, 1);
-
-    localStorage.setItem('products', JSON.stringify(products));
-
-    alert("Product removed successfully!");
-    loadAdminData();
-}
-
-// ===============================
-// CHARTS
-// ===============================
-window.addEventListener("load", function(){
-
-    loadAdminData();
-
-    new Chart(document.getElementById('salesChart'), {
-        type: 'line',
-        data: {
-            labels: ['Jan','Feb','Mar','Apr','May'],
-            datasets: [{
-                label: 'Sales (₱)',
-                data: [12000,19000,30000,25000,40000],
-                borderWidth: 2,
-                fill: false,
-                tension: 0.4
-            }]
-        }
-    });
-
-    new Chart(document.getElementById('userChart'), {
-        type: 'bar',
-        data: {
-            labels: ['Jan','Feb','Mar','Apr','May'],
-            datasets: [{
-                label: 'New Users',
-                data: [50,80,120,150,200],
-                borderWidth: 1
-            }]
-        }
-    });
-
-});
+window.addEventListener("load", loadAdminData);
