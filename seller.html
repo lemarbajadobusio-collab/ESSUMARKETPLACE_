@@ -118,6 +118,12 @@
         <path d="M7 7h9v2H7l3 3-1.4 1.4L3.2 8l5.4-5.4L10 4 7 7zm10 10H8v-2h9l-3-3 1.4-1.4 5.4 5.4-5.4 5.4-1.4-1.4 3-3z"/>
       </svg>
     </button>
+    <button class="icon-btn" id="cartBtn" title="Cart" aria-label="Cart">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 4h-2l-1 2v2h2l2.2 9.1a2 2 0 0 0 1.95 1.52h7.85a2 2 0 0 0 1.95-1.54L22 9H9.3l-.35-1.43A2 2 0 0 0 7 6H6.6l.4-.8H7V4zm3 15a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm8 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+      </svg>
+      <span class="nav-count" id="cartCountBadge" hidden>0</span>
+    </button>
     <div class="profile">
       <button class="icon-btn profile-btn" title="Settings" aria-label="Settings">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -254,6 +260,24 @@
         </button>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="cart" id="cartSection" hidden>
+  <button class="back-btn" id="backFromCart" type="button">
+    ← Back
+  </button>
+  <div class="cart-header">
+    <h2>My Cart</h2>
+    <p>Review items before checkout.</p>
+  </div>
+  <div class="cart-list" id="cartItems"></div>
+  <div class="cart-summary">
+    <div class="cart-total-row">
+      <span>Total</span>
+      <strong id="cartTotal">PHP 0</strong>
+    </div>
+    <button class="primary-btn" id="checkoutCartBtn" type="button">Checkout</button>
   </div>
 </section>
 
@@ -426,6 +450,7 @@
         <div class="detail-rating">★ 4.8 <span>(24 reviews)</span></div>
       </div>
       <button class="ghost-btn primary-btn" id="viewSellerProfileBtn">View Seller Profile</button>
+      <button class="ghost-btn primary-btn" id="addToCartBtn">Add to Cart</button>
       <button class="primary-btn" id="contactSellerBtn">Contact Seller</button>
     </div>
   </div>

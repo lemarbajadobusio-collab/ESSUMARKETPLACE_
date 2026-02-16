@@ -315,6 +315,28 @@ body {
   padding: 0;
 }
 
+#cartBtn {
+  position: relative;
+}
+
+.nav-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  padding: 0 5px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
 .icon-btn svg {
   width: 20px;
   height: 20px;
@@ -855,6 +877,29 @@ body {
   gap: 6px;
 }
 
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.mini-cart-btn {
+  border: 1px solid #1e8e3e;
+  background: #fff;
+  color: #1e8e3e;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mini-cart-btn:disabled {
+  border-color: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .tag {
   position: absolute;
   top: 12px;
@@ -1049,6 +1094,94 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.cart {
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.cart-header h2 {
+  margin: 0 0 4px;
+}
+
+.cart-header p {
+  margin: 0;
+  color: #64748b;
+}
+
+.cart-list {
+  display: grid;
+  gap: 10px;
+}
+
+.cart-item {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.cart-item img {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.cart-item h4 {
+  margin: 0 0 4px;
+  color: #0f172a;
+}
+
+.cart-item p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.cart-item .price {
+  margin-top: 6px;
+  font-size: 17px;
+}
+
+.remove-cart-btn {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #334155;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.cart-summary {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.cart-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #0f172a;
+}
+
+.cart-empty {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 18px;
+  color: #64748b;
 }
 
 .messages {
