@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ESSU Marketplace - Login</title>
-  <link rel="stylesheet" href="buyer.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESSU Marketplace | Sign In / Sign Up</title>
+  <link rel="stylesheet" href="buyer.css">
 </head>
 <body>
 
@@ -16,16 +16,16 @@
         </svg>
         <h1>ESSU MARKETPLACE</h1>
       </div>
-      <p>Welcome back! Sign in to continue</p>
+      <p>Welcome! Sign in to continue or create an account</p>
     </div>
 
-    <div class="auth-card">
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="loginTab">Log in</button>
-        <button class="auth-tab" id="signupTab">Sign up</button>
+    <!-- LOGIN FRAME -->
+    <div class="auth-card" id="loginCard">
+      <div class="auth-card-header">
+        <h2>Sign In</h2>
+        <p>Welcome back! Please sign in to continue</p>
       </div>
 
-      <!-- LOGIN FORM -->
       <form id="loginForm" class="auth-form" onsubmit="event.preventDefault(); login();">
         <div class="input-group">
           <label for="email">Email Address</label>
@@ -47,14 +47,21 @@
         <button type="submit" class="primary-btn">Sign In</button>
 
         <p class="switch">
-          Don’t have an account?
-          <span id="goSignup">Sign up</span>
+          Don't have an account?
+          <a href="#signup" id="goSignup" class="action-link">Sign up</a>
         </p>
         <p id="loginError"></p>
       </form>
+    </div>
 
-      <!-- SIGNUP FORM -->
-      <form id="signupForm" class="auth-form" hidden onsubmit="event.preventDefault(); signup();">
+    <!-- SIGNUP FRAME -->
+    <div class="auth-card" id="signupCard">
+      <div class="auth-card-header">
+        <h2>Create Account</h2>
+        <p>Join ESSU Marketplace today</p>
+      </div>
+
+      <form id="signupForm" class="auth-form" onsubmit="event.preventDefault(); signup();">
         <div class="input-grid signup-grid">
           <div class="input-group">
             <label for="name">Full Name</label>
@@ -95,7 +102,7 @@
 
         <p class="switch">
           Already have an account?
-          <span id="goLogin">Login</span>
+          <a href="#login" id="goLogin" class="action-link">Sign in</a>
         </p>
         <p id="signupError"></p>
       </form>
@@ -104,31 +111,16 @@
 
   <script src="buyer.js"></script>
   <script>
-    // Tab behavior
-    document.getElementById('loginTab').addEventListener('click', (e) => {
-      e.preventDefault();
-      document.getElementById('loginForm').removeAttribute('hidden');
-      document.getElementById('signupForm').setAttribute('hidden', '');
-      document.getElementById('loginTab').classList.add('active');
-      document.getElementById('signupTab').classList.remove('active');
-    });
-    
-    document.getElementById('signupTab').addEventListener('click', (e) => {
-      e.preventDefault();
-      document.getElementById('signupForm').removeAttribute('hidden');
-      document.getElementById('loginForm').setAttribute('hidden', '');
-      document.getElementById('signupTab').classList.add('active');
-      document.getElementById('loginTab').classList.remove('active');
-    });
-    
+    // Navigate to Sign Up frame
     document.getElementById('goSignup').addEventListener('click', (e) => {
       e.preventDefault();
-      document.getElementById('signupTab').click();
+      document.getElementById('signupCard').scrollIntoView({ behavior: 'smooth' });
     });
     
+    // Navigate to Login frame
     document.getElementById('goLogin').addEventListener('click', (e) => {
       e.preventDefault();
-      document.getElementById('loginTab').click();
+      document.getElementById('loginCard').scrollIntoView({ behavior: 'smooth' });
     });
 
     // Password toggle
