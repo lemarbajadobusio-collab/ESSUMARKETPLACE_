@@ -340,7 +340,8 @@ body {
 .icon-btn svg {
   width: 20px;
   height: 20px;
-  fill: white;
+  fill: rgb(0, 0, 0);
+  
 }
 
 .profile {
@@ -1101,8 +1102,8 @@ body {
   display: grid;
   gap: 14px;
   background: white;
-  width: 50%;
-  margin-left: 50px;
+  width: 90%;
+  margin-left: 60px;
 }
 
 .cart-header h2 {
