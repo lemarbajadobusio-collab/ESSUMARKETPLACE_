@@ -7,6 +7,11 @@
   <link rel="stylesheet" href="buyer.css">
 </head>
 <body>
+  <script>
+    if (localStorage.getItem('essu_preferred_role') === 'seller' && !localStorage.getItem('buyer')) {
+      window.location.href = 'seller.html';
+    }
+  </script>
 
   <section class="auth">
     <div class="auth-header">
