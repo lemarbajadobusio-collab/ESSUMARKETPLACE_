@@ -1127,8 +1127,8 @@ if (signupForm) {
       return;
     }
 
-    if (password.value.trim().length < 8) {
-      alert("Password must be at least 8 characters.");
+    if (password.value.trim().length < 6) {
+      alert("Password must be at least 6 characters.");
       return;
     }
 
@@ -1176,8 +1176,8 @@ if (passwordResetForm) {
       return;
     }
 
-    if (passwordInput.value.trim().length < 8) {
-      alert("Password must be at least 8 characters.");
+    if (passwordInput.value.trim().length < 6) {
+      alert("Password must be at least 6 characters.");
       return;
     }
 
