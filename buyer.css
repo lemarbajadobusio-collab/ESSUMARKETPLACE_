@@ -208,6 +208,29 @@ body.profile-open{margin-right:320px}
   text-decoration: underline;
 }
 
+.signup-link {
+  margin-top: 16px;
+  font-size: 13px;
+  text-align: center;
+  color: #64748b;
+}
+
+.signup-link a {
+  color: #1e8e3e;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.signup-link a:hover {
+  text-decoration: underline;
+}
+
+/* Hide hidden elements */
+[hidden] {
+  display: none !important;
+}
+
 .auth-hint {
   font-size: 12px;
   color: #64748b;

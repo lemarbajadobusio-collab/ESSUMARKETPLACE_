@@ -40,7 +40,7 @@ function useTestCreds() {
 
 // SIGNUP
 function signup() {
-  const name = document.getElementById("name") ? document.getElementById("name").value.trim() : '';
+  const name = document.getElementById("suName") ? document.getElementById("suName").value.trim() : '';
   const email = document.getElementById("suEmail") ? document.getElementById("suEmail").value.trim() : '';
   const pass = document.getElementById("suPassword") ? document.getElementById("suPassword").value : '';
   const confirm = document.getElementById("suConfirm") ? document.getElementById("suConfirm").value : '';
@@ -65,10 +65,9 @@ function signup() {
   saveUsers(users);
   // Log signup activity for admin
   if (typeof addActivity === 'function') addActivity('signup', email, { name });
-  localStorage.setItem("buyer", email);
-  showToast("Account created successfully!");
+  showToast("Account created successfully! Please log in.");
   setTimeout(() => {
-    window.location.href = "buyer.html";
+    window.location.href = "index.html";
   }, 500);
 }
 
