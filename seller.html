@@ -1,0 +1,544 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ESSU Marketplace</title>
+  <link rel="stylesheet" href="seller.css"/>
+  
+</head>
+<body>
+  
+
+<section class="auth" id="authSection" hidden>
+  <div class="auth-header">
+    <div class="auth-logo">
+      <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24">
+        <path d="M4 6a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6zm12 0H6v12h12V9h-4V6z"/>
+      </svg>
+      <h1>ESSU Marketplace</h1>
+    </div>
+    <p>Welcome back! Sign in to continue</p>
+  </div>
+
+  <div class="auth-card">
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="loginTab">Log in</button>
+      <button class="auth-tab" id="signupTab">Sign up</button>
+    </div>
+
+    <form class="auth-form" id="loginForm">
+      <div class="input-group">
+        <label for="loginFullname">Full name</label>
+        <input id="loginFullname" type="text" placeholder="Enter name" required />
+      </div>
+      <div class="input-group">
+        <label for="loginEmail">Gmail address</label>
+        <input id="loginEmail" type="email" placeholder="name@gmail.com" required />
+      </div>
+      <div class="input-group">
+        <label for="loginPassword">Password</label>
+        <div class="password-field">
+          <input id="loginPassword" type="password" placeholder="Enter password" required />
+          <button type="button" class="toggle-password" data-target="loginPassword" aria-label="Show password">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5c5.05 0 9.27 3.11 11 7-1.73 3.89-5.95 7-11 7S2.73 15.89 1 12c1.73-3.89 5.95-7 11-7zm0 2C8.38 7 5.25 9.09 3.7 12 5.25 14.91 8.38 17 12 17s6.75-2.09 8.3-5C18.75 9.09 15.62 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <button class="primary-btn" type="submit">Log in</button>
+      <p class="auth-switch">Don't have an account? <button type="button" class="link-btn" id="toSignupBtn">Sign Up</button></p>
+    </form>
+
+    <form class="auth-form" id="signupForm" hidden>
+      <div class="input-grid signup-grid">
+        <div class="input-group">
+          <label for="signupFullname">Full name</label>
+          <input id="signupFullname" type="text" placeholder="Enter name" required />
+        </div>
+        <div class="input-group">
+          <label for="signupEmail">Gmail address</label>
+          <input id="signupEmail" type="email" placeholder="name@gmail.com" required />
+        </div>
+        <div class="input-group">
+          <label for="signupMobile">Contact number</label>
+          <input id="signupMobile" type="tel" placeholder="0000 000 0000" required />
+        </div>
+        <div class="input-group full">
+          <label for="signupPassword">Password</label>
+          <div class="password-field">
+            <input id="signupPassword" type="password" placeholder="Create password" required />
+            <button type="button" class="toggle-password" data-target="signupPassword" aria-label="Show password">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5c5.05 0 9.27 3.11 11 7-1.73 3.89-5.95 7-11 7S2.73 15.89 1 12c1.73-3.89 5.95-7 11-7zm0 2C8.38 7 5.25 9.09 3.7 12 5.25 14.91 8.38 17 12 17s6.75-2.09 8.3-5C18.75 9.09 15.62 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="input-group full">
+          <label for="signupConfirmPassword">Confirm password</label>
+          <div class="password-field">
+            <input id="signupConfirmPassword" type="password" placeholder="Re-enter password" required />
+            <button type="button" class="toggle-password" data-target="signupConfirmPassword" aria-label="Show password">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5c5.05 0 9.27 3.11 11 7-1.73 3.89-5.95 7-11 7S2.73 15.89 1 12c1.73-3.89 5.95-7 11-7zm0 2C8.38 7 5.25 9.09 3.7 12 5.25 14.91 8.38 17 12 17s6.75-2.09 8.3-5C18.75 9.09 15.62 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="auth-note" id="signupStatusNote" hidden>
+        Account created. Please log in to continue.
+      </div>
+      <button class="primary-btn" type="submit">Submit for verification</button>
+      <p class="auth-switch">Already have an account? <button type="button" class="link-btn" id="toLoginBtn">Log In</button></p>
+      <p class="auth-hint">Seller registration requires a valid Gmail address and Student ID verification.</p>
+    </form>
+  </div>
+</section>
+
+<div id="appSection">
+<!-- ðŸŸ¢ NAVBAR -->
+<header class="navbar">
+  <div class="logo"> ESSU MARKETPLACE</div>
+
+  <input type="text" id="searchInput" placeholder="Search products..." />
+
+  <div class="nav-actions">
+    <button class="sell-btn" id="sellBtn">+ Sell Item</button>
+    <button class="icon-btn" id="messagesBtn" title="Messages" aria-label="Messages">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 5h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8l-4 4V7a2 2 0 0 1 2-2zm0 2v10.17L7.17 15H20V7H4z"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="transactionsBtn" title="Transactions" aria-label="Transactions">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 7h9v2H7l3 3-1.4 1.4L3.2 8l5.4-5.4L10 4 7 7zm10 10H8v-2h9l-3-3 1.4-1.4 5.4 5.4-5.4 5.4-1.4-1.4 3-3z"/>
+      </svg>
+    </button>
+    <div class="profile">
+      <button class="icon-btn profile-btn" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M19.4 13a7.94 7.94 0 0 0 .06-1 7.94 7.94 0 0 0-.06-1l2.11-1.65a.5.5 0 0 0 .12-.63l-2-3.46a.5.5 0 0 0-.6-.22l-2.49 1a7.36 7.36 0 0 0-1.73-1L12.5 2.5a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.5l-.31 2.56a7.36 7.36 0 0 0-1.73 1l-2.49-1a.5.5 0 0 0-.6.22l-2 3.46a.5.5 0 0 0 .12.63L2.6 11a7.94 7.94 0 0 0-.06 1 7.94 7.94 0 0 0 .06 1L.49 14.65a.5.5 0 0 0-.12.63l2 3.46a.5.5 0 0 0 .6.22l2.49-1a7.36 7.36 0 0 0 1.73 1l.31 2.56a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5l.31-2.56a7.36 7.36 0 0 0 1.73-1l2.49 1a.5.5 0 0 0 .6-.22l2-3.46a.5.5 0 0 0-.12-.63ZM10 15a3 3 0 1 1 3-3 3 3 0 0 1-3 3Z"/>
+        </svg>
+      </button>
+      <div class="profile-menu">
+        <button class="profile-open-btn" id="profileMenuBtn">Profile</button>
+        <button class="signout-btn">Sign out</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+<section class="dashboard" id="dashboardSection" hidden>
+  <button class="back-btn" id="backFromDashboard" type="button">
+    ← Back 
+  </button>
+  <div class="dash-header">
+    <h1>Sales Dashboard</h1>
+    <p>Track your marketplace activity at a glance.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <span class="stat-label">Total Sales</span>
+      <h2 id="totalSales">PHP 0</h2>
+      <span class="stat-sub" id="totalSalesCount">0 completed sales</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Total Purchases</span>
+      <h2 id="totalPurchases">PHP 0</h2>
+      <span class="stat-sub" id="totalPurchasesCount">0 completed purchases</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Pending</span>
+      <h2 id="totalPending">PHP 0</h2>
+      <span class="stat-sub" id="totalPendingCount">0 pending transactions</span>
+    </div>
+  </div>
+
+  <div class="transactions">
+    <div class="transactions-header">
+      <h2>Transaction History</h2>
+      <div class="transactions-filters">
+        <span class="filter-label">Filter:</span>
+        <select id="txnFilter">
+          <option value="All">All</option>
+          <option value="Sale">Sales</option>
+          <option value="Purchase">Purchases</option>
+          <option value="Pending">Pending</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table">
+      <div class="table-row table-head">
+        <span>Date</span>
+        <span>Item</span>
+        <span>Type</span>
+        <span>Status</span>
+        <span>Amount</span>
+      </div>
+      <div id="transactionRows"></div>
+    </div>
+  </div>
+</section>
+
+<section class="messages" id="messagesSection" hidden>
+  <button class="back-btn" id="backFromMessages" type="button">
+    ← Back 
+  </button>
+  <div class="messages-layout">
+    <aside class="messages-sidebar">
+      <div class="messages-title">Messages</div>
+      <div class="messages-search">
+        <input type="text" id="messageSearchInput" placeholder="Search conversations..." />
+      </div>
+      <div class="conversation-list" id="conversationList"></div>
+    </aside>
+
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="chat-user">
+          <span class="avatar" id="chatUserAvatar">--</span>
+          <div>
+            <div class="name" id="chatUserName">Select a conversation</div>
+            <div class="status" id="chatUserStatus">Offline</div>
+          </div>
+        </div>
+        <div class="chat-menu-wrap">
+  <button class="icon-btn chat-menu" id="chatMenuBtn" aria-label="More options">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 7a2 2 0 1 0-2-2 2 2 0 0 0 2 2zm0 5a2 2 0 1 0-2-2 2 2 0 0 0 2 2zm0 7a2 2 0 1 0-2-2 2 2 0 0 0 2 2z"/>
+    </svg>
+  </button>
+  <div class="chat-menu-panel" id="chatMenuPanel">
+    <button type="button" class="chat-menu-item danger" id="deleteConversationBtn">Delete conversation</button>
+  </div>
+</div>
+      </div>
+      <div class="chat-body">
+        <div class="chat-bubble incoming">Hi! Is the iPhone still available?</div>
+        <div class="chat-time">10:30 AM</div>
+
+        <div class="chat-bubble outgoing">Yes, it is! Are you interested?</div>
+        <div class="chat-time right">10:32 AM</div>
+
+        <div class="chat-bubble incoming">Great! Can I see it today? I'm on campus.</div>
+        <div class="chat-time">10:33 AM</div>
+
+        <div class="chat-bubble outgoing">Sure! We can meet at the library at 2 PM. Does that work for you?</div>
+        <div class="chat-time right">10:35 AM</div>
+      </div>
+      <div class="chat-input">
+        <input id="chatFileInput" type="file" hidden />
+        <input id="chatImageInput" type="file" accept="image/*" hidden />
+        <button class="icon-btn" id="chatAttachFileBtn" aria-label="Attach file">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M16.5 6.5V15a4.5 4.5 0 1 1-9 0V6a3 3 0 0 1 6 0v8.5a1.5 1.5 0 1 1-3 0V7h-2v7.5a3.5 3.5 0 1 0 7 0V6a5 5 0 0 0-10 0v9a6.5 6.5 0 1 0 13 0V6.5z"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="chatAttachImageBtn" aria-label="Attach image">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V5h14zm-3-11a2 2 0 1 1-2 2 2 2 0 0 1 2-2zm3 9H5l4-5 3 4 2-3 5 4z"/>
+          </svg>
+        </button>
+        <input type="text" id="chatMessageInput" placeholder="Type a message..." />
+        <button class="icon-btn send-btn" id="chatSendBtn" aria-label="Send">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="profile-page" id="profileSection" hidden>
+  <button class="back-btn" id="backFromProfile" type="button">
+    ← Back 
+  </button>
+  <div class="profile-layout">
+    <div class="profile-card">
+      <div class="profile-avatar">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4.42 0-8 2-8 4.5V21h16v-2.5C20 16 16.42 14 12 14z"/>
+        </svg>
+      </div>
+      <h2 class="profile-title" id="profilePageName">Seller Name</h2>
+      <div class="profile-rating">
+        ★ 4.8 <span>(24 reviews)</span>
+      </div>
+      <input id="profilePhotoInput" type="file" accept="image/*" hidden />
+      <button class="primary-btn ghost-btn" id="changePhotoBtn" type="button">Change Photo</button>
+      <button class="primary-btn ghost-btn">Edit Profile</button>
+
+      <div class="profile-contact">
+        <div><strong>Email:</strong> <span id="profileEmail">--</span></div>
+        <div><strong>Mobile:</strong> <span id="profileMobile">--</span></div>
+        <div><strong>Member since:</strong> <span id="profileMemberSince">--</span></div>
+        <div><strong>Status:</strong> <span id="profileStatus">--</span></div>
+      </div>
+    </div>
+
+    <div class="profile-right">
+      <div class="profile-section">
+        <div class="section-header">
+          <h3>My Listings</h3>
+          <button class="primary-btn small-btn" id="addNewListingBtn">Add New</button>
+        </div>
+        <div class="listing-grid-cards"></div>
+      </div>
+
+      <div class="profile-section">
+        <h3>Reviews</h3>
+        <div class="review">
+          <div class="avatar">MS</div>
+          <div>
+            <div class="name">Maria Santos</div>
+            <div class="review-text">Great seller! Item was exactly as described.</div>
+          </div>
+          <div class="stars">★★★★★</div>
+        </div>
+        <div class="review">
+          <div class="avatar">PG</div>
+          <div>
+            <div class="name">Pedro Garcia</div>
+            <div class="review-text">Fast transaction and very accommodating.</div>
+          </div>
+          <div class="stars">★★★★★</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="profile-edit" id="profileEditSection" hidden>
+  <button class="back-btn" id="backFromProfileEdit" type="button">
+    ← Back 
+  </button>
+  <div class="listing-card">
+    <div class="listing-header">
+      <h2>Edit Profile</h2>
+      <p>Update your seller information.</p>
+    </div>
+    <form id="profileEditForm" class="listing-form">
+      <div class="listing-grid profile-edit-grid">
+        <div class="input-group">
+          <label for="editFullname">Full name</label>
+          <input id="editFullname" type="text" required />
+        </div>
+        <div class="input-group">
+          <label for="editEmail">Email</label>
+          <input id="editEmail" type="email" required />
+        </div>
+        <div class="input-group">
+          <label for="editMobile">Contact number</label>
+          <input id="editMobile" type="tel" required />
+        </div>
+      </div>
+      <button class="primary-btn" type="submit">Save Profile</button>
+      <p class="auth-switch">Forgot password? <button type="button" class="link-btn" id="profileForgotBtn">Click here</button></p>
+    </form>
+  </div>
+</section>
+
+<section class="profile-edit" id="passwordResetSection" hidden>
+  <button class="back-btn" id="backFromPasswordReset" type="button">
+    ← Back 
+  </button>
+  <div class="listing-card">
+    <div class="listing-header">
+      <h2>Change Password</h2>
+      <p>Update your account password.</p>
+    </div>
+    <form id="passwordResetForm" class="listing-form">
+      <div class="listing-grid">
+        <div class="input-group">
+          <label for="resetEmail">Email</label>
+          <input id="resetEmail" type="email" placeholder="name@gmail.com" required />
+        </div>
+        <div class="input-group full">
+          <label for="resetPassword">Change password</label>
+          <div class="password-field">
+            <input id="resetPassword" type="password" placeholder="Create password" required />
+            <button type="button" class="toggle-password" data-target="resetPassword" aria-label="Show password">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5c5.05 0 9.27 3.11 11 7-1.73 3.89-5.95 7-11 7S2.73 15.89 1 12c1.73-3.89 5.95-7 11-7zm0 2C8.38 7 5.25 9.09 3.7 12 5.25 14.91 8.38 17 12 17s6.75-2.09 8.3-5C18.75 9.09 15.62 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="input-group full">
+          <label for="resetConfirmPassword">Confirm new password</label>
+          <div class="password-field">
+            <input id="resetConfirmPassword" type="password" placeholder="Re-enter password" required />
+            <button type="button" class="toggle-password" data-target="resetConfirmPassword" aria-label="Show password">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5c5.05 0 9.27 3.11 11 7-1.73 3.89-5.95 7-11 7S2.73 15.89 1 12c1.73-3.89 5.95-7 11-7zm0 2C8.38 7 5.25 9.09 3.7 12 5.25 14.91 8.38 17 12 17s6.75-2.09 8.3-5C18.75 9.09 15.62 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <button class="primary-btn" type="submit">Reset Password</button>
+    </form>
+  </div>
+</section>
+
+<section class="product-detail" id="productDetailSection" hidden>
+  <button class="back-btn" id="backToListingsBtn" type="button">
+    ← Back 
+  </button>
+  <div class="product-detail-layout">
+    <div class="product-gallery">
+      <img id="detailMainImage" class="detail-main" src="" alt="Product image">
+      <div class="detail-thumbs" id="detailThumbs"></div>
+    </div>
+    <div class="product-info">
+      <div class="detail-header">
+        <span class="detail-tag" id="detailCategory">Category</span>
+        <div class="detail-actions">
+          <button class="icon-btn">♡</button>
+          <button class="icon-btn">↗</button>
+        </div>
+      </div>
+      <h2 id="detailTitle">Product Title</h2>
+      <div class="detail-price" id="detailPrice">PHP 0</div>
+      <div class="detail-meta">
+        <span id="detailCondition">Condition: --</span>
+        <span id="detailLocation">Location: --</span>
+        <span id="detailPosted">Posted: --</span>
+        <span id="detailViews">Views: --</span>
+      </div>
+      <div class="detail-desc">
+        <h3>Description</h3>
+        <p id="detailDescription">--</p>
+      </div>
+      <div class="detail-seller">
+        <div>
+          <strong id="detailSellerName">Seller</strong>
+          <div class="detail-seller-role" id="detailSellerRole">Seller</div>
+        </div>
+        <div class="detail-rating">★ 4.8 <span>(24 reviews)</span></div>
+      </div>
+      <button class="ghost-btn primary-btn" id="viewSellerProfileBtn">View Seller Profile</button>
+      <button class="primary-btn" id="contactSellerBtn">Contact Seller</button>
+    </div>
+  </div>
+</section>
+
+<section class="container" id="discoverSection">
+
+  <div class="listing-card" id="listingCard" hidden>
+    <div class="listing-header">
+      <button class="back-btn" id="backFromListing" type="button">
+        ← Back 
+      </button>
+      <h2>Create Listing</h2>
+      <p>Fields marked with * are required.</p>
+    </div>
+    <form id="listingForm" class="listing-form" novalidate>
+      <div class="listing-grid">
+        <div class="input-group">
+          <label for="listingTitle">Product title <span class="req">*</span></label>
+          <input id="listingTitle" type="text" placeholder="e.g., iPhone 13 Pro 256GB" required />
+        </div>
+        <div class="input-group">
+          <label for="listingCategory">Category <span class="req">*</span></label>
+          <select id="listingCategory" required>
+            <option value="">Select category</option>
+            <option>Electronics</option>
+            <option>Books</option>
+            <option>Clothing</option>
+            <option>Furniture</option>
+            <option>Sports</option>
+            <option>Food</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label for="listingPrice">Price (PHP) <span class="req">*</span></label>
+          <input id="listingPrice" type="number" min="1" placeholder="e.g., 45000" required />
+        </div>
+        <div class="input-group">
+          <label for="listingCondition">Condition <span class="req">*</span></label>
+          <select id="listingCondition" required>
+            <option value="">Select condition</option>
+            <option>New</option>
+            <option>Used</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label for="listingLocation">Department <span class="req">*</span></label>
+          <select id="listingLocation" required>
+            <option value="">Select department</option>
+            <option>Engineering Building</option>
+            <option>College of Law Building</option>
+          </select>
+        </div>
+        <div class="input-group full">
+          <label for="listingDetails">Product details <span class="req">*</span></label>
+          <textarea id="listingDetails" rows="4" placeholder="Describe the product, inclusions, defects, and other details." required></textarea>
+        </div>
+        <div class="input-group full">
+          <label>Product images (up to 5) <span class="req">*</span></label>
+          <div class="upload-area" id="uploadArea">
+            <input id="listingImages" type="file" accept="image/*" multiple required />
+            <div class="upload-text">
+              <strong>Upload photos</strong>
+              <span>Drag and drop or click to browse</span>
+            </div>
+            <div class="preview-grid" id="previewGrid"></div>
+          </div>
+          <p class="upload-hint">First image will be the cover photo.</p>
+        </div>
+      </div>
+      <button class="primary-btn" type="submit">Post Item</button>
+    </form>
+  </div>
+
+  <!-- ðŸ· CATEGORY FILTER -->
+  <div class="categories" id="discoverCategories">
+    <button class="cat active" data-category="All">All</button>
+    <button class="cat" data-category="Electronics">Electronics</button>
+    <button class="cat" data-category="Books">Books</button>
+    <button class="cat" data-category="Clothing">Clothing</button>
+    <button class="cat" data-category="Furniture">Furniture</button>
+    <button class="cat" data-category="Sports">Sports</button>
+    <button class="cat" data-category="Food">Food</button>
+    <button class="cat" data-category="Other">Other</button>
+  </div>
+
+  <!-- âš™ ADVANCED FILTERS -->
+  <div class="filters" id="discoverFilters">
+    <input type="number" id="minPrice" placeholder="Min"/>
+    <input type="number" id="maxPrice" placeholder="Max"/>
+
+    <select id="condition">
+      <option value="All">All Conditions</option>
+      <option value="New">New</option>
+      <option value="Used">Used</option>
+    </select>
+
+    <select id="sort">
+      <option value="latest">Latest</option>
+      <option value="priceLow">Price: Low to High</option>
+      <option value="priceHigh">Price: High to Low</option>
+    </select>
+  </div>
+
+  <!-- ðŸ§± PRODUCTS -->
+  <div class="products" id="productList"></div>
+</section>
+ </main>
+</div>
+
+<script src="seller.js"></script>
+</body>
+</html>
+
+
