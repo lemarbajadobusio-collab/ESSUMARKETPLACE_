@@ -21,8 +21,20 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 const supabase = createClient(
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY,
-  { auth: { persistSession: false } }
+  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
 );
+
+const supabaseAuth = createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+);
+
+const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    })
+  : null;
 
 function nowIso() {
   return new Date().toISOString();
@@ -135,6 +147,12 @@ async function seedDefaultAdmin() {
   if (existing.error) return;
   if (existing.data?.id) return;
   const hash = await bcrypt.hash("admin12345", 10);
+  if (!supabaseAdmin) return;
+  await supabaseAdmin.auth.admin.createUser({
+    email: adminEmail,
+    password: "admin12345",
+    email_confirm: true
+  });
   await supabase.from("users").insert({
     fullname: "ESSU Admin",
     email: adminEmail,
@@ -144,6 +162,14 @@ async function seedDefaultAdmin() {
     joined_at: nowIso(),
     updated_at: nowIso()
   });
+}
+
+async function findAuthUserIdByEmail(email) {
+  if (!supabaseAdmin || !email) return "";
+  const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (error) return "";
+  const match = (data?.users || []).find(u => String(u.email || "").toLowerCase() === email.toLowerCase());
+  return match?.id || "";
 }
 
 async function findExistingConversation(participantUserIds, listingProductId) {
@@ -194,10 +220,24 @@ app.post("/api/auth/register", async (req, res) => {
     if (!["buyer", "seller", "admin"].includes(role)) {
       return res.status(400).json({ error: "Invalid role." });
     }
+    if (!supabaseAdmin) {
+      return res.status(500).json({ error: "SUPABASE_SERVICE_ROLE_KEY is required for signup." });
+    }
 
     const exists = await supabase.from("users").select("id").ilike("email", email.trim()).maybeSingle();
     if (exists.error) return res.status(500).json({ error: exists.error.message });
     if (exists.data?.id) return res.status(409).json({ error: "Email already exists." });
+
+    const authCreate = await supabaseAdmin.auth.admin.createUser({
+      email: email.trim().toLowerCase(),
+      password: password,
+      email_confirm: true
+    });
+    if (authCreate.error) {
+      const message = authCreate.error.message || "Unable to create auth user.";
+      const status = message.toLowerCase().includes("already") ? 409 : 500;
+      return res.status(status).json({ error: message });
+    }
 
     const hash = await bcrypt.hash(password, 10);
     const created = await supabase
@@ -225,12 +265,37 @@ app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: "email and password are required." });
 
+    const authResult = await supabaseAuth.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password
+    });
+    if (authResult.error) {
+      // Legacy fallback: check public.users and migrate to Auth if needed
+      const legacyRow = await supabase.from("users").select("*").ilike("email", email.trim()).maybeSingle();
+      if (legacyRow.error) return res.status(500).json({ error: legacyRow.error.message });
+      if (legacyRow.data && (await bcrypt.compare(password, legacyRow.data.password_hash))) {
+        if (!supabaseAdmin) {
+          return res.status(500).json({ error: "SUPABASE_SERVICE_ROLE_KEY is required to migrate auth users." });
+        }
+        const create = await supabaseAdmin.auth.admin.createUser({
+          email: email.trim().toLowerCase(),
+          password,
+          email_confirm: true
+        });
+        if (create.error) {
+          const authUserId = await findAuthUserIdByEmail(email.trim().toLowerCase());
+          if (authUserId) {
+            await supabaseAdmin.auth.admin.updateUserById(authUserId, { password });
+          }
+        }
+        return res.json({ user: sanitizeUser(legacyRow.data), migrated: true });
+      }
+      return res.status(401).json({ error: authResult.error.message || "Invalid credentials." });
+    }
+
     const userRow = await supabase.from("users").select("*").ilike("email", email.trim()).maybeSingle();
     if (userRow.error) return res.status(500).json({ error: userRow.error.message });
-    if (!userRow.data) return res.status(401).json({ error: "Invalid credentials." });
-
-    const ok = await bcrypt.compare(password, userRow.data.password_hash);
-    if (!ok) return res.status(401).json({ error: "Invalid credentials." });
+    if (!userRow.data) return res.status(404).json({ error: "User profile not found." });
 
     return res.json({ user: sanitizeUser(userRow.data) });
   } catch (error) {
@@ -248,7 +313,7 @@ app.patch("/api/users/:id", async (req, res) => {
   const userId = Number(req.params.id);
   const { fullname, mobile, photo, status, role, email, password } = req.body || {};
 
-  const existingUser = await supabase.from("users").select("id, photo").eq("id", userId).maybeSingle();
+  const existingUser = await supabase.from("users").select("id, photo, email").eq("id", userId).maybeSingle();
   if (existingUser.error) return res.status(500).json({ error: existingUser.error.message });
   if (!existingUser.data) return res.status(404).json({ error: "User not found." });
 
@@ -266,6 +331,23 @@ app.patch("/api/users/:id", async (req, res) => {
   const updated = await supabase.from("users").update(updatePayload).eq("id", userId).select("*").maybeSingle();
   if (updated.error) return res.status(500).json({ error: updated.error.message });
   if (!updated.data) return res.status(404).json({ error: "User not found." });
+
+  if (supabaseAdmin) {
+    const authUserId = await findAuthUserIdByEmail(existingUser.data.email || updated.data.email);
+    if (authUserId) {
+      const updates = {};
+      if (typeof email === "string") {
+        updates.email = email.trim().toLowerCase();
+        updates.email_confirm = true;
+      }
+      if (typeof password === "string" && password.trim()) {
+        updates.password = password.trim();
+      }
+      if (Object.keys(updates).length) {
+        await supabaseAdmin.auth.admin.updateUserById(authUserId, updates);
+      }
+    }
+  }
 
   const previousPhoto = existingUser.data.photo || "";
   const nextPhoto = updated.data.photo || "";
