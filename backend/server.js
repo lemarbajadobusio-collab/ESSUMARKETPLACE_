@@ -42,6 +42,28 @@ function isLikelyHttpUrl(value) {
   return typeof value === "string" && /^https?:\/\//i.test(value.trim());
 }
 
+function getBucketPathFromPublicUrl(url) {
+  if (!isLikelyHttpUrl(url)) return "";
+  const normalized = url.trim();
+  const marker = `/storage/v1/object/public/${SUPABASE_BUCKET}/`;
+  const idx = normalized.indexOf(marker);
+  if (idx === -1) return "";
+  return normalized.slice(idx + marker.length);
+}
+
+function uniqueStrings(values) {
+  return Array.from(new Set((values || []).filter(Boolean)));
+}
+
+async function deleteBucketFiles(urls) {
+  const paths = uniqueStrings((urls || []).map(getBucketPathFromPublicUrl)).filter(Boolean);
+  if (!paths.length) return;
+  const removed = await supabase.storage.from(SUPABASE_BUCKET).remove(paths);
+  if (removed.error) {
+    console.warn("Storage remove failed:", removed.error.message);
+  }
+}
+
 async function uploadDataUrlToBucket(dataUrl, folder) {
   const match = String(dataUrl || "").match(/^data:([^;]+);base64,(.+)$/);
   if (!match) return dataUrl;
@@ -226,6 +248,10 @@ app.patch("/api/users/:id", async (req, res) => {
   const userId = Number(req.params.id);
   const { fullname, mobile, photo, status, role, email, password } = req.body || {};
 
+  const existingUser = await supabase.from("users").select("id, photo").eq("id", userId).maybeSingle();
+  if (existingUser.error) return res.status(500).json({ error: existingUser.error.message });
+  if (!existingUser.data) return res.status(404).json({ error: "User not found." });
+
   const updatePayload = { updated_at: nowIso() };
   if (typeof fullname === "string") updatePayload.fullname = fullname.trim();
   if (typeof mobile === "string") updatePayload.mobile = mobile.trim();
@@ -240,6 +266,12 @@ app.patch("/api/users/:id", async (req, res) => {
   const updated = await supabase.from("users").update(updatePayload).eq("id", userId).select("*").maybeSingle();
   if (updated.error) return res.status(500).json({ error: updated.error.message });
   if (!updated.data) return res.status(404).json({ error: "User not found." });
+
+  const previousPhoto = existingUser.data.photo || "";
+  const nextPhoto = updated.data.photo || "";
+  if (previousPhoto && previousPhoto !== nextPhoto) {
+    await deleteBucketFiles([previousPhoto]);
+  }
   return res.json({ user: sanitizeUser(updated.data) });
 });
 
@@ -335,6 +367,14 @@ app.patch("/api/products/:id", async (req, res) => {
     images
   } = req.body || {};
 
+  const existing = await supabase
+    .from("products")
+    .select("id, cover_image, images_json")
+    .eq("id", productId)
+    .maybeSingle();
+  if (existing.error) return res.status(500).json({ error: existing.error.message });
+  if (!existing.data) return res.status(404).json({ error: "Product not found." });
+
   const updatePayload = { updated_at: nowIso() };
   if (typeof name === "string") updatePayload.name = name.trim();
   if (typeof category === "string") updatePayload.category = category;
@@ -348,6 +388,19 @@ app.patch("/api/products/:id", async (req, res) => {
   const updated = await supabase.from("products").update(updatePayload).eq("id", productId).select("*").maybeSingle();
   if (updated.error) return res.status(500).json({ error: updated.error.message });
   if (!updated.data) return res.status(404).json({ error: "Product not found." });
+
+  const prevImages = uniqueStrings([
+    existing.data.cover_image,
+    ...(Array.isArray(existing.data.images_json) ? existing.data.images_json : [])
+  ]);
+  const nextImages = uniqueStrings([
+    updated.data.cover_image,
+    ...(Array.isArray(updated.data.images_json) ? updated.data.images_json : [])
+  ]);
+  const removed = prevImages.filter(url => !nextImages.includes(url));
+  if (removed.length) {
+    await deleteBucketFiles(removed);
+  }
   return res.json({ product: updated.data });
 });
 
@@ -370,9 +423,22 @@ app.patch("/api/products/:id/status", async (req, res) => {
 
 app.delete("/api/products/:id", async (req, res) => {
   const productId = Number(req.params.id);
+  const existing = await supabase
+    .from("products")
+    .select("id, cover_image, images_json")
+    .eq("id", productId)
+    .maybeSingle();
+  if (existing.error) return res.status(500).json({ error: existing.error.message });
+  if (!existing.data) return res.status(404).json({ error: "Product not found." });
+
   const deleted = await supabase.from("products").delete().eq("id", productId).select("id").maybeSingle();
   if (deleted.error) return res.status(500).json({ error: deleted.error.message });
   if (!deleted.data) return res.status(404).json({ error: "Product not found." });
+
+  await deleteBucketFiles([
+    existing.data.cover_image,
+    ...(Array.isArray(existing.data.images_json) ? existing.data.images_json : [])
+  ]);
   return res.json({ ok: true });
 });
 
