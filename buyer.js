@@ -147,7 +147,7 @@ function renderProducts(){
     const tagClass = p.condition === 'New' ? 'new' : 'used';
     const filterValue = p.condition === 'New' ? 'new' : 'used';
     grid.innerHTML += `
-      <div class="card" onclick="openItemModal(${p.id})" style="cursor:pointer;">
+      <div class="card" data-id="${p.id}">
         <span class="tag ${tagClass}" onclick="event.stopPropagation(); setFilter('${filterValue}')">${p.condition}</span>
         <span class="heart" onclick="event.stopPropagation(); toggleWishlist(${p.id}); this.textContent = this.textContent === '♡' ? '♥' : '♡'; this.style.color = this.textContent === '♥' ? 'red' : '#333';">♡</span>
         <img src="${p.img}" alt="">
@@ -158,8 +158,24 @@ function renderProducts(){
         <div style="margin-top:10px"><button onclick="event.stopPropagation(); addToCart(${p.id})">Add to Cart</button></div>
       </div>`;
   });
+  setupCardClickHandlers();
   attachUIHandlers();
   loadWishlist();
+}
+
+// Event delegation for card clicks
+function setupCardClickHandlers() {
+  if (!grid) return;
+  grid.addEventListener('click', (event) => {
+    const card = event.target.closest('.card');
+    if (!card) return;
+    const cardId = card.dataset.id;
+    if (!cardId) return;
+    const product = products.find(p => p.id == cardId);
+    if (product) {
+      openItemModal(product.id);
+    }
+  });
 }
 
 function setCategory(category) {
@@ -760,30 +776,75 @@ function openItemModal(productId) {
   const product = products.find(p => p.id === productId);
   if (!product) return;
 
-  const modalContent = document.getElementById('itemModalContent');
-  modalContent.innerHTML = `
-    <div class="item-detail">
-      <div class="item-image">
-        <img src="${product.img}" alt="${product.name}" style="width:100%;height:auto;border-radius:8px;">
-      </div>
-      <div class="item-info">
-        <h2>${product.name}</h2>
-        <div class="item-price">₱${product.price}</div>
-        <div class="item-condition">Condition: ${product.condition}</div>
-        <div class="item-seller">Seller: ${product.seller}</div>
-        <div class="item-category">Category: ${product.category}</div>
-        <div class="item-description">
-          <h3>Description</h3>
-          <p>${product.desc || 'No description available.'}</p>
-        </div>
-        <div class="item-actions">
-          <button onclick="addToCart(${product.id}); closeItemModal(); showToast('${product.name} added to cart')">Add to Cart</button>
-          <button onclick="toggleWishlist(${product.id}); showToast('Added to wishlist')">Add to Wishlist</button>
-          <button onclick="openChat('${product.seller}'); closeItemModal()">Message Seller</button>
-        </div>
-      </div>
-    </div>
-  `;
+  // Set main image
+  const detailMainImage = document.getElementById('detailMainImage');
+  if (detailMainImage) detailMainImage.src = product.img;
+
+  // Set thumbnails (if multiple images exist)
+  const detailThumbs = document.getElementById('detailThumbs');
+  if (detailThumbs) {
+    detailThumbs.innerHTML = '';
+    // Add main image as thumbnail
+    const thumb = document.createElement('img');
+    thumb.src = product.img;
+    thumb.className = 'detail-thumb';
+    thumb.alt = 'Thumbnail';
+    thumb.addEventListener('click', () => {
+      if (detailMainImage) detailMainImage.src = product.img;
+    });
+    detailThumbs.appendChild(thumb);
+  }
+
+  // Set product details
+  const detailTitle = document.getElementById('detailTitle');
+  if (detailTitle) detailTitle.textContent = product.name;
+
+  const detailPrice = document.getElementById('detailPrice');
+  if (detailPrice) detailPrice.textContent = '₱' + product.price;
+
+  const detailCategory = document.getElementById('detailCategory');
+  if (detailCategory) detailCategory.textContent = product.category;
+
+  const detailCondition = document.getElementById('detailCondition');
+  if (detailCondition) detailCondition.textContent = `Condition: ${product.condition}`;
+
+  const detailLocation = document.getElementById('detailLocation');
+  if (detailLocation) detailLocation.textContent = `Location: ${product.seller}`;
+
+  const detailPosted = document.getElementById('detailPosted');
+  if (detailPosted) detailPosted.textContent = `Posted: Recently`;
+
+  const detailViews = document.getElementById('detailViews');
+  if (detailViews) detailViews.textContent = `Views: 0`;
+
+  const detailDescription = document.getElementById('detailDescription');
+  if (detailDescription) detailDescription.textContent = product.desc || 'No description provided.';
+
+  const detailSellerName = document.getElementById('detailSellerName');
+  if (detailSellerName) detailSellerName.textContent = product.seller;
+
+  const detailSellerRole = document.getElementById('detailSellerRole');
+  if (detailSellerRole) detailSellerRole.textContent = 'Seller';
+
+  // Set buttons
+  const addToCartBtn = document.getElementById('addToCartBtn');
+  if (addToCartBtn) {
+    addToCartBtn.textContent = 'Add to Cart';
+    addToCartBtn.disabled = false;
+    addToCartBtn.onclick = () => {
+      addToCart(product.id);
+      showToast(product.name + ' added to cart');
+    };
+  }
+
+  const contactSellerBtn = document.getElementById('contactSellerBtn');
+  if (contactSellerBtn) {
+    contactSellerBtn.textContent = 'Message Seller';
+    contactSellerBtn.onclick = () => {
+      openMessagesPanel();
+      closeItemModal();
+    };
+  }
 
   document.getElementById('itemModal').classList.add('open');
 }

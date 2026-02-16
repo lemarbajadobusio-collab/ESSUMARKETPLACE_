@@ -301,74 +301,52 @@
 <div id="itemModal" class="modal">
   <div class="modal-content item-modal-content">
     <button class="modal-close" onclick="closeItemModal()">×</button>
-    <div id="itemModalContent">
-      <!-- Content will be populated by JS -->
-    </div>
+    <section class="product-detail" id="productDetailSection">
+      <button class="back-btn" onclick="closeItemModal()" type="button">
+        ← Back 
+      </button>
+      <div class="product-detail-layout">
+        <div class="product-gallery">
+          <img id="detailMainImage" class="detail-main" src="" alt="Product image">
+          <div class="detail-thumbs" id="detailThumbs"></div>
+        </div>
+        <div class="product-info">
+          <div class="detail-header">
+            <span class="detail-tag" id="detailCategory">Category</span>
+            <div class="detail-actions">
+              <button class="icon-btn" onclick="event.stopPropagation(); toggleWishlist(this.dataset.productId); this.textContent = this.textContent === '♡' ? '♥' : '♡'; this.style.color = this.textContent === '♥' ? 'red' : '#333';" data-product-id="">♡</button>
+              <button class="icon-btn">↗</button>
+            </div>
+          </div>
+          <h2 id="detailTitle">Product Title</h2>
+          <div class="detail-price" id="detailPrice">₱ 0</div>
+          <div class="detail-meta">
+            <span id="detailCondition">Condition: --</span>
+            <span id="detailLocation">Location: --</span>
+            <span id="detailPosted">Posted: --</span>
+            <span id="detailViews">Views: --</span>
+          </div>
+          <div class="detail-desc">
+            <h3>Description</h3>
+            <p id="detailDescription">--</p>
+          </div>
+          <div class="detail-seller">
+            <div>
+              <strong id="detailSellerName">Seller</strong>
+              <div class="detail-seller-role" id="detailSellerRole">Seller</div>
+            </div>
+            <div class="detail-rating">★ 4.8 <span>(24 reviews)</span></div>
+          </div>
+          <button class="ghost-btn primary-btn" id="viewSellerProfileBtn">View Seller Profile</button>
+          <button class="ghost-btn primary-btn" id="addToCartBtn">Add to Cart</button>
+          <button class="primary-btn" id="contactSellerBtn">Message Seller</button>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 
-<style>
-.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:1000}
-.modal.open{display:flex}
 
-.notifications-panel, .messages-panel{position:fixed;right:0;top:0;bottom:0;width:450px;background:white;color:#111;box-shadow:-25px 0 70px rgba(0,0,0,0.2);transform:translateX(100%);transition:transform .4s cubic-bezier(0.25, 0.46, 0.45, 0.94);z-index:1100;padding:24px;overflow:auto;border-left:3px solid #1e8e3e}
-.notifications-panel.open, .messages-panel.open{transform:translateX(0)}
-.sell-panel{position:fixed;left:0;top:0;width:100vw;height:100vh;background:linear-gradient(180deg, #1fb04d 0%, #149140 100%);color:#111;transform:translateX(100%);transition:transform .4s cubic-bezier(0.25, 0.46, 0.45, 0.94);z-index:1100;overflow:auto}
-.sell-panel.open{transform:translateX(0)}
-.panel-content{max-width:500px;margin:20px auto 0 auto;background:white;border-radius:12px;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.15)}
-.panel-close{position:absolute;left:12px;top:102px;border:none;background:#fff;color:#666;font-size:24px;cursor:pointer;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;transition:all .3s; box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:1200}
-.panel-close:hover{background:#1e8e3e;color:#fff;transform:scale(1.1)}
-
-.notifications-list{margin-top:20px}
-.notification-item{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);border-left:4px solid #1e8e3e;position:relative}
-.notification-item.unread{background:#e7f6ec;border-left-color:#1e8e3e}
-.notification-item .time{font-size:12px;color:#666;margin-top:8px}
-
-.conversations-list{margin-top:20px}
-.conversation-item{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);cursor:pointer;border-left:4px solid #1e8e3e;display:flex;align-items:center}
-.conversation-item:hover{background:#f8f9fa}
-.conversation-item img{width:50px;height:50px;border-radius:50%;margin-right:12px;object-fit:cover}
-.conversation-item .info{flex:1}
-.conversation-item .name{font-weight:700}
-.conversation-item .last-msg{color:#666;font-size:14px;margin-top:4px}
-.conversation-item .time{font-size:12px;color:#999}
-
-.chat-view{margin-top:20px}
-.chat-messages{max-height:400px;overflow:auto;margin-bottom:12px;padding:12px;background:#fff;border-radius:8px}
-.message{display:flex;margin-bottom:8px}
-.message.sent{justify-content:flex-end}
-.message .bubble{background:#1e8e3e;color:#fff;padding:8px 12px;border-radius:18px;max-width:70%;word-wrap:break-word}
-.message.received .bubble{background:#f1f1f1;color:#333}
-.chat-input{display:flex;gap:8px}
-.chat-input input{flex:1;padding:10px;border:1px solid #ccc;border-radius:8px}
-.chat-input button{background:#1e8e3e;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer}
-.chat-input button:hover{background:#149140}
-
-/* Item Modal Styles */
-.item-modal-content{max-width:900px;width:95%;max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:0;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid #e0e0e0}
-.item-detail{display:flex;gap:30px;padding:30px;flex-wrap:wrap}
-.item-image{flex:1;min-width:300px;max-width:400px;display:flex;justify-content:center;align-items:center;background:#f9f9f9;border-radius:12px;padding:20px;border:1px solid #ddd}
-.item-image img{width:100%;height:auto;max-height:400px;object-fit:contain;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
-.item-info{flex:1;min-width:300px}
-.item-info h2{margin:0 0 15px 0;font-size:32px;color:#222;font-weight:700;line-height:1.2}
-.item-price{font-size:28px;font-weight:800;color:#1e8e3e;margin-bottom:15px;display:flex;align-items:center;gap:10px}
-.item-price::before{content:'₱';font-size:24px}
-.item-condition, .item-seller, .item-category{margin-bottom:10px;font-size:16px;color:#555;display:flex;align-items:center;gap:5px}
-.item-condition::before{content:'🏷️';font-size:18px}
-.item-seller::before{content:'👤';font-size:18px}
-.item-category::before{content:'📂';font-size:18px}
-.item-description{margin-top:25px;border-top:1px solid #eee;padding-top:20px}
-.item-description h3{margin:0 0 15px 0;font-size:22px;color:#333;font-weight:600}
-.item-description p{margin:0;font-size:16px;line-height:1.6;color:#666;text-align:justify}
-.item-actions{margin-top:30px;display:flex;gap:15px;flex-wrap:wrap}
-.item-actions button{padding:14px 24px;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.3s ease;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:0.5px}
-.item-actions button:first-child{background:linear-gradient(135deg,#1e8e3e,#149140);color:#fff;box-shadow:0 4px 15px rgba(30,142,62,0.3)}
-.item-actions button:first-child:hover{background:linear-gradient(135deg,#149140,#0d5930);transform:translateY(-2px);box-shadow:0 6px 20px rgba(30,142,62,0.4)}
-.item-actions button:nth-child(2){background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;box-shadow:0 4px 15px rgba(245,158,11,0.3)}
-.item-actions button:nth-child(2):hover{background:linear-gradient(135deg,#d97706,#b45309);transform:translateY(-2px);box-shadow:0 6px 20px rgba(245,158,11,0.4)}
-.item-actions button:last-child{background:linear-gradient(135deg,#e5e7eb,#d1d5db);color:#333;box-shadow:0 4px 15px rgba(0,0,0,0.1)}
-.item-actions button:last-child:hover{background:linear-gradient(135deg,#d1d5db,#b3b6c6);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.15)}
-</style>
 
 </body>
 </html>
