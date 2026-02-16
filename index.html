@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ESSU Marketplace - Login</title>
-  <link rel="stylesheet" href="buyer.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESSU Marketplace | Sign In / Sign Up</title>
+  <link rel="stylesheet" href="buyer.css">
 </head>
 <body>
 
@@ -25,13 +25,16 @@
         <button class="auth-tab" id="signupTab">Sign up</button>
       </div>
 
-      <!-- LOGIN FORM -->
+      <!-- LOGIN (keeps original input ids for JS compatibility) -->
       <form id="loginForm" class="auth-form" onsubmit="event.preventDefault(); login();">
         <div class="input-group">
-          <label for="email">Email Address</label>
-          <input id="email" type="email" placeholder="your.email@essu.edu.ph" required />
+          <label for="name">Full name</label>
+          <input id="name" type="text" placeholder="Enter name" required />
         </div>
-
+        <div class="input-group">
+          <label for="email">Gmail address</label>
+          <input id="email" type="email" placeholder="wer@gmail.com" required />
+        </div>
         <div class="input-group">
           <label for="password">Password</label>
           <div class="password-field">
@@ -43,29 +46,22 @@
             </button>
           </div>
         </div>
-
-        <button type="submit" class="primary-btn">Sign In</button>
-
-        <p class="switch">
-          Don’t have an account?
-          <span id="goSignup">Sign up</span>
-        </p>
+        <button type="submit" class="primary-btn">Log in</button>
+        <p class="signup-link">Don't have an account? <a href="#" id="signupLink">Sign Up</a></p>
         <p id="loginError"></p>
       </form>
 
-      <!-- SIGNUP FORM -->
+      <!-- SIGNUP (keeps original input ids for JS compatibility) -->
       <form id="signupForm" class="auth-form" hidden onsubmit="event.preventDefault(); signup();">
         <div class="input-grid signup-grid">
           <div class="input-group">
-            <label for="name">Full Name</label>
-            <input id="name" type="text" placeholder="Your full name" required />
+            <label for="suName">Full Name</label>
+            <input id="suName" type="text" placeholder="Your full name" required />
           </div>
-
           <div class="input-group">
             <label for="suEmail">Email Address</label>
             <input id="suEmail" type="email" placeholder="your.email@essu.edu.ph" required />
           </div>
-
           <div class="input-group full">
             <label for="suPassword">Password</label>
             <div class="password-field">
@@ -77,7 +73,6 @@
               </button>
             </div>
           </div>
-
           <div class="input-group full">
             <label for="suConfirm">Confirm Password</label>
             <div class="password-field">
@@ -90,13 +85,7 @@
             </div>
           </div>
         </div>
-
         <button type="submit" class="primary-btn">Create Account</button>
-
-        <p class="switch">
-          Already have an account?
-          <span id="goLogin">Login</span>
-        </p>
         <p id="signupError"></p>
       </form>
     </div>
@@ -104,32 +93,34 @@
 
   <script src="buyer.js"></script>
   <script>
-    // Tab behavior
+    // Tab switching for login/signup
     document.getElementById('loginTab').addEventListener('click', (e) => {
       e.preventDefault();
-      document.getElementById('loginForm').removeAttribute('hidden');
-      document.getElementById('signupForm').setAttribute('hidden', '');
+      document.getElementById('loginForm').hidden = false;
+      document.getElementById('signupForm').hidden = true;
       document.getElementById('loginTab').classList.add('active');
       document.getElementById('signupTab').classList.remove('active');
     });
     
     document.getElementById('signupTab').addEventListener('click', (e) => {
       e.preventDefault();
-      document.getElementById('signupForm').removeAttribute('hidden');
-      document.getElementById('loginForm').setAttribute('hidden', '');
+      document.getElementById('loginForm').hidden = true;
+      document.getElementById('signupForm').hidden = false;
       document.getElementById('signupTab').classList.add('active');
       document.getElementById('loginTab').classList.remove('active');
     });
-    
-    document.getElementById('goSignup').addEventListener('click', (e) => {
-      e.preventDefault();
-      document.getElementById('signupTab').click();
-    });
-    
-    document.getElementById('goLogin').addEventListener('click', (e) => {
-      e.preventDefault();
-      document.getElementById('loginTab').click();
-    });
+
+    // Sign Up link in login form
+    const signupLink = document.getElementById('signupLink');
+    if (signupLink) {
+      signupLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('loginForm').hidden = true;
+        document.getElementById('signupForm').hidden = false;
+        document.getElementById('signupTab').classList.add('active');
+        document.getElementById('loginTab').classList.remove('active');
+      });
+    }
 
     // Password toggle
     document.querySelectorAll('.toggle-password').forEach(btn => {
