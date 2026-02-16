@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <title>ESSUMarketplace | Admin Dashboard</title>
 
-    <!-- BOOTSTRAP -->
+    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- CHART.JS -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- CUSTOM CSS -->
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="admin.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -19,404 +19,121 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
-        <h4 class="text-center" style="color:white;margin-bottom:20px">
-          <svg viewBox="0 0 24 24" width="24" height="24" style="fill:white;display:inline;margin-right:8px">
-            <path d="M4 6a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6zm12 0H6v12h12V9h-4V6z"/>
-          </svg>
-          Admin Panel
-        </h4>
+        <h4 class="text-center">Admin Panel</h4>
 
         <a href="#" onclick="showSection('dashboard', this)" class="active">Dashboard</a>
         <a href="#" onclick="showSection('users', this)">User Management</a>
         <a href="#" onclick="showSection('products', this)">Product Monitoring</a>
         <a href="#" onclick="showSection('orders', this)">Orders & Transactions</a>
-        <a href="#" onclick="showSection('reports', this)">Reports & Analytics</a>
-        <a href="#" onclick="showSection('security', this)">Security Settings</a>
-        <a href="#" onclick="showSection('activity', this)" id="activityLink">Activity <span id="activityBadge" class="badge bg-danger ms-1" style="display:none">0</span></a>
+        <a href="#" onclick="showSection('reports', this)">Reports</a>
 
-        <a href="#" class="text-danger mt-3" style="font-weight:600">Logout</a>
+        <a href="#" onclick="logout()" class="text-danger mt-3">Logout</a>
     </div>
 
-    <!-- MAIN CONTENT -->
+    <!-- CONTENT -->
     <div class="content p-4 w-100">
 
         <!-- DASHBOARD -->
         <div id="dashboard" class="section">
             <h2>System Overview</h2>
-            <p class="text-muted">Campus Marketplace Admin Dashboard</p>
 
             <div class="row g-3 mt-2">
-                <div class="col-md-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h5>Total Users</h5>
-                            <h3 id="totalUsers">0</h3>
-                        </div>
+                <div class="col-md-4">
+                    <div class="card text-center p-3">
+                        <h5>Total Users</h5>
+                        <h3 id="totalUsers">0</h3>
                     </div>
                 </div>
 
-                <div class="col-md-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h5>Products Listed</h5>
-                            <h3 id="totalProducts">0</h3>
-                        </div>
+                <div class="col-md-4">
+                    <div class="card text-center p-3">
+                        <h5>Products Listed</h5>
+                        <h3 id="totalProducts">0</h3>
                     </div>
                 </div>
 
-                <div class="col-md-3">
-                    <div class="card text-center shadow-sm">
-                        <div class="card-body">
-                            <h5>Total Transactions</h5>
-                            <h3 id="totalTransactions">0</h3>
-                        </div>
+                <div class="col-md-4">
+                    <div class="card text-center p-3">
+                        <h5>Total Transactions</h5>
+                        <h3 id="totalTransactions">0</h3>
                     </div>
                 </div>
             </div>
 
             <div class="row mt-4">
                 <div class="col-md-6">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <h5>Sales Trend</h5>
-                            <canvas id="salesChart"></canvas>
-                        </div>
+                    <div class="card p-3">
+                        <h5>Sales Trend</h5>
+                        <canvas id="salesChart"></canvas>
                     </div>
                 </div>
 
                 <div class="col-md-6">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <h5>User Growth</h5>
-                            <canvas id="userChart"></canvas>
-                        </div>
+                    <div class="card p-3">
+                        <h5>User Growth</h5>
+                        <canvas id="userChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- USER MANAGEMENT -->
+        <!-- USERS -->
         <div id="users" class="section d-none">
             <h2>User Management</h2>
-            <p class="text-muted">Manage sellers and buyers</p>
-
-            <input type="text" id="userSearch" class="form-control mb-2" placeholder="Search users..." onkeyup="searchTable('usersTable', this.value)">
-
-            <table class="table table-striped mt-2" id="usersTable">
+            <table class="table table-striped mt-3" id="usersTable">
                 <thead>
                     <tr>
-                        <th>User ID</th>
+                        <th>ID</th>
                         <th>Name</th>
                         <th>Role</th>
-                        <th>Status</th>
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr>
-                        <td>U001</td>
-                        <td>Juan Dela Cruz</td>
-                        <td>Seller</td>
-                        <td>Active</td>
-                        <td>
-                            <button class="btn btn-danger btn-sm" onclick="confirmAction('Ban this user?')">Ban</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>U002</td>
-                        <td>Maria Santos</td>
-                        <td>Buyer</td>
-                        <td>Suspended</td>
-                        <td>
-                            <button class="btn btn-success btn-sm" onclick="confirmAction('Reactivate this user?')">Reactivate</button>
-                        </td>
-                    </tr>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
 
-        <!-- PRODUCT MONITORING -->
+        <!-- PRODUCTS -->
         <div id="products" class="section d-none">
             <h2>Product Monitoring</h2>
-            <p class="text-muted">Review and approve product listings</p>
-
-            <table class="table table-bordered mt-2">
+            <table class="table table-bordered mt-3" id="productsTable">
                 <thead>
                     <tr>
                         <th>Product</th>
                         <th>Seller</th>
-                        <th>Category</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr>
-                        <td>Scientific Calculator</td>
-                        <td>Seller_John</td>
-                        <td>Electronics</td>
-                        <td>Pending</td>
-                        <td>
-                            <button class="btn btn-success btn-sm" onclick="confirmAction('Approve this product?')">Approve</button>
-                            <button class="btn btn-danger btn-sm" onclick="confirmAction('Remove this product?')">Remove</button>
-                        </td>
-                    </tr>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
 
         <!-- ORDERS -->
         <div id="orders" class="section d-none">
             <h2>Orders & Transactions</h2>
-            <p class="text-muted">Track purchase and delivery status</p>
-
-            <table class="table mt-2">
+            <table class="table mt-3" id="ordersTable">
                 <thead>
                     <tr>
                         <th>Order ID</th>
                         <th>Buyer</th>
-                        <th>Seller</th>
                         <th>Status</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr>
-                        <td>ORD-101</td>
-                        <td>Buyer_Mia</td>
-                        <td>Seller_John</td>
-                        <td>Completed</td>
-                    </tr>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
 
         <!-- REPORTS -->
         <div id="reports" class="section d-none">
-            <h2>Reports & Analytics</h2>
-            <p class="text-muted">Insights to support admin decision-making</p>
-
-            <div class="row mt-2">
-                <div class="col-md-6">
-                    <div class="card mb-3 shadow-sm">
-                        <div class="card-body">
-                            <h5>Monthly Sales Summary</h5>
-                            <p>Total Revenue: ₱145,000</p>
-                            <p>Highest Sales Month: May</p>
-                            <p>Lowest Sales Month: January</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card mb-3 shadow-sm">
-                        <div class="card-body">
-                            <h5>User Activity Report</h5>
-                            <p>New Users This Month: 200</p>
-                            <p>Active Sellers: 140</p>
-                            <p>Reported Accounts: 8</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECURITY -->
-        <div id="security" class="section d-none">
-            <h2>Security Settings</h2>
-            <ul>
-                <li>View login and logout logs</li>
-                <li>Monitor admin activities</li>
-                <li>Manage password policies</li>
-                <li>Backup and restore system data</li>
-            </ul>
-        </div>
-
-        <!-- ACTIVITY -->
-        <div id="activity" class="section d-none">
-            <h2>Activity Log</h2>
-            <p class="text-muted">Recent actions by buyers and sellers.</p>
-            <div class="d-flex justify-content-end mb-2">
-                <button class="btn btn-sm btn-outline-secondary me-2" onclick="clearActivity()">Clear</button>
-                <button class="btn btn-sm btn-primary" onclick="loadActivity()">Refresh</button>
-            </div>
-            <div id="activityFeed" style="max-height:400px;overflow:auto;border:1px solid #eee;padding:12px;border-radius:6px;background:#fff"></div>
+            <h2>Reports</h2>
+            <p>Total Revenue: ₱145,000</p>
         </div>
 
     </div>
 </div>
 
-<!-- NAVIGATION SCRIPT -->
-<script>
-    function showSection(id, element) {
-        // Hide all sections
-        document.querySelectorAll('.section').forEach(sec => sec.classList.add('d-none'));
-        // Show selected section
-        document.getElementById(id).classList.remove('d-none');
-
-        // Active link highlight
-        document.querySelectorAll('.sidebar a').forEach(link => link.classList.remove('active'));
-        element.classList.add('active');
-    }
-
-    function confirmAction(message) {
-        if(confirm(message)) {
-            alert("Action confirmed!");
-        }
-    }
-
-    function searchTable(tableId, searchValue) {
-        const table = document.getElementById(tableId);
-        const filter = searchValue.toLowerCase();
-        Array.from(table.tBodies[0].rows).forEach(row => {
-            row.style.display = Array.from(row.cells).some(cell =>
-                cell.textContent.toLowerCase().includes(filter)
-            ) ? '' : 'none';
-        });
-    }
-</script>
-
-<!-- CHART SCRIPT -->
-<script>
-    // Load data from localStorage
-    function loadAdminData() {
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        const products = JSON.parse(localStorage.getItem('products') || '[]');
-        const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-
-        // Update stats
-        document.getElementById('totalUsers').textContent = users.length;
-        document.getElementById('totalProducts').textContent = products.length || 10; // fallback to sample
-        document.getElementById('totalTransactions').textContent = orders.length;
-
-        // Populate users table
-        const usersTableBody = document.querySelector('#usersTable tbody');
-        usersTableBody.innerHTML = '';
-        users.forEach((user, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>U${index + 1}</td>
-                <td>${user.name || 'N/A'}</td>
-                <td>${user.role || 'Buyer'}</td>
-                <td>Active</td>
-                <td><button class="btn btn-danger btn-sm" onclick="confirmAction('Ban this user?')">Ban</button></td>
-            `;
-            usersTableBody.appendChild(row);
-        });
-
-        // Populate products table
-        const productsTableBody = document.querySelector('#products tbody');
-        productsTableBody.innerHTML = '';
-        products.forEach(product => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${product.name}</td>
-                <td>${product.seller}</td>
-                <td>${product.category || 'Other'}</td>
-                <td>Approved</td>
-                <td>
-                    <button class="btn btn-success btn-sm" onclick="confirmAction('Approve this product?')">Approve</button>
-                    <button class="btn btn-danger btn-sm" onclick="confirmAction('Remove this product?')">Remove</button>
-                </td>
-            `;
-            productsTableBody.appendChild(row);
-        });
-
-        // Populate orders table
-        const ordersTableBody = document.querySelector('#orders tbody');
-        ordersTableBody.innerHTML = '';
-        orders.forEach(order => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${order.id}</td>
-                <td>${order.buyer}</td>
-                <td>${order.items[0]?.seller || 'N/A'}</td>
-                <td>${order.status}</td>
-            `;
-            ordersTableBody.appendChild(row);
-        });
-    }
-
-    // Sales Trend Chart
-    new Chart(document.getElementById('salesChart'), {
-        type: 'line',
-        data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-            datasets: [{
-                label: 'Sales (₱)',
-                data: [12000, 19000, 30000, 25000, 40000],
-                borderWidth: 2,
-                fill: false,
-                tension: 0.4,
-                borderColor: '#1f7a4d',
-                backgroundColor: '#1f7a4d'
-            }]
-        },
-        options: {
-            responsive: true
-        }
-    });
-
-    // User Growth Chart
-    new Chart(document.getElementById('userChart'), {
-        type: 'bar',
-        data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-            datasets: [{
-                label: 'New Users',
-                data: [50, 80, 120, 150, 200],
-                backgroundColor: '#facc15'
-            }]
-        },
-        options: {
-            responsive: true
-        }
-    });
-
-    // Load data on page load
-    window.onload = loadAdminData;
-    
-    // Activity log helpers
-    function loadActivity() {
-        const log = JSON.parse(localStorage.getItem('activity_log') || '[]');
-        const feed = document.getElementById('activityFeed');
-        const badge = document.getElementById('activityBadge');
-        if (!feed) return;
-        feed.innerHTML = '';
-        if (!log.length) {
-            feed.innerHTML = '<div class="muted">No activity yet.</div>';
-            badge.style.display = 'none';
-            return;
-        }
-        // sort newest first
-        log.slice().reverse().forEach(entry => {
-            const el = document.createElement('div');
-            el.className = 'mb-2';
-            el.innerHTML = `<div style="font-size:13px"><strong>${entry.type.replace('_',' ')}</strong> — <span class="text-muted">${entry.user}</span></div><div style="font-size:12px;color:#444">${JSON.stringify(entry.details)}</div><div style="font-size:11px;color:#999">${new Date(entry.time).toLocaleString()}</div>`;
-            feed.appendChild(el);
-        });
-        badge.textContent = log.length;
-        badge.style.display = '';
-    }
-
-    function clearActivity(){
-        if(!confirm('Clear activity log?')) return;
-        localStorage.removeItem('activity_log');
-        localStorage.setItem('activity_log_cleared_at', new Date().toISOString());
-        loadActivity();
-    }
-
-    // Watch for storage changes (from other tabs) and refresh activity
-    window.addEventListener('storage', function(e){
-        if(!e.key) return;
-        if(['activity_log','activity_log_updated_at','activity_log_cleared_at','products','messages','orders','users'].includes(e.key)){
-            loadAdminData();
-            loadActivity();
-        }
-    });
-
-    // load activity after loading admin data
-    window.addEventListener('load', function(){ loadActivity(); });
-</script>
+<script src="admin.js"></script>
 
 </body>
 </html>
