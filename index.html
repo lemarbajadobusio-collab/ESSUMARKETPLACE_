@@ -8,7 +8,8 @@
 </head>
 <body>
   <script>
-    if (localStorage.getItem('essu_preferred_role') === 'seller' && !localStorage.getItem('buyer')) {
+    const isHosted = window.location.hostname.endsWith('github.io');
+    if (!isHosted && localStorage.getItem('essu_preferred_role') === 'seller' && !localStorage.getItem('buyer')) {
       window.location.href = 'seller.html';
     }
   </script>
