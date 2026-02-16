@@ -1,80 +1,36 @@
-const fs = require("fs");
-const path = require("path");
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
-const sqlite3 = require("sqlite3").verbose();
 const bcrypt = require("bcryptjs");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "5mb" }));
 
-const rootDir = path.resolve(__dirname, "..");
-const dataDir = path.join(rootDir, "data");
-const dbPath = path.join(dataDir, "essu_marketplace.db");
-const schemaPath = path.join(__dirname, "schema.sql");
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY are required in .env");
 }
 
-const db = new sqlite3.Database(dbPath);
-
-function run(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function onRun(err) {
-      if (err) return reject(err);
-      resolve({ id: this.lastID, changes: this.changes });
-    });
-  });
-}
-
-function get(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) return reject(err);
-      resolve(row || null);
-    });
-  });
-}
-
-function all(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows || []);
-    });
-  });
-}
+const supabase = createClient(
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY,
+  { auth: { persistSession: false } }
+);
 
 function nowIso() {
   return new Date().toISOString();
 }
 
-async function initDatabase() {
-  const schema = fs.readFileSync(schemaPath, "utf8");
-  await new Promise((resolve, reject) => {
-    db.exec(schema, err => {
-      if (err) return reject(err);
-      resolve();
-    });
-  });
-
-  const adminEmail = "admin@essu.local";
-  const existingAdmin = await get("SELECT id FROM users WHERE email = ?", [adminEmail]);
-  if (!existingAdmin) {
-    const hash = await bcrypt.hash("admin12345", 10);
-    await run(
-      "INSERT INTO users (fullname, email, password_hash, role, status) VALUES (?, ?, ?, 'admin', 'ACTIVE')",
-      ["ESSU Admin", adminEmail, hash]
-    );
-  }
-}
-
 function sanitizeUser(row) {
   if (!row) return null;
   return {
-    id: row.id,
+    id: Number(row.id),
     fullname: row.fullname,
     email: row.email,
     role: row.role,
@@ -86,17 +42,39 @@ function sanitizeUser(row) {
 }
 
 async function ensureCart(userId) {
-  let cart = await get("SELECT id FROM carts WHERE user_id = ?", [userId]);
-  if (!cart) {
-    const created = await run("INSERT INTO carts (user_id, updated_at) VALUES (?, ?)", [userId, nowIso()]);
-    cart = { id: created.id };
-  }
-  return cart.id;
+  const existing = await supabase.from("carts").select("id").eq("user_id", userId).maybeSingle();
+  if (existing.error) throw existing.error;
+  if (existing.data?.id) return Number(existing.data.id);
+  const created = await supabase
+    .from("carts")
+    .insert({ user_id: userId, updated_at: nowIso() })
+    .select("id")
+    .single();
+  if (created.error) throw created.error;
+  return Number(created.data.id);
+}
+
+async function seedDefaultAdmin() {
+  const adminEmail = "admin@essu.local";
+  const existing = await supabase.from("users").select("id").eq("email", adminEmail).maybeSingle();
+  if (existing.error) return;
+  if (existing.data?.id) return;
+  const hash = await bcrypt.hash("admin12345", 10);
+  await supabase.from("users").insert({
+    fullname: "ESSU Admin",
+    email: adminEmail,
+    password_hash: hash,
+    role: "admin",
+    status: "ACTIVE",
+    joined_at: nowIso(),
+    updated_at: nowIso()
+  });
 }
 
 app.get("/api/health", async (_req, res) => {
-  const counts = await get("SELECT COUNT(*) AS usersCount FROM users");
-  res.json({ ok: true, users: counts?.usersCount || 0 });
+  const result = await supabase.from("users").select("*", { head: true, count: "exact" });
+  if (result.error) return res.status(500).json({ ok: false, error: result.error.message });
+  return res.json({ ok: true, users: result.count || 0 });
 });
 
 app.post("/api/auth/register", async (req, res) => {
@@ -109,16 +87,26 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(400).json({ error: "Invalid role." });
     }
 
-    const existing = await get("SELECT id FROM users WHERE lower(email) = lower(?)", [email.trim()]);
-    if (existing) return res.status(409).json({ error: "Email already exists." });
+    const exists = await supabase.from("users").select("id").ilike("email", email.trim()).maybeSingle();
+    if (exists.error) return res.status(500).json({ error: exists.error.message });
+    if (exists.data?.id) return res.status(409).json({ error: "Email already exists." });
 
     const hash = await bcrypt.hash(password, 10);
-    const created = await run(
-      "INSERT INTO users (fullname, email, password_hash, role, mobile, joined_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [fullname.trim(), email.trim().toLowerCase(), hash, role, mobile.trim(), nowIso(), nowIso()]
-    );
-    const user = await get("SELECT * FROM users WHERE id = ?", [created.id]);
-    return res.status(201).json({ user: sanitizeUser(user) });
+    const created = await supabase
+      .from("users")
+      .insert({
+        fullname: fullname.trim(),
+        email: email.trim().toLowerCase(),
+        password_hash: hash,
+        role,
+        mobile: mobile.trim(),
+        joined_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .select("*")
+      .single();
+    if (created.error) return res.status(500).json({ error: created.error.message });
+    return res.status(201).json({ user: sanitizeUser(created.data) });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -129,158 +117,201 @@ app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: "email and password are required." });
 
-    const user = await get("SELECT * FROM users WHERE lower(email) = lower(?)", [email.trim()]);
-    if (!user) return res.status(401).json({ error: "Invalid credentials." });
+    const userRow = await supabase.from("users").select("*").ilike("email", email.trim()).maybeSingle();
+    if (userRow.error) return res.status(500).json({ error: userRow.error.message });
+    if (!userRow.data) return res.status(401).json({ error: "Invalid credentials." });
 
-    const ok = await bcrypt.compare(password, user.password_hash);
+    const ok = await bcrypt.compare(password, userRow.data.password_hash);
     if (!ok) return res.status(401).json({ error: "Invalid credentials." });
 
-    return res.json({ user: sanitizeUser(user) });
+    return res.json({ user: sanitizeUser(userRow.data) });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 });
 
 app.get("/api/users", async (_req, res) => {
-  try {
-    const users = await all("SELECT * FROM users ORDER BY created_at DESC");
-    res.json({ users: users.map(sanitizeUser) });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const rows = await supabase.from("users").select("*").order("created_at", { ascending: false });
+  if (rows.error) return res.status(500).json({ error: rows.error.message });
+  return res.json({ users: (rows.data || []).map(sanitizeUser) });
+});
+
+app.patch("/api/users/:id", async (req, res) => {
+  const userId = Number(req.params.id);
+  const { fullname, mobile, photo, status, role, email, password } = req.body || {};
+
+  const updatePayload = { updated_at: nowIso() };
+  if (typeof fullname === "string") updatePayload.fullname = fullname.trim();
+  if (typeof mobile === "string") updatePayload.mobile = mobile.trim();
+  if (typeof photo === "string") updatePayload.photo = photo;
+  if (typeof status === "string") updatePayload.status = status;
+  if (typeof role === "string") updatePayload.role = role;
+  if (typeof email === "string") updatePayload.email = email.trim().toLowerCase();
+  if (typeof password === "string" && password.trim()) {
+    updatePayload.password_hash = await bcrypt.hash(password, 10);
   }
+
+  const updated = await supabase.from("users").update(updatePayload).eq("id", userId).select("*").maybeSingle();
+  if (updated.error) return res.status(500).json({ error: updated.error.message });
+  if (!updated.data) return res.status(404).json({ error: "User not found." });
+  return res.json({ user: sanitizeUser(updated.data) });
 });
 
 app.get("/api/products", async (req, res) => {
-  try {
-    const { includeSold = "false" } = req.query;
-    const where = includeSold === "true" ? "" : "WHERE p.status != 'sold'";
-    const rows = await all(
-      `
-      SELECT
-        p.*,
-        u.fullname AS seller_name,
-        u.email AS seller_email
-      FROM products p
-      JOIN users u ON u.id = p.seller_user_id
-      ${where}
-      ORDER BY p.created_at DESC
-      `
-    );
-    const products = rows.map(row => ({
-      id: row.id,
-      sellerUserId: row.seller_user_id,
-      sellerName: row.seller_name,
-      sellerEmail: row.seller_email,
-      name: row.name,
-      category: row.category,
-      price: row.price,
-      condition: row.item_condition,
-      location: row.location,
-      description: row.description,
-      image: row.cover_image,
-      images: JSON.parse(row.images_json || "[]"),
-      status: row.status,
-      posted: row.posted_label,
-      views: row.views,
-      createdAt: row.created_at
-    }));
-    res.json({ products });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const includeSold = req.query.includeSold === "true";
+  let q = supabase
+    .from("products")
+    .select("*, seller:users!products_seller_user_id_fkey(fullname,email)")
+    .order("created_at", { ascending: false });
+  if (!includeSold) q = q.neq("status", "sold");
+  const rows = await q;
+  if (rows.error) return res.status(500).json({ error: rows.error.message });
+
+  const products = (rows.data || []).map(row => ({
+    id: Number(row.id),
+    sellerUserId: Number(row.seller_user_id),
+    sellerName: row.seller?.fullname || "Seller",
+    sellerEmail: row.seller?.email || "",
+    name: row.name,
+    category: row.category,
+    price: Number(row.price),
+    condition: row.item_condition,
+    location: row.location,
+    description: row.description,
+    image: row.cover_image,
+    images: Array.isArray(row.images_json) ? row.images_json : [],
+    status: row.status,
+    posted: row.posted_label,
+    views: Number(row.views || 0),
+    createdAt: row.created_at
+  }));
+  return res.json({ products });
 });
 
 app.post("/api/products", async (req, res) => {
-  try {
-    const {
-      sellerUserId,
+  const {
+    sellerUserId,
+    name,
+    category,
+    price,
+    condition,
+    location = "",
+    description = "",
+    image = "",
+    images = []
+  } = req.body || {};
+
+  if (!sellerUserId || !name || !category || price == null || !condition) {
+    return res.status(400).json({ error: "sellerUserId, name, category, price, condition are required." });
+  }
+
+  const seller = await supabase.from("users").select("id").eq("id", sellerUserId).maybeSingle();
+  if (seller.error) return res.status(500).json({ error: seller.error.message });
+  if (!seller.data) return res.status(404).json({ error: "Seller not found." });
+
+  const inserted = await supabase
+    .from("products")
+    .insert({
+      seller_user_id: sellerUserId,
       name,
       category,
-      price,
-      condition,
-      location = "",
-      description = "",
-      image = "",
-      images = []
-    } = req.body || {};
+      price: Number(price),
+      item_condition: condition,
+      location,
+      description,
+      cover_image: image || (images[0] || ""),
+      images_json: Array.isArray(images) ? images : [],
+      status: "available",
+      posted_label: "Just now",
+      views: 0,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .select("*")
+    .single();
+  if (inserted.error) return res.status(500).json({ error: inserted.error.message });
+  return res.status(201).json({ product: inserted.data });
+});
 
-    if (!sellerUserId || !name || !category || price == null || !condition) {
-      return res.status(400).json({ error: "sellerUserId, name, category, price, condition are required." });
-    }
-    const seller = await get("SELECT id FROM users WHERE id = ?", [sellerUserId]);
-    if (!seller) return res.status(404).json({ error: "Seller not found." });
+app.patch("/api/products/:id", async (req, res) => {
+  const productId = Number(req.params.id);
+  const {
+    name,
+    category,
+    price,
+    condition,
+    location,
+    description,
+    image,
+    images
+  } = req.body || {};
 
-    const created = await run(
-      `
-      INSERT INTO products (
-        seller_user_id, name, category, price, item_condition, location, description,
-        cover_image, images_json, status, posted_label, views, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', 'Just now', 0, ?, ?)
-      `,
-      [
-        sellerUserId,
-        name,
-        category,
-        Number(price),
-        condition,
-        location,
-        description,
-        image || (images[0] || ""),
-        JSON.stringify(Array.isArray(images) ? images : []),
-        nowIso(),
-        nowIso()
-      ]
-    );
-    const product = await get("SELECT * FROM products WHERE id = ?", [created.id]);
-    res.status(201).json({ product });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const updatePayload = { updated_at: nowIso() };
+  if (typeof name === "string") updatePayload.name = name.trim();
+  if (typeof category === "string") updatePayload.category = category;
+  if (price != null) updatePayload.price = Number(price);
+  if (typeof condition === "string") updatePayload.item_condition = condition;
+  if (typeof location === "string") updatePayload.location = location;
+  if (typeof description === "string") updatePayload.description = description;
+  if (typeof image === "string") updatePayload.cover_image = image;
+  if (Array.isArray(images)) updatePayload.images_json = images;
+
+  const updated = await supabase.from("products").update(updatePayload).eq("id", productId).select("*").maybeSingle();
+  if (updated.error) return res.status(500).json({ error: updated.error.message });
+  if (!updated.data) return res.status(404).json({ error: "Product not found." });
+  return res.json({ product: updated.data });
 });
 
 app.patch("/api/products/:id/status", async (req, res) => {
-  try {
-    const productId = Number(req.params.id);
-    const { status } = req.body || {};
-    if (!["available", "sold", "archived"].includes(status)) {
-      return res.status(400).json({ error: "Invalid status." });
-    }
-    await run("UPDATE products SET status = ?, updated_at = ? WHERE id = ?", [status, nowIso(), productId]);
-    const product = await get("SELECT * FROM products WHERE id = ?", [productId]);
-    if (!product) return res.status(404).json({ error: "Product not found." });
-    res.json({ product });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const productId = Number(req.params.id);
+  const { status } = req.body || {};
+  if (!["available", "sold", "archived"].includes(status)) {
+    return res.status(400).json({ error: "Invalid status." });
   }
+  const updated = await supabase
+    .from("products")
+    .update({ status, updated_at: nowIso() })
+    .eq("id", productId)
+    .select("*")
+    .maybeSingle();
+  if (updated.error) return res.status(500).json({ error: updated.error.message });
+  if (!updated.data) return res.status(404).json({ error: "Product not found." });
+  return res.json({ product: updated.data });
+});
+
+app.delete("/api/products/:id", async (req, res) => {
+  const productId = Number(req.params.id);
+  const deleted = await supabase.from("products").delete().eq("id", productId).select("id").maybeSingle();
+  if (deleted.error) return res.status(500).json({ error: deleted.error.message });
+  if (!deleted.data) return res.status(404).json({ error: "Product not found." });
+  return res.json({ ok: true });
 });
 
 app.get("/api/cart/:userId", async (req, res) => {
   try {
     const userId = Number(req.params.userId);
     const cartId = await ensureCart(userId);
-    const items = await all(
-      `
-      SELECT
-        ci.id,
-        ci.qty,
-        p.id AS product_id,
-        p.name,
-        p.price,
-        p.cover_image,
-        p.status,
-        u.fullname AS seller_name,
-        u.id AS seller_user_id
-      FROM cart_items ci
-      JOIN products p ON p.id = ci.product_id
-      JOIN users u ON u.id = p.seller_user_id
-      WHERE ci.cart_id = ?
-      ORDER BY ci.created_at DESC
-      `,
-      [cartId]
-    );
-    res.json({ items });
+    const items = await supabase
+      .from("cart_items")
+      .select("id, qty, product:products(id,name,price,cover_image,status,seller_user_id, seller:users!products_seller_user_id_fkey(id,fullname))")
+      .eq("cart_id", cartId)
+      .order("created_at", { ascending: false });
+    if (items.error) return res.status(500).json({ error: items.error.message });
+
+    const mapped = (items.data || []).map(it => ({
+      id: Number(it.id),
+      qty: Number(it.qty),
+      product_id: Number(it.product?.id),
+      name: it.product?.name || "",
+      price: Number(it.product?.price || 0),
+      cover_image: it.product?.cover_image || "",
+      status: it.product?.status || "",
+      seller_name: it.product?.seller?.fullname || "",
+      seller_user_id: Number(it.product?.seller_user_id || 0)
+    }));
+    return res.json({ items: mapped });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -290,24 +321,36 @@ app.post("/api/cart/:userId/items", async (req, res) => {
     const { productId, qty = 1 } = req.body || {};
     if (!productId) return res.status(400).json({ error: "productId is required." });
 
-    const product = await get("SELECT * FROM products WHERE id = ?", [productId]);
-    if (!product) return res.status(404).json({ error: "Product not found." });
-    if (product.status !== "available") return res.status(400).json({ error: "Product is not available." });
-    if (product.seller_user_id === userId) return res.status(400).json({ error: "Cannot add your own listing." });
+    const productRow = await supabase.from("products").select("*").eq("id", productId).maybeSingle();
+    if (productRow.error) return res.status(500).json({ error: productRow.error.message });
+    if (!productRow.data) return res.status(404).json({ error: "Product not found." });
+    if (productRow.data.status !== "available") return res.status(400).json({ error: "Product is not available." });
+    if (Number(productRow.data.seller_user_id) === userId) return res.status(400).json({ error: "Cannot add your own listing." });
 
     const cartId = await ensureCart(userId);
-    await run(
-      `
-      INSERT INTO cart_items (cart_id, product_id, qty)
-      VALUES (?, ?, ?)
-      ON CONFLICT(cart_id, product_id) DO UPDATE SET qty = qty + excluded.qty
-      `,
-      [cartId, productId, Math.max(1, Number(qty) || 1)]
-    );
-    await run("UPDATE carts SET updated_at = ? WHERE id = ?", [nowIso(), cartId]);
-    res.status(201).json({ ok: true });
+    const existing = await supabase
+      .from("cart_items")
+      .select("id, qty")
+      .eq("cart_id", cartId)
+      .eq("product_id", productId)
+      .maybeSingle();
+    if (existing.error) return res.status(500).json({ error: existing.error.message });
+
+    const quantity = Math.max(1, Number(qty) || 1);
+    if (existing.data?.id) {
+      const updated = await supabase
+        .from("cart_items")
+        .update({ qty: Number(existing.data.qty) + quantity })
+        .eq("id", existing.data.id);
+      if (updated.error) return res.status(500).json({ error: updated.error.message });
+    } else {
+      const inserted = await supabase.from("cart_items").insert({ cart_id: cartId, product_id: productId, qty: quantity });
+      if (inserted.error) return res.status(500).json({ error: inserted.error.message });
+    }
+    await supabase.from("carts").update({ updated_at: nowIso() }).eq("id", cartId);
+    return res.status(201).json({ ok: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -316,11 +359,12 @@ app.delete("/api/cart/:userId/items/:productId", async (req, res) => {
     const userId = Number(req.params.userId);
     const productId = Number(req.params.productId);
     const cartId = await ensureCart(userId);
-    await run("DELETE FROM cart_items WHERE cart_id = ? AND product_id = ?", [cartId, productId]);
-    await run("UPDATE carts SET updated_at = ? WHERE id = ?", [nowIso(), cartId]);
-    res.json({ ok: true });
+    const removed = await supabase.from("cart_items").delete().eq("cart_id", cartId).eq("product_id", productId);
+    if (removed.error) return res.status(500).json({ error: removed.error.message });
+    await supabase.from("carts").update({ updated_at: nowIso() }).eq("id", cartId);
+    return res.json({ ok: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -329,44 +373,50 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
     const buyerUserId = Number(req.params.buyerUserId);
     const cartId = await ensureCart(buyerUserId);
 
-    const items = await all(
-      `
-      SELECT ci.product_id, ci.qty, p.name, p.price, p.status, p.seller_user_id
-      FROM cart_items ci
-      JOIN products p ON p.id = ci.product_id
-      WHERE ci.cart_id = ?
-      `,
-      [cartId]
-    );
-    if (!items.length) return res.status(400).json({ error: "Cart is empty." });
+    const cartItems = await supabase
+      .from("cart_items")
+      .select("id, qty, product:products(id,name,price,status,seller_user_id)")
+      .eq("cart_id", cartId);
+    if (cartItems.error) return res.status(500).json({ error: cartItems.error.message });
+    if (!cartItems.data?.length) return res.status(400).json({ error: "Cart is empty." });
 
     const purchased = [];
-    for (const item of items) {
-      if (item.status !== "available") continue;
-      if (item.seller_user_id === buyerUserId) continue;
+    for (const item of cartItems.data) {
+      const product = item.product;
+      if (!product) continue;
+      if (product.status !== "available") continue;
+      if (Number(product.seller_user_id) === buyerUserId) continue;
 
-      await run("UPDATE products SET status = 'sold', updated_at = ? WHERE id = ?", [nowIso(), item.product_id]);
-      await run(
-        `
-        INSERT INTO transactions (
-          product_id, buyer_user_id, seller_user_id, item_name, amount, status, created_at
-        ) VALUES (?, ?, ?, ?, ?, 'Completed', ?)
-        `,
-        [item.product_id, buyerUserId, item.seller_user_id, item.name, Number(item.price), nowIso()]
-      );
+      const productUpdate = await supabase
+        .from("products")
+        .update({ status: "sold", updated_at: nowIso() })
+        .eq("id", product.id)
+        .eq("status", "available");
+      if (productUpdate.error) return res.status(500).json({ error: productUpdate.error.message });
+
+      const txnInsert = await supabase.from("transactions").insert({
+        product_id: product.id,
+        buyer_user_id: buyerUserId,
+        seller_user_id: product.seller_user_id,
+        item_name: product.name,
+        amount: Number(product.price),
+        status: "Completed",
+        created_at: nowIso()
+      });
+      if (txnInsert.error) return res.status(500).json({ error: txnInsert.error.message });
+
       purchased.push({
-        productId: item.product_id,
-        item: item.name,
-        amount: item.price
+        productId: Number(product.id),
+        item: product.name,
+        amount: Number(product.price)
       });
     }
 
-    await run("DELETE FROM cart_items WHERE cart_id = ?", [cartId]);
-    await run("UPDATE carts SET updated_at = ? WHERE id = ?", [nowIso(), cartId]);
+    const clear = await supabase.from("cart_items").delete().eq("cart_id", cartId);
+    if (clear.error) return res.status(500).json({ error: clear.error.message });
+    await supabase.from("carts").update({ updated_at: nowIso() }).eq("id", cartId);
 
-    if (!purchased.length) {
-      return res.status(400).json({ error: "No purchasable items in cart." });
-    }
+    if (!purchased.length) return res.status(400).json({ error: "No purchasable items in cart." });
     return res.json({
       ok: true,
       purchasedCount: purchased.length,
@@ -379,139 +429,125 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
 });
 
 app.get("/api/transactions", async (req, res) => {
-  try {
-    const userId = Number(req.query.userId || 0);
-    if (!userId) return res.status(400).json({ error: "userId query is required." });
-
-    const rows = await all(
-      `
-      SELECT
-        t.*,
-        b.fullname AS buyer_name,
-        s.fullname AS seller_name
-      FROM transactions t
-      JOIN users b ON b.id = t.buyer_user_id
-      JOIN users s ON s.id = t.seller_user_id
-      WHERE t.buyer_user_id = ? OR t.seller_user_id = ?
-      ORDER BY t.created_at DESC
-      `,
-      [userId, userId]
-    );
-
-    const transactions = rows.map(row => ({
-      id: row.id,
-      listingId: row.product_id,
-      date: row.created_at.slice(0, 10),
-      item: row.item_name,
-      type: row.seller_user_id === userId ? "Sale" : "Purchase",
-      status: row.status,
-      amount: row.amount,
-      buyerName: row.buyer_name,
-      sellerName: row.seller_name
-    }));
-
-    res.json({ transactions });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const userId = Number(req.query.userId || 0);
+  let query = supabase
+    .from("transactions")
+    .select("*, buyer:users!transactions_buyer_user_id_fkey(fullname), seller:users!transactions_seller_user_id_fkey(fullname)")
+    .order("created_at", { ascending: false });
+  if (userId) {
+    query = query.or(`buyer_user_id.eq.${userId},seller_user_id.eq.${userId}`);
   }
+  const rows = await query;
+  if (rows.error) return res.status(500).json({ error: rows.error.message });
+
+  const transactions = (rows.data || []).map(row => ({
+    id: Number(row.id),
+    listingId: Number(row.product_id),
+    date: String(row.created_at).slice(0, 10),
+    item: row.item_name,
+    type: userId ? (Number(row.seller_user_id) === userId ? "Sale" : "Purchase") : "Completed",
+    status: row.status,
+    amount: Number(row.amount),
+    buyerName: row.buyer?.fullname || "",
+    sellerName: row.seller?.fullname || ""
+  }));
+  return res.json({ transactions });
 });
 
 app.get("/api/conversations", async (req, res) => {
-  try {
-    const userId = Number(req.query.userId || 0);
-    if (!userId) return res.status(400).json({ error: "userId query is required." });
+  const userId = Number(req.query.userId || 0);
+  if (!userId) return res.status(400).json({ error: "userId query is required." });
 
-    const rows = await all(
-      `
-      SELECT c.id, c.listing_product_id, c.created_at
-      FROM conversations c
-      JOIN conversation_participants cp ON cp.conversation_id = c.id
-      WHERE cp.user_id = ?
-      ORDER BY c.created_at DESC
-      `,
-      [userId]
-    );
-    res.json({ conversations: rows });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const part = await supabase.from("conversation_participants").select("conversation_id").eq("user_id", userId);
+  if (part.error) return res.status(500).json({ error: part.error.message });
+  const ids = (part.data || []).map(x => x.conversation_id);
+  if (!ids.length) return res.json({ conversations: [] });
+
+  const convos = await supabase
+    .from("conversations")
+    .select("id, listing_product_id, created_at")
+    .in("id", ids)
+    .order("created_at", { ascending: false });
+  if (convos.error) return res.status(500).json({ error: convos.error.message });
+  return res.json({ conversations: convos.data || [] });
 });
 
 app.post("/api/conversations", async (req, res) => {
-  try {
-    const { listingProductId = null, participantUserIds = [] } = req.body || {};
-    if (!Array.isArray(participantUserIds) || participantUserIds.length < 2) {
-      return res.status(400).json({ error: "participantUserIds must contain at least 2 users." });
-    }
-
-    const created = await run(
-      "INSERT INTO conversations (listing_product_id, created_at) VALUES (?, ?)",
-      [listingProductId, nowIso()]
-    );
-    for (const userId of participantUserIds) {
-      await run("INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)", [
-        created.id,
-        Number(userId)
-      ]);
-    }
-    res.status(201).json({ conversationId: created.id });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const { listingProductId = null, participantUserIds = [] } = req.body || {};
+  if (!Array.isArray(participantUserIds) || participantUserIds.length < 2) {
+    return res.status(400).json({ error: "participantUserIds must contain at least 2 users." });
   }
+
+  const convo = await supabase
+    .from("conversations")
+    .insert({ listing_product_id: listingProductId, created_at: nowIso() })
+    .select("id")
+    .single();
+  if (convo.error) return res.status(500).json({ error: convo.error.message });
+  const conversationId = convo.data.id;
+
+  const participantRows = participantUserIds.map(userId => ({
+    conversation_id: conversationId,
+    user_id: Number(userId)
+  }));
+  const insertPart = await supabase.from("conversation_participants").insert(participantRows);
+  if (insertPart.error) return res.status(500).json({ error: insertPart.error.message });
+
+  return res.status(201).json({ conversationId: Number(conversationId) });
 });
 
 app.get("/api/conversations/:conversationId/messages", async (req, res) => {
-  try {
-    const conversationId = Number(req.params.conversationId);
-    const rows = await all(
-      `
-      SELECT m.id, m.message_text, m.created_at, m.sender_user_id, u.fullname AS sender_name
-      FROM messages m
-      JOIN users u ON u.id = m.sender_user_id
-      WHERE m.conversation_id = ?
-      ORDER BY m.created_at ASC
-      `,
-      [conversationId]
-    );
-    res.json({ messages: rows });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const conversationId = Number(req.params.conversationId);
+  const rows = await supabase
+    .from("messages")
+    .select("id, message_text, created_at, sender_user_id, sender:users!messages_sender_user_id_fkey(fullname)")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true });
+  if (rows.error) return res.status(500).json({ error: rows.error.message });
+  const messages = (rows.data || []).map(m => ({
+    id: Number(m.id),
+    message_text: m.message_text,
+    created_at: m.created_at,
+    sender_user_id: Number(m.sender_user_id),
+    sender_name: m.sender?.fullname || ""
+  }));
+  return res.json({ messages });
 });
 
 app.post("/api/conversations/:conversationId/messages", async (req, res) => {
-  try {
-    const conversationId = Number(req.params.conversationId);
-    const { senderUserId, text } = req.body || {};
-    if (!senderUserId || !text?.trim()) {
-      return res.status(400).json({ error: "senderUserId and text are required." });
-    }
-    const created = await run(
-      "INSERT INTO messages (conversation_id, sender_user_id, message_text, created_at) VALUES (?, ?, ?, ?)",
-      [conversationId, Number(senderUserId), text.trim(), nowIso()]
-    );
-    const message = await get("SELECT * FROM messages WHERE id = ?", [created.id]);
-    res.status(201).json({ message });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const conversationId = Number(req.params.conversationId);
+  const { senderUserId, text } = req.body || {};
+  if (!senderUserId || !text?.trim()) {
+    return res.status(400).json({ error: "senderUserId and text are required." });
   }
+  const inserted = await supabase
+    .from("messages")
+    .insert({
+      conversation_id: conversationId,
+      sender_user_id: Number(senderUserId),
+      message_text: text.trim(),
+      created_at: nowIso()
+    })
+    .select("*")
+    .single();
+  if (inserted.error) return res.status(500).json({ error: inserted.error.message });
+  return res.status(201).json({ message: inserted.data });
 });
 
 app.get("/api/admin/summary", async (_req, res) => {
-  try {
-    const [users, products, transactions] = await Promise.all([
-      get("SELECT COUNT(*) AS value FROM users"),
-      get("SELECT COUNT(*) AS value FROM products"),
-      get("SELECT COUNT(*) AS value FROM transactions")
-    ]);
-    res.json({
-      totalUsers: users?.value || 0,
-      totalProducts: products?.value || 0,
-      totalTransactions: transactions?.value || 0
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const [u, p, t] = await Promise.all([
+    supabase.from("users").select("*", { head: true, count: "exact" }),
+    supabase.from("products").select("*", { head: true, count: "exact" }),
+    supabase.from("transactions").select("*", { head: true, count: "exact" })
+  ]);
+  if (u.error || p.error || t.error) {
+    return res.status(500).json({ error: u.error?.message || p.error?.message || t.error?.message });
   }
+  return res.json({
+    totalUsers: u.count || 0,
+    totalProducts: p.count || 0,
+    totalTransactions: t.count || 0
+  });
 });
 
 app.use((err, _req, res, _next) => {
@@ -520,17 +556,13 @@ app.use((err, _req, res, _next) => {
 
 const PORT = Number(process.env.PORT || 3000);
 
-initDatabase()
-  .then(() => {
+seedDefaultAdmin()
+  .catch(() => {})
+  .finally(() => {
     app.listen(PORT, () => {
       // eslint-disable-next-line no-console
       console.log(`ESSU Marketplace API running on http://localhost:${PORT}`);
       // eslint-disable-next-line no-console
-      console.log(`SQLite DB: ${dbPath}`);
+      console.log(`Supabase project: ${SUPABASE_URL}`);
     });
-  })
-  .catch(error => {
-    // eslint-disable-next-line no-console
-    console.error("Failed to initialize database:", error);
-    process.exit(1);
   });

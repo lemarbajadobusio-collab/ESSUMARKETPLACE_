@@ -1,13 +1,43 @@
-// AUTH helpers
+const API_BASE = "http://localhost:3000/api";
+let usersCache = [];
+let products = [];
+let cart = [];
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
 function getUsers() {
-  const raw = localStorage.getItem("users");
-  return raw ? JSON.parse(raw) : [];
+  return usersCache.slice();
 }
-function saveUsers(users) {
-  localStorage.setItem("users", JSON.stringify(users));
+
+function currentBuyer() {
+  return localStorage.getItem("buyer");
 }
-function currentBuyer(){
-  return localStorage.getItem('buyer');
+
+function currentBuyerId() {
+  return Number(localStorage.getItem("buyer_user_id") || 0);
+}
+
+function setBuyerSession(user) {
+  localStorage.setItem("buyer", user.email);
+  localStorage.setItem("buyer_user_id", String(user.id));
+  localStorage.setItem("currentUser", JSON.stringify(user));
+}
+
+async function refreshUsers() {
+  const data = await apiRequest("/users");
+  usersCache = data.users || [];
+  return usersCache;
 }
 
 // Check if on dashboard and redirect to login if not authenticated
@@ -19,27 +49,16 @@ function checkAuthOnDashboard() {
   }
 }
 
-// Ensure a test user exists for quick login during development
-function ensureTestUser() {
-  const users = getUsers();
-  const testEmail = "test@demo.com";
-  if (!users.find(u => u.email && u.email.toLowerCase() === testEmail)) {
-    users.push({ name: "Test User", email: testEmail, password: "demo123" });
-    saveUsers(users);
-  }
-}
-
 // Autofill login form with test credentials
 function useTestCreds() {
-  ensureTestUser();
   const e = document.getElementById("email");
   const p = document.getElementById("password");
-  if (e) e.value = "test@demo.com";
-  if (p) p.value = "demo123";
+  if (e) e.value = "buyer@essu.demo";
+  if (p) p.value = "buyer12345";
 }
 
 // SIGNUP
-function signup() {
+async function signup() {
   const name = document.getElementById("suName") ? document.getElementById("suName").value.trim() : '';
   const email = document.getElementById("suEmail") ? document.getElementById("suEmail").value.trim() : '';
   const pass = document.getElementById("suPassword") ? document.getElementById("suPassword").value : '';
@@ -55,24 +74,28 @@ function signup() {
     return;
   }
 
-  const users = getUsers();
-  if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-    if (errEl) errEl.innerText = "Email already registered";
-    return;
+  try {
+    await apiRequest("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        fullname: name,
+        email,
+        password: pass,
+        role: "buyer"
+      })
+    });
+    await refreshUsers();
+    showToast("Account created successfully! Please log in.");
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 500);
+  } catch (error) {
+    if (errEl) errEl.innerText = error.message || "Signup failed";
   }
-
-  users.push({ name, email, password: pass, verified: false });
-  saveUsers(users);
-  // Log signup activity for admin
-  if (typeof addActivity === 'function') addActivity('signup', email, { name });
-  showToast("Account created successfully! Please log in.");
-  setTimeout(() => {
-    window.location.href = "index.html";
-  }, 500);
 }
 
 // LOGIN
-function login() {
+async function login() {
   const email = document.getElementById("email") ? document.getElementById("email").value.trim() : '';
   const pass = document.getElementById("password") ? document.getElementById("password").value : '';
   const errEl = document.getElementById("loginError");
@@ -82,24 +105,30 @@ function login() {
     return;
   }
 
-  const users = getUsers();
-  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (!user || user.password !== pass) {
-    if (errEl) errEl.innerText = "Invalid credentials";
-    return;
+  try {
+    const data = await apiRequest("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password: pass })
+    });
+    if (!data.user || data.user.role !== "buyer") {
+      if (errEl) errEl.innerText = "This account is not a buyer account";
+      return;
+    }
+    setBuyerSession(data.user);
+    await refreshUsers();
+    showToast("Login successful!");
+    setTimeout(() => {
+      window.location.href = "buyer.html";
+    }, 500);
+  } catch (error) {
+    if (errEl) errEl.innerText = error.message || "Invalid credentials";
   }
-  // Log login activity for admin
-  if (typeof addActivity === 'function') addActivity('login', email, {});
-  localStorage.setItem("buyer", email);
-  showToast("Login successful!");
-  setTimeout(() => {
-    window.location.href = "buyer.html";
-  }, 500);
 }
 
 function logout() {
   const b = currentBuyer();
   localStorage.removeItem("buyer");
+  localStorage.removeItem("buyer_user_id");
   if (b && typeof addActivity === 'function') addActivity('logout', b, {});
   window.location.href = "index.html";
 }
@@ -109,31 +138,27 @@ if (document.getElementById("itemsGrid")) {
   checkAuthOnDashboard();
 }
 
-// Default products removed to clear example/demo items
-const defaultProducts = [];
-
-// Load products from localStorage, fallback to defaults
-let products = loadProducts();
-
-function loadProducts() {
-  const stored = localStorage.getItem('products');
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (e) {
-      console.error('Failed to parse stored products', e);
-      return defaultProducts.slice();
-    }
-  }
-  return defaultProducts.slice();
+async function refreshProducts() {
+  const data = await apiRequest("/products");
+  products = (data.products || []).map(p => ({
+    id: Number(p.id),
+    name: p.name,
+    price: Number(p.price),
+    img: p.image || (p.images && p.images[0]) || "",
+    desc: p.description || "",
+    seller: p.sellerName || "Seller",
+    sellerEmail: p.sellerEmail || "",
+    condition: p.condition || "Used",
+    category: p.category || "Other",
+    status: p.status || "available"
+  }));
+  return products;
 }
 
 function saveProducts() {
-  // Persist current products array so seller-listed items are available to buyers
-  localStorage.setItem('products', JSON.stringify(products));
+  // server-backed now
 }
 
-let cart = loadCart();
 let currentCategory = 'all';
 let currentFilter = 'all';
 
@@ -208,8 +233,8 @@ function renderFilteredProducts(filteredProducts) {
   loadWishlist();
 }
 
-// initial render
-renderProducts();
+// initial render happens in bootstrapBuyerData()
+bootstrapBuyerData();
 
 
 
@@ -224,18 +249,25 @@ function normalizeCart(c){
   }));
 }
 
-function addToCart(id) {
+async function addToCart(id) {
   const item = products.find(p => p.id === id);
-  const existing = cart.find(c => c.id === id);
-  if (existing) {
-    existing.qty += 1;
-  } else {
-    cart.push({ id: item.id, name: item.name, price: item.price, img: item.img, qty: 1 });
+  if (!item) return;
+  if (!currentBuyerId()) {
+    alert("Please log in first.");
+    return;
   }
-  saveCart();
-  renderCart();
-  showToast(`${item.name} added to cart`);
-  updateCartBadge();
+  try {
+    await apiRequest(`/cart/${currentBuyerId()}/items`, {
+      method: "POST",
+      body: JSON.stringify({ productId: item.id, qty: 1 })
+    });
+    await loadCart();
+    renderCart();
+    showToast(`${item.name} added to cart`);
+    updateCartBadge();
+  } catch (error) {
+    alert(error.message || "Could not add to cart.");
+  }
 }
 
 function renderCart() {
@@ -259,29 +291,76 @@ function renderCart() {
   if (document.getElementById('miniCart')) renderMiniCart();
 }
 
-function removeFromCart(index){
-  cart.splice(index,1);
-  saveCart();
-  renderCart();
-  updateCartBadge();
+async function removeFromCart(index){
+  const item = cart[index];
+  if (!item || !currentBuyerId()) return;
+  try {
+    await apiRequest(`/cart/${currentBuyerId()}/items/${item.id}`, { method: "DELETE" });
+    await loadCart();
+    renderCart();
+    updateCartBadge();
+  } catch (error) {
+    alert(error.message || "Could not remove cart item.");
+  }
 }
 
-function changeQty(index, delta){
+async function changeQty(index, delta){
   if(!cart[index]) return;
   cart[index].qty = (cart[index].qty || 1) + delta;
-  if(cart[index].qty <= 0) cart.splice(index,1);
-  saveCart();
+  if (cart[index].qty <= 0) {
+    await removeFromCart(index);
+    return;
+  }
+  if (!currentBuyerId()) return;
+  const item = cart[index];
+  try {
+    await apiRequest(`/cart/${currentBuyerId()}/items`, {
+      method: "POST",
+      body: JSON.stringify({ productId: item.id, qty: delta })
+    });
+    await loadCart();
+  } catch (error) {
+    alert(error.message || "Could not update quantity.");
+  }
   renderCart();
   updateCartBadge();
 }
 
 /* Cart persistence */
-function saveCart(){
-  localStorage.setItem('cart', JSON.stringify(cart));
+function saveCart(){}
+async function loadCart(){
+  if (!currentBuyerId()) {
+    cart = [];
+    return cart;
+  }
+  try {
+    const data = await apiRequest(`/cart/${currentBuyerId()}`);
+    cart = normalizeCart((data.items || []).map(item => ({
+      id: Number(item.product_id),
+      name: item.name,
+      price: Number(item.price),
+      img: item.cover_image || "",
+      qty: Number(item.qty || 1)
+    })));
+    return cart;
+  } catch (error) {
+    console.error(error);
+    cart = [];
+    return cart;
+  }
 }
-function loadCart(){
-  const raw = localStorage.getItem('cart');
-  return raw ? normalizeCart(JSON.parse(raw)) : [];
+
+async function bootstrapBuyerData() {
+  try {
+    await refreshUsers();
+    await refreshProducts();
+    await loadCart();
+  } catch (error) {
+    console.error(error);
+  }
+  renderProducts();
+  renderCart();
+  updateCartBadge();
 }
 
 /* Checkout modal flow (modal-based stepper) */
@@ -380,7 +459,7 @@ function toReviewStep(){
   document.getElementById('step-review').classList.remove('hidden');
 }
 
-function confirmOrderFromModal(){
+async function confirmOrderFromModal(){
   const buyer = currentBuyer();
   if(!buyer){ alert('Please log in to place orders'); return; }
   const sel = document.querySelector('input[name="pmethod"]:checked');
@@ -406,40 +485,25 @@ function confirmOrderFromModal(){
   // Get order review
   const review = document.getElementById('orderReview').value.trim();
 
-  const order = {
-    id: 'ORD-' + Date.now(),
-    buyer: buyer,
-    items: selectedItems,
-    total: total,
-    payment: sel.value,
-    address: addr,
-    review: review,
-    status: 'Processing',
-    createdAt: new Date().toISOString()
-  };
-  const raw = localStorage.getItem('orders');
-  const orders = raw ? JSON.parse(raw) : [];
-  orders.push(order);
-  localStorage.setItem('orders', JSON.stringify(orders));
+  let checkoutResult;
+  try {
+    checkoutResult = await apiRequest(`/checkout/${currentBuyerId()}`, { method: "POST" });
+  } catch (error) {
+    alert(error.message || "Checkout failed.");
+    return;
+  }
 
   // Log order placement for admin
-  addActivity('order_placed', buyer, { id: order.id, total: order.total, sellers: Array.from(new Set(order.items.map(i=>i.seller || i.sellerEmail).filter(Boolean))) });
+  addActivity('order_placed', buyer, { id: `TXN-${Date.now()}`, total: checkoutResult.total });
 
   // Add notifications
-  addNotification(buyer, `Your order ${order.id} has been placed successfully!`);
-  setTimeout(() => addNotification(buyer, `Order ${order.id} is now being shipped.`), 5000);
-  setTimeout(() => addNotification(buyer, `Order ${order.id} has been delivered.`), 10000);
+  addNotification(buyer, `Your purchase has been placed successfully!`);
 
   // Clear temp address and review
   localStorage.removeItem('tempAddress');
   document.getElementById('orderReview').value = '';
 
-  // Remove selected items from cart
-  cart = cart.filter((it, i) => {
-    const checkbox = document.getElementById(`item-${i}`);
-    return !(checkbox && checkbox.checked);
-  });
-  saveCart();
+  await loadCart();
   renderCart();
   updateCartBadge();
   closeCheckoutModal();
@@ -447,8 +511,7 @@ function confirmOrderFromModal(){
   showToast('Order placed — check Profile for details');
 }
 
-// Ensure cart renders on page load
-renderCart();
+// Ensure cart renders on page load via bootstrapBuyerData()
 
 /* --- Mini-cart, Orders and UI helpers --- */
 
@@ -554,8 +617,7 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2200);
 }
 
-// update cart badge on load
-updateCartBadge();
+// update cart badge on load via bootstrapBuyerData()
 
 // Notifications and Messages
 function renderNotifications(){
@@ -741,8 +803,7 @@ updateMsgBadge();
 window.addEventListener('storage', function(e){
   try {
     if (e.key === 'products') {
-      products = loadProducts();
-      renderProducts();
+      refreshProducts().then(() => renderProducts());
     }
     if (e.key === 'messages' || e.key === 'essu_conversations') {
       renderMessages();
@@ -869,7 +930,7 @@ function openSellPanel(){
     `;
 
     // Attach form handler
-    document.getElementById('sellForm').addEventListener('submit', function(e){
+    document.getElementById('sellForm').addEventListener('submit', async function(e){
       e.preventDefault();
       const name = document.getElementById('sellName').value.trim();
       const price = parseFloat(document.getElementById('sellPrice').value);
@@ -880,24 +941,27 @@ function openSellPanel(){
 
       if(!name || !price || price <= 0){ alert('Please enter valid name and price.'); return; }
 
-      const newProduct = {
-        id: Date.now(),
-        name,
-        price,
-        img,
-        condition,
-        seller: buyer,
-        desc,
-        category
-      };
-
-      products.push(newProduct);
-      saveProducts();
-      renderProducts();
-      closeSellPanel();
-      showToast('Product listed successfully!');
-      // Log product listing activity for admin
-      addActivity('product_listed', buyer, { id: newProduct.id, name: newProduct.name });
+      try {
+        await apiRequest("/products", {
+          method: "POST",
+          body: JSON.stringify({
+            sellerUserId: currentBuyerId(),
+            name,
+            category: category.charAt(0).toUpperCase() + category.slice(1),
+            price,
+            condition,
+            description: desc,
+            image: img,
+            images: [img]
+          })
+        });
+        await refreshProducts();
+        renderProducts();
+        closeSellPanel();
+        showToast('Product listed successfully!');
+      } catch (error) {
+        alert(error.message || "Could not list product.");
+      }
     });
   }
 
@@ -937,7 +1001,7 @@ function verifyEmail(){
 document.addEventListener('DOMContentLoaded', function() {
   const sellForm = document.getElementById('sellForm');
   if(sellForm){
-    sellForm.addEventListener('submit', function(e){
+    sellForm.addEventListener('submit', async function(e){
       e.preventDefault();
       const buyer = currentBuyer();
       if(!buyer){ alert('Please login to sell items.'); return; }
@@ -950,25 +1014,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if(!name || !price || price <= 0){ alert('Please enter valid name and price.'); return; }
 
-      const newProduct = {
-        id: Date.now(), // Unique ID
-        name,
-        price,
-        img,
-        condition,
-        seller: buyer, // Use buyer email as seller
-        desc,
-        category
-      };
-
-      products.push(newProduct);
-      saveProducts();
-      renderProducts();
-      closeSellPanel();
-      sellForm.reset();
-      showToast('Product listed successfully!');
-      // Log product listing activity for admin
-      addActivity('product_listed', buyer, { id: newProduct.id, name: newProduct.name });
+      try {
+        await apiRequest("/products", {
+          method: "POST",
+          body: JSON.stringify({
+            sellerUserId: currentBuyerId(),
+            name,
+            category: category.charAt(0).toUpperCase() + category.slice(1),
+            price,
+            condition,
+            description: desc,
+            image: img,
+            images: [img]
+          })
+        });
+        await refreshProducts();
+        renderProducts();
+        closeSellPanel();
+        sellForm.reset();
+        showToast('Product listed successfully!');
+      } catch (error) {
+        alert(error.message || "Could not list product.");
+      }
     });
   }
 });
@@ -1015,9 +1082,12 @@ function toggleProfile() {
   updateProfileSidebar();
 }
 
-function updateProfileSidebar() {
+async function updateProfileSidebar() {
   const buyer = localStorage.getItem('buyer');
-  const users = JSON.parse(localStorage.getItem('users') || '[]');
+  if (!usersCache.length) {
+    try { await refreshUsers(); } catch {}
+  }
+  const users = getUsers();
 
   const avatarDiv = document.querySelector('#profileSidebar .avatar');
   const nameH3 = document.querySelector('#profileSidebar h3');
@@ -1029,15 +1099,7 @@ function updateProfileSidebar() {
     const user = users.find(u => u.email.toLowerCase() === buyer.toLowerCase());
     let displayName = buyer.split('@')[0];
     if (user) {
-      if (!user.name) {
-        user.name = buyer.split('@')[0];
-        const index = users.findIndex(u => u.email.toLowerCase() === buyer.toLowerCase());
-        if (index > -1) {
-          users[index] = user;
-          localStorage.setItem('users', JSON.stringify(users));
-        }
-      }
-      displayName = user.name;
+      displayName = user.fullname || user.name || displayName;
     }
     nameH3.textContent = displayName;
     emailEl.textContent = buyer;
@@ -1051,8 +1113,11 @@ function updateProfileSidebar() {
     }
 
     // Display orders
-    const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-    const userOrders = orders.filter(o => o.buyer === buyer);
+    let userOrders = [];
+    try {
+      const tx = await apiRequest(`/transactions?userId=${currentBuyerId()}`);
+      userOrders = (tx.transactions || []).filter(o => o.type === "Purchase");
+    } catch {}
     sidebarOrdersEl.innerHTML = '';
     if (userOrders.length === 0) {
       sidebarOrdersEl.innerHTML = '<p>Please login to see your orders.</p>';
@@ -1063,9 +1128,9 @@ function updateProfileSidebar() {
         orderDiv.innerHTML = `
           <div class="sidebar-order-header">
             <strong>${order.id}</strong>
-            <div class="sidebar-order-total">₱${order.total}</div>
+            <div class="sidebar-order-total">₱${order.amount}</div>
           </div>
-          <div class="sidebar-order-date">${new Date(order.createdAt).toLocaleDateString()}</div>
+          <div class="sidebar-order-date">${order.date || "-"}</div>
           <div class="sidebar-order-status">${order.status}</div>
           <div class="sidebar-order-more">Click for details</div>
         `;
@@ -1088,10 +1153,10 @@ function openEditProfileModal() {
     alert('Please login to edit your profile.');
     return;
   }
-  const users = JSON.parse(localStorage.getItem('users') || '[]');
+  const users = getUsers();
   const user = users.find(u => u.email.toLowerCase() === buyer.toLowerCase());
   if (user) {
-    document.getElementById('editName').value = user.name || '';
+    document.getElementById('editName').value = user.fullname || user.name || '';
     document.getElementById('editEmail').value = user.email;
     document.getElementById('editPassword').value = '';
     document.getElementById('editConfirmPassword').value = '';
@@ -1107,13 +1172,14 @@ function closeEditProfileModal() {
 document.addEventListener('DOMContentLoaded', function() {
   const editForm = document.getElementById('editProfileForm');
   if (editForm) {
-    editForm.addEventListener('submit', function(e) {
+    editForm.addEventListener('submit', async function(e) {
       e.preventDefault();
       const buyer = localStorage.getItem('buyer');
       if (!buyer) return;
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const users = getUsers();
       const userIndex = users.findIndex(u => u.email.toLowerCase() === buyer.toLowerCase());
       if (userIndex === -1) return;
+      const user = users[userIndex];
 
       const newName = document.getElementById('editName').value.trim();
       const newPassword = document.getElementById('editPassword').value;
@@ -1130,19 +1196,22 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
-      users[userIndex].name = newName;
-      if (newPassword) {
-        users[userIndex].password = newPassword;
-      }
-
       // Handle photo upload
       if (photoInput.files && photoInput.files[0]) {
         const file = photoInput.files[0];
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = async function(e) {
           const avatarKey = 'avatar_' + buyer;
           localStorage.setItem(avatarKey, e.target.result);
-          localStorage.setItem('users', JSON.stringify(users));
+          await apiRequest(`/users/${user.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              fullname: newName,
+              password: newPassword || undefined,
+              photo: e.target.result
+            })
+          });
+          await refreshUsers();
           updateProfileSidebar();
           closeEditProfileModal();
           showToast('Profile updated successfully!');
@@ -1151,7 +1220,14 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         reader.readAsDataURL(file);
       } else {
-        localStorage.setItem('users', JSON.stringify(users));
+        await apiRequest(`/users/${user.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            fullname: newName,
+            password: newPassword || undefined
+          })
+        });
+        await refreshUsers();
         updateProfileSidebar();
         closeEditProfileModal();
         showToast('Profile updated successfully!');
@@ -1164,9 +1240,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-  // Ensure test user exists
-  ensureTestUser();
-  
   // Check authentication on dashboard
   checkAuthOnDashboard();
   

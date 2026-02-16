@@ -98,6 +98,9 @@ const chatUserName = document.getElementById("chatUserName");
 const chatUserAvatar = document.getElementById("chatUserAvatar");
 const chatUserStatus = document.getElementById("chatUserStatus");
 const messageSearchInput = document.getElementById("messageSearchInput");
+const API_BASE = "http://localhost:3000/api";
+let usersCache = [];
+let currentUserId = Number(localStorage.getItem("essu_current_user_id") || 0);
 
 const STORAGE_KEYS = {
   appState: "essu_app_state",
@@ -166,55 +169,74 @@ function getPhotoStorageKey(email) {
 
 const LEGACY_MESSAGES_KEY = "essu_messages";
 
-function persistData() {
-  try {
-    // keep existing namespaced storage
-    saveStoredArray(STORAGE_KEYS.products, products);
-    saveStoredArray(getUserStorageKey(STORAGE_KEYS.transactions), transactions);
-    saveStoredArray(getUserStorageKey(STORAGE_KEYS.cart), cartItems);
-    saveStoredArray(STORAGE_KEYS.users, loadUsers()); // optional: keep users in sync if you use this helper
-
-    // Add backward-compatible/global keys consumed by the dashboard
-    // Dashboard reads localStorage 'products' (see [dashboard-essu/app.js](dashboard-essu/app.js))
-    localStorage.setItem('products', JSON.stringify(products));
-    // If dashboard/other parts use 'orders' or 'orders' style keys, also sync transactions
-    localStorage.setItem('orders', JSON.stringify(transactions));
-  } catch (err) {
-    console.error('persistData error', err);
-  }
-}
-
-function loadUserData() {
-  products.length = 0;
-  products.push(...loadStoredArray(STORAGE_KEYS.products));
-  if (!products.length) {
-    const legacyProducts = loadStoredArray(getUserStorageKey(STORAGE_KEYS.products));
-    if (legacyProducts.length) {
-      products.push(...legacyProducts);
-      saveStoredArray(STORAGE_KEYS.products, products);
-    }
-  }
-  const currentEmail = getCurrentUserEmail();
-  const currentName = getCurrentUserName();
-  products = products.map(item => {
-    const sellerName = item.sellerName || getUserDisplayName(item.sellerEmail || "") || "Seller";
-    const sellerEmail =
-      item.sellerEmail ||
-      (currentEmail && currentName && sellerName === currentName ? currentEmail : "");
-    return {
-      ...item,
-      sellerName,
-      sellerEmail
-    };
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
   });
-  myListings = products.filter(item => item.sellerEmail === getCurrentUserEmail());
-  transactions.length = 0;
-  transactions.push(...loadStoredArray(getUserStorageKey(STORAGE_KEYS.transactions)));
-  cartItems.length = 0;
-  cartItems.push(...loadStoredArray(getUserStorageKey(STORAGE_KEYS.cart)));
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Request failed");
+  }
+  return data;
 }
 
-loadUserData();
+function setCurrentUserId(id) {
+  currentUserId = Number(id || 0);
+  if (currentUserId) {
+    localStorage.setItem("essu_current_user_id", String(currentUserId));
+  } else {
+    localStorage.removeItem("essu_current_user_id");
+  }
+}
+
+function persistData() {
+  // backend is now source of truth; keep lightweight cache for compatibility only
+  localStorage.setItem("products", JSON.stringify(products));
+  localStorage.setItem("orders", JSON.stringify(transactions));
+}
+
+async function loadUserData() {
+  const [productsData, usersData] = await Promise.all([
+    apiRequest("/products?includeSold=true"),
+    apiRequest("/users")
+  ]);
+  usersCache = usersData.users || [];
+  products = (productsData.products || []).map(item => ({
+    ...item,
+    image: item.image || (item.images && item.images[0]) || "",
+    images: item.images || [],
+    condition: item.condition || item.item_condition || "Used",
+    description: item.description || "",
+    sellerName: item.sellerName || "Seller",
+    sellerEmail: item.sellerEmail || "",
+    sellerUserId: Number(item.sellerUserId || 0)
+  }));
+
+  if (currentUserId) {
+    const [txnData, cartData] = await Promise.all([
+      apiRequest(`/transactions?userId=${currentUserId}`),
+      apiRequest(`/cart/${currentUserId}`)
+    ]);
+    transactions.length = 0;
+    transactions.push(...(txnData.transactions || []));
+    cartItems.length = 0;
+    cartItems.push(...(cartData.items || []).map(it => ({
+      id: Number(it.id),
+      productId: Number(it.product_id),
+      addedAt: new Date().toISOString()
+    })));
+  } else {
+    transactions.length = 0;
+    cartItems.length = 0;
+  }
+
+  myListings = products.filter(item => Number(item.sellerUserId) === Number(currentUserId));
+  persistData();
+}
 
 function loadConversations() {
   return loadStoredArray(STORAGE_KEYS.conversations);
@@ -527,39 +549,13 @@ function updateCartBadge() {
 }
 
 function removeProductFromAllCarts(productId) {
-  const keys = [];
-  for (let index = 0; index < localStorage.length; index += 1) {
-    const key = localStorage.key(index);
-    if (!key) continue;
-    if (key === STORAGE_KEYS.cart || key.startsWith(`${STORAGE_KEYS.cart}:`)) {
-      keys.push(key);
-    }
-  }
-  keys.forEach(key => {
-    const items = loadStoredArray(key);
-    const filtered = items.filter(item => String(item.productId) !== String(productId));
-    if (filtered.length !== items.length) {
-      saveStoredArray(key, filtered);
-    }
-  });
+  cartItems = cartItems.filter(item => String(item.productId) !== String(productId));
 }
 
 function getCartProducts() {
-  const validItems = [];
-  const productMap = [];
-  cartItems.forEach(item => {
-    const product = products.find(p => String(p.id) === String(item.productId));
-    if (!product) return;
-    if ((product.status || "available") === "sold") return;
-    if (isOwnListing(product)) return;
-    validItems.push(item);
-    productMap.push(product);
-  });
-  if (validItems.length !== cartItems.length) {
-    cartItems = validItems;
-    persistData();
-  }
-  return productMap;
+  return cartItems
+    .map(item => products.find(p => String(p.id) === String(item.productId)))
+    .filter(Boolean);
 }
 
 function renderCart() {
@@ -595,7 +591,7 @@ function renderCart() {
   updateCartBadge();
 }
 
-function addToCart(productId) {
+async function addToCart(productId) {
   if (!getCurrentUserEmail()) {
     alert("Please log in first.");
     return;
@@ -613,107 +609,43 @@ function addToCart(productId) {
     alert("You cannot add your own listing to cart.");
     return;
   }
-  const exists = cartItems.some(item => String(item.productId) === String(product.id));
-  if (exists) {
-    alert("Item is already in your cart.");
-    return;
-  }
-  cartItems.unshift({
-    id: Date.now(),
-    productId: product.id,
-    addedAt: new Date().toISOString()
-  });
-  persistData();
-  renderCart();
-  updateCartBadge();
-  alert("Item added to cart.");
-}
-
-function completeSellerSale(product, date) {
-  const sellerEmail = (resolveSellerEmail(product) || product.sellerEmail || "").toLowerCase();
-  if (!sellerEmail) return;
-  const sellerTxnKey = `${STORAGE_KEYS.transactions}:${sellerEmail}`;
-  const sellerTransactions = loadStoredArray(sellerTxnKey);
-  const existingIndex = sellerTransactions.findIndex(txn => String(txn.listingId) === String(product.id));
-  if (existingIndex >= 0) {
-    sellerTransactions[existingIndex] = {
-      ...sellerTransactions[existingIndex],
-      date,
-      item: product.name,
-      type: "Sale",
-      status: "Completed",
-      amount: Number(product.price) || 0
-    };
-  } else {
-    sellerTransactions.unshift({
-      id: Date.now() + Math.floor(Math.random() * 1000),
-      listingId: product.id,
-      date,
-      item: product.name,
-      type: "Sale",
-      status: "Completed",
-      amount: Number(product.price) || 0
+  try {
+    if (!currentUserId) throw new Error("Account session is missing. Please log in again.");
+    await apiRequest(`/cart/${currentUserId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ productId: Number(product.id), qty: 1 })
     });
+    await loadUserData();
+    render(products);
+    renderCart();
+    updateCartBadge();
+    alert("Item added to cart.");
+  } catch (error) {
+    alert(error.message || "Could not add to cart.");
   }
-  saveStoredArray(sellerTxnKey, sellerTransactions);
 }
 
-function checkoutCart() {
-  const currentEmail = getCurrentUserEmail();
-  if (!currentEmail) {
+async function checkoutCart() {
+  if (!getCurrentUserEmail()) {
     alert("Please log in first.");
     return;
   }
-  const cartProducts = getCartProducts();
-  if (!cartProducts.length) {
-    alert("Your cart is empty.");
+  if (!currentUserId) {
+    alert("Account session is missing. Please log in again.");
     return;
   }
-
-  const date = new Date().toISOString().slice(0, 10);
-  let count = 0;
-  let total = 0;
-
-  cartProducts.forEach(product => {
-    if (isOwnListing(product)) return;
-    if ((product.status || "available") === "sold") return;
-    const productIndex = products.findIndex(item => String(item.id) === String(product.id));
-    if (productIndex < 0) return;
-
-    products[productIndex] = {
-      ...products[productIndex],
-      status: "sold"
-    };
-
-    transactions.unshift({
-      id: Date.now() + Math.floor(Math.random() * 1000),
-      listingId: product.id,
-      date,
-      item: product.name,
-      type: "Purchase",
-      status: "Completed",
-      amount: Number(product.price) || 0
-    });
-
-    completeSellerSale(product, date);
-    removeProductFromAllCarts(product.id);
-    count += 1;
-    total += Number(product.price) || 0;
-  });
-
-  cartItems = [];
-  persistData();
-  myListings = products.filter(item => item.sellerEmail === getCurrentUserEmail());
-  render(products);
-  renderMyListings();
-  renderDashboard(txnFilter?.value || "All");
-  renderCart();
-
-  if (!count) {
-    alert("No available items were checked out.");
-    return;
+  try {
+    const result = await apiRequest(`/checkout/${currentUserId}`, { method: "POST" });
+    await loadUserData();
+    render(products);
+    renderMyListings();
+    renderDashboard(txnFilter?.value || "All");
+    renderCart();
+    updateCartBadge();
+    alert(`Purchase completed for ${result.purchasedCount} item(s), total ${formatCurrency(Number(result.total || 0))}.`);
+  } catch (error) {
+    alert(error.message || "Checkout failed.");
   }
-  alert(`Purchase completed for ${count} item(s), total ${formatCurrency(total)}.`);
 }
 
 function render(data) {
@@ -953,41 +885,52 @@ if (savedActiveConversation) {
   activeConversationId = savedActiveConversation;
 }
 
-if (savedAppState === "app" && currentUserEmail) {
-  showApp();
-  loadUserData();
-  render(products);
-  renderMyListings();
-  renderDashboard(txnFilter?.value || "All");
-  renderCart();
-  updateCartBadge();
-  const users = loadUsers();
-  const user = users.find(u => u.email?.toLowerCase() === currentUserEmail.toLowerCase());
-  applyUserProfile(user);
-  applyProfilePhoto(getUserPhoto(currentUserEmail));
-  migrateLegacyMessages();
-  renderConversations();
-  if (savedSection === "dashboard") showSection(dashboardSection);
-  else if (savedSection === "messages") showSection(messagesSection);
-  else if (savedSection === "cart") {
-    renderCart();
-    showSection(cartSection);
-  }
-  else if (savedSection === "profile") showSection(profileSection);
-  else if (savedSection === "profileEdit") showSection(profileEditSection);
-  else if (savedSection === "passwordReset") showSection(passwordResetSection);
-  else if (savedSection === "productDetail") showProductDetail(products[savedProductIndex], savedProductIndex);
-  else showSection(discoverSection);
+async function initSellerApp() {
+  if (savedAppState === "app" && currentUserEmail) {
+    showApp();
+    try {
+      await loadUserData();
+      render(products);
+      renderMyListings();
+      renderDashboard(txnFilter?.value || "All");
+      renderCart();
+      updateCartBadge();
+      const users = loadUsers();
+      const user = users.find(u => u.email?.toLowerCase() === currentUserEmail.toLowerCase());
+      if (user?.id && !currentUserId) {
+        setCurrentUserId(user.id);
+      }
+      applyUserProfile(user);
+      applyProfilePhoto(getUserPhoto(currentUserEmail));
+      renderConversations();
+      if (savedSection === "dashboard") showSection(dashboardSection);
+      else if (savedSection === "messages") showSection(messagesSection);
+      else if (savedSection === "cart") {
+        renderCart();
+        showSection(cartSection);
+      }
+      else if (savedSection === "profile") showSection(profileSection);
+      else if (savedSection === "profileEdit") showSection(profileEditSection);
+      else if (savedSection === "passwordReset") showSection(passwordResetSection);
+      else if (savedSection === "productDetail") showProductDetail(products[savedProductIndex], savedProductIndex);
+      else showSection(discoverSection);
 
-  if (savedSection === "discover" && savedListingOpen) {
-    if (listingCard) listingCard.removeAttribute("hidden");
-    if (discoverCategories) discoverCategories.setAttribute("hidden", "hidden");
-    if (discoverFilters) discoverFilters.setAttribute("hidden", "hidden");
-    if (productList) productList.setAttribute("hidden", "hidden");
+      if (savedSection === "discover" && savedListingOpen) {
+        if (listingCard) listingCard.removeAttribute("hidden");
+        if (discoverCategories) discoverCategories.setAttribute("hidden", "hidden");
+        if (discoverFilters) discoverFilters.setAttribute("hidden", "hidden");
+        if (productList) productList.setAttribute("hidden", "hidden");
+      }
+    } catch (error) {
+      console.error(error);
+      showAuth();
+    }
+  } else {
+    showAuth();
   }
-} else {
-  showAuth();
 }
+
+initSellerApp();
 
 function activateTab(tab) {
   if (!loginTab || !signupTab || !loginForm || !signupForm) return;
@@ -1039,11 +982,11 @@ function isGmailEmail(email) {
 }
 
 function loadUsers() {
-  return loadStoredArray(STORAGE_KEYS.users);
+  return usersCache.slice();
 }
 
 function saveUsers(users) {
-  saveStoredArray(STORAGE_KEYS.users, users);
+  usersCache = Array.isArray(users) ? users.slice() : [];
 }
 
 function applyUserProfile(user) {
@@ -1145,45 +1088,45 @@ if (profileForgotBtn) {
 }
 
 if (loginForm) {
-  loginForm.addEventListener("submit", event => {
+  loginForm.addEventListener("submit", async event => {
     event.preventDefault();
-    const fullName = document.getElementById("loginFullname");
     const email = document.getElementById("loginEmail");
     const password = document.getElementById("loginPassword");
-    const users = loadUsers();
-    const user = users.find(u => u.email?.toLowerCase() === email?.value?.toLowerCase());
-    if (!user) {
-      alert("Account not found. Please sign up first.");
-      return;
-    }
-    if (user.password) {
-      if (!password || password.value !== user.password) {
-        alert("Incorrect password. Please try again.");
+    try {
+      const data = await apiRequest("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: email?.value?.trim() || "",
+          password: password?.value || ""
+        })
+      });
+      const user = data.user;
+      if (!user || user.role !== "seller") {
+        alert("This account is not a seller account.");
         return;
       }
+      setCurrentUserEmail(user.email);
+      setCurrentUserId(user.id);
+      localStorage.setItem("currentUser", JSON.stringify(user));
+      await loadUserData();
+      render(products);
+      renderMyListings();
+      renderDashboard(txnFilter?.value || "All");
+      renderCart();
+      updateCartBadge();
+      renderConversations();
+      applyUserProfile(user);
+      updateProfileFromLogin(user);
+      showApp();
+      showSection(discoverSection);
+    } catch (error) {
+      alert(error.message || "Login failed.");
     }
-    if (!user.fullname && fullName?.value) {
-      user.fullname = fullName.value.trim();
-      saveUsers(users);
-    }
-    setCurrentUserEmail(user.email);
-    loadUserData();
-    render(products);
-    renderMyListings();
-    renderDashboard(txnFilter?.value || "All");
-    renderCart();
-    updateCartBadge();
-    migrateLegacyMessages();
-    renderConversations();
-    applyUserProfile(user);
-    updateProfileFromLogin(user);
-    showApp();
-    showSection(discoverSection);
   });
 }
 
 if (signupForm) {
-  signupForm.addEventListener("submit", event => {
+  signupForm.addEventListener("submit", async event => {
     event.preventDefault();
     const email = document.getElementById("signupEmail");
     const password = document.getElementById("signupPassword");
@@ -1213,32 +1156,29 @@ if (signupForm) {
       return;
     }
 
-    const users = loadUsers();
-    const exists = users.some(user => user.email?.toLowerCase() === email.value.toLowerCase());
-    if (exists) {
-      alert("This email is already registered. Please log in.");
+    try {
+      await apiRequest("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          fullname: fullname.value.trim(),
+          email: email.value.trim(),
+          password: password.value,
+          mobile: mobile.value.trim(),
+          role: "seller"
+        })
+      });
+      await loadUserData();
+      updateProfileFromSignup();
+      alert("Account created. You can now Log In");
       activateTab("login");
-      return;
+    } catch (error) {
+      alert(error.message || "Sign up failed.");
     }
-
-    users.push({
-      email: email.value.trim(),
-      fullname: fullname?.value?.trim() || "",
-      mobile: mobile?.value?.trim() || "",
-      password: password.value,
-      joinedAt: new Date().toISOString(),
-      status: "ACTIVE"
-    });
-    saveUsers(users);
-
-    updateProfileFromSignup();
-    alert("Account created. You can now Log In");
-    activateTab("login");
   });
 }
 
 if (passwordResetForm) {
-  passwordResetForm.addEventListener("submit", event => {
+  passwordResetForm.addEventListener("submit", async event => {
     event.preventDefault();
     const emailInput = document.getElementById("resetEmail");
     const passwordInput = document.getElementById("resetPassword");
@@ -1261,20 +1201,23 @@ if (passwordResetForm) {
     }
 
     const users = loadUsers();
-    const index = users.findIndex(user => user.email?.toLowerCase() === emailInput.value.toLowerCase());
-    if (index < 0) {
+    const user = users.find(item => item.email?.toLowerCase() === emailInput.value.toLowerCase());
+    if (!user?.id) {
       alert("Account not found. Please sign up first.");
       return;
     }
-
-    users[index] = {
-      ...users[index],
-      password: passwordInput.value
-    };
-    saveUsers(users);
-    passwordResetForm.reset();
-    alert("Password successfully changed.");
-    showSection(profileEditSection);
+    try {
+      await apiRequest(`/users/${user.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ password: passwordInput.value })
+      });
+      await loadUserData();
+      passwordResetForm.reset();
+      alert("Password successfully changed.");
+      showSection(profileEditSection);
+    } catch (error) {
+      alert(error.message || "Could not reset password.");
+    }
   });
 }
 
@@ -1296,6 +1239,7 @@ document.querySelectorAll(".toggle-password").forEach(btn => {
 if (signoutBtn) {
   signoutBtn.addEventListener("click", () => {
     setCurrentUserEmail("");
+    setCurrentUserId(0);
     localStorage.removeItem(STORAGE_KEYS.activeConversation);
     activeConversationId = "";
     products.length = 0;
@@ -1453,75 +1397,40 @@ if (listingForm) {
         }
       }
 
-      const sellerName = getCurrentUserName() || profilePageName?.textContent?.trim() || "Seller";
-      const sellerEmail = getCurrentUserEmail();
-
       if (isEditing) {
-        const productIndex = products.findIndex(item => String(item.id) === String(editingListingId));
-        if (productIndex >= 0) {
-          const existing = products[productIndex];
-          const updatedImages = imageDataUrls.length ? imageDataUrls : existing.images || [existing.image];
-          products[productIndex] = {
-            ...existing,
+        const existing = products.find(item => String(item.id) === String(editingListingId));
+        const updatedImages = imageDataUrls.length ? imageDataUrls : existing?.images || [existing?.image].filter(Boolean);
+        await apiRequest(`/products/${editingListingId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
             name: title.value.trim(),
             category: category.value,
             price: Number(price.value),
             condition: condition.value,
             location: location.value,
-            image: updatedImages[0],
+            image: updatedImages[0] || "",
             images: updatedImages,
-            description: details.value.trim(),
-            sellerName,
-            sellerEmail
-          };
-        }
-        const txnIndex = transactions.findIndex(txn => String(txn.listingId) === String(editingListingId));
-        if (txnIndex >= 0) {
-          transactions[txnIndex] = {
-            ...transactions[txnIndex],
-            item: title.value.trim(),
-            amount: Number(price.value)
-          };
-        }
+            description: details.value.trim()
+          })
+        });
       } else {
-        const listingId = Date.now();
-        const newProduct = {
-          id: listingId,
-          name: title.value.trim(),
-          category: category.value,
-          price: Number(price.value),
-          condition: condition.value,
-          image: imageDataUrls[0],
-          images: imageDataUrls,
-          location: location.value,
-          posted: "Just now",
-          views: 0,
-          description: details.value.trim(),
-          sellerName,
-          sellerEmail,
-          status: "available"
-        };
-
-        products.unshift(newProduct);
-
-        transactions.unshift({
-          id: Date.now() + 1,
-          listingId,
-          date: new Date().toISOString().slice(0, 10),
-          item: newProduct.name,
-          type: "Sale",
-          status: "Pending",
-          amount: newProduct.price
+        await apiRequest("/products", {
+          method: "POST",
+          body: JSON.stringify({
+            sellerUserId: currentUserId,
+            name: title.value.trim(),
+            category: category.value,
+            price: Number(price.value),
+            condition: condition.value,
+            location: location.value,
+            image: imageDataUrls[0],
+            images: imageDataUrls,
+            description: details.value.trim()
+          })
         });
       }
 
-      myListings = products.filter(item => item.sellerEmail === getCurrentUserEmail());
-
-      try {
-        persistData();
-      } catch (storageError) {
-        console.error(storageError);
-      }
+      await loadUserData();
       if (search) search.value = "";
       document.querySelectorAll(".cat").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.category === "All");
@@ -1562,13 +1471,19 @@ if (backFromCart) {
 }
 
 if (cartItemsEl) {
-  cartItemsEl.addEventListener("click", event => {
+  cartItemsEl.addEventListener("click", async event => {
     const removeBtn = event.target.closest(".remove-cart-btn");
     if (!removeBtn) return;
     const productId = removeBtn.dataset.productId;
-    cartItems = cartItems.filter(item => String(item.productId) !== String(productId));
-    persistData();
-    renderCart();
+    try {
+      if (!currentUserId) throw new Error("Account session is missing. Please log in again.");
+      await apiRequest(`/cart/${currentUserId}/items/${productId}`, { method: "DELETE" });
+      await loadUserData();
+      renderCart();
+      updateCartBadge();
+    } catch (error) {
+      alert(error.message || "Could not remove cart item.");
+    }
   });
 }
 
@@ -1717,7 +1632,7 @@ if (backFromProfileEdit) {
 }
 
 if (listingGridCards) {
-  listingGridCards.addEventListener("click", event => {
+  listingGridCards.addEventListener("click", async event => {
     const menuBtn = event.target.closest(".listing-menu-btn");
     const menuItem = event.target.closest(".listing-menu-item");
     const card = event.target.closest(".listing-mini");
@@ -1743,22 +1658,19 @@ if (listingGridCards) {
       if (!item) return;
 
       if (action === "sold") {
-        const productIndex = products.findIndex(product => product.id === item.id);
-        if (productIndex >= 0) {
-          products[productIndex] = { ...products[productIndex], status: "sold" };
+        try {
+          await apiRequest(`/products/${item.id}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: "sold" })
+          });
+          await loadUserData();
+          renderMyListings();
+          render(products);
+          renderCart();
+          renderDashboard(txnFilter?.value || "All");
+        } catch (error) {
+          alert(error.message || "Could not mark as sold.");
         }
-        removeProductFromAllCarts(item.id);
-        cartItems = cartItems.filter(cartItem => String(cartItem.productId) !== String(item.id));
-        const txnIndex = transactions.findIndex(txn => txn.listingId === item.id);
-        if (txnIndex >= 0) {
-          transactions[txnIndex] = { ...transactions[txnIndex], status: "Completed" };
-        }
-        myListings = products.filter(listing => listing.sellerEmail === getCurrentUserEmail());
-        persistData();
-        renderMyListings();
-        render(products);
-        renderCart();
-        renderDashboard(txnFilter?.value || "All");
         return;
       }
 
@@ -1793,23 +1705,17 @@ if (listingGridCards) {
       if (action === "delete") {
         const confirmDelete = confirm("Delete item?");
         if (!confirmDelete) return;
-        const productIndex = products.findIndex(product => product.id === item.id);
-        if (productIndex >= 0) {
-          products.splice(productIndex, 1);
+        try {
+          await apiRequest(`/products/${item.id}`, { method: "DELETE" });
+          await loadUserData();
+          render(products);
+          renderMyListings();
+          renderCart();
+          renderDashboard(txnFilter?.value || "All");
+          alert("Item deleted.");
+        } catch (error) {
+          alert(error.message || "Could not delete item.");
         }
-        removeProductFromAllCarts(item.id);
-        cartItems = cartItems.filter(cartItem => String(cartItem.productId) !== String(item.id));
-        const txnIndex = transactions.findIndex(txn => txn.listingId === item.id);
-        if (txnIndex >= 0) {
-          transactions.splice(txnIndex, 1);
-        }
-        myListings = products.filter(listing => listing.sellerEmail === getCurrentUserEmail());
-        persistData();
-        render(products);
-        renderMyListings();
-        renderCart();
-        renderDashboard(txnFilter?.value || "All");
-        alert("Item deleted.");
       }
       return;
     }
@@ -1837,7 +1743,7 @@ if (profileEditForm) {
     });
   }
 
-  profileEditForm.addEventListener("submit", event => {
+  profileEditForm.addEventListener("submit", async event => {
     event.preventDefault();
     const editFullname = document.getElementById("editFullname");
     const editMobile = document.getElementById("editMobile");
@@ -1850,39 +1756,27 @@ if (profileEditForm) {
     if (profileName && editFullname) profileName.textContent = editFullname.value;
     if (profileSub && editEmail) profileSub.textContent = editEmail.value;
 
-    const currentEmail = getCurrentUserEmail();
-    const nextEmail = editEmail?.value?.trim() || currentEmail;
-    const nextName = editFullname?.value?.trim() || "";
-    if (currentEmail) {
-      const users = loadUsers();
-      const index = users.findIndex(user => user.email?.toLowerCase() === currentEmail.toLowerCase());
-      if (index >= 0) {
-        users[index] = {
-          ...users[index],
-          fullname: editFullname?.value?.trim() || "",
-          email: editEmail?.value?.trim() || users[index].email,
-          mobile: editMobile?.value?.trim() || ""
-        };
-        saveUsers(users);
-        products = products.map(item => {
-          if ((item.sellerEmail || "").toLowerCase() !== currentEmail.toLowerCase()) return item;
-          return {
-            ...item,
-            sellerName: nextName || item.sellerName,
-            sellerEmail: nextEmail || item.sellerEmail
-          };
+    try {
+      if (currentUserId) {
+        await apiRequest(`/users/${currentUserId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            fullname: editFullname?.value?.trim() || "",
+            email: editEmail?.value?.trim() || "",
+            mobile: editMobile?.value?.trim() || ""
+          })
         });
-        myListings = products.filter(item => item.sellerEmail === (nextEmail || currentEmail));
-        persistData();
-        render(products);
-        renderMyListings();
-        if (editEmail?.value && editEmail.value.trim() !== currentEmail) {
+        if (editEmail?.value) {
           setCurrentUserEmail(editEmail.value.trim());
         }
+        await loadUserData();
+        render(products);
+        renderMyListings();
       }
+      showSection(profileSection);
+    } catch (error) {
+      alert(error.message || "Could not update profile.");
     }
-
-    showSection(profileSection);
   });
 }
 
@@ -1905,22 +1799,20 @@ if (changePhotoBtn && profilePhotoInput) {
       compressImageFile(file, 240, 0.8).then(compressed => {
         const dataUrl = compressed || originalDataUrl;
         applyProfilePhoto(dataUrl);
-        try {
-          localStorage.setItem(getPhotoStorageKey(currentEmail), dataUrl);
-        } catch (storageError) {
-          console.warn("Could not persist photo in localStorage.", storageError);
-        }
-        const users = loadUsers();
-        const index = users.findIndex(user => user.email?.toLowerCase() === currentEmail.toLowerCase());
-        if (index >= 0) {
-          users[index] = {
-            ...users[index],
-            photo: dataUrl
-          };
-          saveUsers(users);
-        }
-        render(products);
-        renderMyListings();
+        if (!currentUserId) return;
+        apiRequest(`/users/${currentUserId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ photo: dataUrl })
+        })
+          .then(async () => {
+            await loadUserData();
+            render(products);
+            renderMyListings();
+          })
+          .catch(error => {
+            console.error(error);
+            alert("Could not update profile photo.");
+          });
       });
     };
     reader.readAsDataURL(file);
