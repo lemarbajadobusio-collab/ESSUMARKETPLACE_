@@ -298,6 +298,78 @@ function getInitialsFromName(name) {
     .join("") || "S";
 }
 
+function closeSellerProfileModal() {
+  const modal = document.getElementById('sellerProfileModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function openSellerProfileModal(product) {
+  if (!product) return;
+
+  const seller = getUserByEmail(product.sellerEmail) || null;
+  const sellerName = seller?.fullname || product.seller || "Seller";
+  const sellerEmail = seller?.email || product.sellerEmail || "-";
+  const sellerPhoto = seller?.photo || getUserPhotoByEmail(product.sellerEmail || "") || "";
+  const sellerListings = products.filter(p => {
+    if (product.sellerEmail) {
+      return String(p.sellerEmail || "").toLowerCase() === String(product.sellerEmail).toLowerCase();
+    }
+    return String(p.seller || "").toLowerCase() === String(product.seller || "").toLowerCase();
+  });
+  const activeListings = sellerListings.filter(p => String(p.status || "available").toLowerCase() !== "sold");
+  const soldListings = sellerListings.filter(p => String(p.status || "").toLowerCase() === "sold");
+
+  const avatarEl = document.getElementById('sellerProfileAvatar');
+  if (avatarEl) {
+    if (sellerPhoto) {
+      avatarEl.style.backgroundImage = `url('${sellerPhoto}')`;
+      avatarEl.textContent = "";
+    } else {
+      avatarEl.style.backgroundImage = "";
+      avatarEl.textContent = getInitialsFromName(sellerName);
+    }
+  }
+
+  const sellerNameEl = document.getElementById('sellerProfileName');
+  if (sellerNameEl) sellerNameEl.textContent = sellerName;
+  const sellerEmailEl = document.getElementById('sellerProfileEmail');
+  if (sellerEmailEl) sellerEmailEl.textContent = sellerEmail;
+  const listingCountEl = document.getElementById('sellerProfileListingCount');
+  if (listingCountEl) listingCountEl.textContent = String(sellerListings.length);
+  const activeCountEl = document.getElementById('sellerProfileActiveCount');
+  if (activeCountEl) activeCountEl.textContent = String(activeListings.length);
+  const soldCountEl = document.getElementById('sellerProfileSoldCount');
+  if (soldCountEl) soldCountEl.textContent = String(soldListings.length);
+
+  const listingsEl = document.getElementById('sellerProfileListings');
+  if (listingsEl) {
+    listingsEl.innerHTML = "";
+    if (!sellerListings.length) {
+      listingsEl.innerHTML = `<p class="muted">No listings from this seller yet.</p>`;
+    } else {
+      sellerListings.slice(0, 12).forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'seller-profile-listing';
+        card.innerHTML = `
+          <img src="${item.img}" alt="${item.name}">
+          <div>
+            <h5>${item.name}</h5>
+            <p>PHP ${item.price}</p>
+          </div>
+        `;
+        card.addEventListener('click', () => {
+          closeSellerProfileModal();
+          openItemModal(item.id);
+        });
+        listingsEl.appendChild(card);
+      });
+    }
+  }
+
+  const modal = document.getElementById('sellerProfileModal');
+  if (modal) modal.classList.add('open');
+}
+
 function renderProductCard(p) {
   const tagClass = p.condition === 'New' ? 'new' : 'used';
   const filterValue = p.condition === 'New' ? 'new' : 'used';
@@ -1267,6 +1339,11 @@ function openItemModal(productId) {
       }
       closeItemModal();
     };
+  }
+
+  const viewSellerProfileBtn = document.getElementById('viewSellerProfileBtn');
+  if (viewSellerProfileBtn) {
+    viewSellerProfileBtn.onclick = () => openSellerProfileModal(product);
   }
 
   document.getElementById('itemModal').classList.add('open');

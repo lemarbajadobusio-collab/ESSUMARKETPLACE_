@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESSU Marketplace</title>
-  <link rel="stylesheet" href="buyer.css?v=20260217e">
+  <link rel="stylesheet" href="buyer.css?v=20260217f">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -254,7 +254,7 @@
 <div id="overlay" onclick="toggleProfile()"></div>
 
 <script src="runtime-config.js?v=20260217a"></script>
-<script src="buyer.js?v=20260217j"></script>
+<script src="buyer.js?v=20260217k"></script>
 
 <!-- NOTIFICATIONS PANEL -->
 <div id="notificationsPanel" class="notifications-panel">
@@ -384,6 +384,27 @@
         </div>
       </div>
     </section>
+  </div>
+</div>
+
+<!-- SELLER PROFILE MODAL -->
+<div id="sellerProfileModal" class="modal">
+  <div class="modal-content seller-profile-modal-content">
+    <button class="modal-close" onclick="closeSellerProfileModal()">&times;</button>
+    <div class="seller-profile-modal-header">
+      <div class="seller-profile-avatar" id="sellerProfileAvatar">S</div>
+      <div>
+        <h3 id="sellerProfileName">Seller</h3>
+        <p id="sellerProfileEmail">-</p>
+      </div>
+    </div>
+    <div class="seller-profile-stats">
+      <div><strong id="sellerProfileListingCount">0</strong><span>Listings</span></div>
+      <div><strong id="sellerProfileActiveCount">0</strong><span>Active</span></div>
+      <div><strong id="sellerProfileSoldCount">0</strong><span>Sold</span></div>
+    </div>
+    <h4>Seller Listings</h4>
+    <div class="seller-profile-listings" id="sellerProfileListings"></div>
   </div>
 </div>
 
