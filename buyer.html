@@ -93,7 +93,7 @@
 <!-- MINI CART PANEL -->
 <div id="miniCart" class="mini-cart">
   <div class="mini-cart-content">
-    <button class="mini-close" onclick="closeMiniCart()">Ã—</button>
+    <button class="mini-close" onclick="closeMiniCart()">&times;</button>
     <h4>Your Cart</h4>
     <div id="miniCartList" style="margin-top:8px;max-height:420px;overflow:auto"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
@@ -110,7 +110,7 @@
 <!-- CHECKOUT MODAL (inline stepper) -->
 <div id="checkoutModal" class="modal">
   <div class="modal-content">
-    <button class="modal-close" onclick="closeCheckoutModal()">Ã—</button>
+    <button class="modal-close" onclick="closeCheckoutModal()">&times;</button>
     <h3>Checkout</h3>
 
     <div id="step-login" class="hidden">
@@ -122,7 +122,7 @@
     </div>
 
     <div id="step-payment" class="hidden">
-      <p class="muted">Step 1 â€” Choose payment method</p>
+      <p class="muted">Step 1 &mdash; Choose payment method</p>
       <div style="margin:12px 0">
         <label><input type="radio" name="pmethod" value="Cash on Delivery" checked> Cash on Delivery</label><br>
         <label style="color:#ccc;"><input type="radio" name="pmethod" value="GCash" disabled> GCash (Coming Soon)</label><br>
@@ -135,7 +135,7 @@
     </div>
 
     <div id="step-address" class="hidden">
-      <p class="muted">Step 2 â€” Delivery address</p>
+      <p class="muted">Step 2 &mdash; Delivery address</p>
       <div class="address-form">
         <div class="form-group">
           <label>Full Name</label>
@@ -210,7 +210,7 @@
 
 <!-- PROFILE SIDEBAR -->
 <div id="profileSidebar" class="profile-sidebar">
-  <button class="close-btn" onclick="toggleProfile()">Ã—</button>
+  <button class="close-btn" onclick="toggleProfile()">&times;</button>
   <div class="profile-header">
     <div class="avatar"></div>
     <h3></h3>
@@ -236,7 +236,7 @@
 <div id="notificationsPanel" class="notifications-panel">
   <div class="panel-content">
     <button class="panel-close" onclick="closeNotificationsPanel()">&larr;</button>
-    <h3>ðŸ”” Notifications</h3>
+    <h3>Notifications</h3>
     <div id="notificationsList" class="notifications-list"></div>
   </div>
 </div>
@@ -244,7 +244,7 @@
 <!-- MESSAGES PANEL -->
 <div id="messagesPanel" class="messages-panel">
   <div class="panel-content messages-content">
-    <button class="panel-close" onclick="closeMessagesPanel()">â†</button>
+    <button class="panel-close" onclick="closeMessagesPanel()">&larr;</button>
     <div class="messages-shell">
       <aside class="messages-sidebar">
         <div class="messages-title">Messages</div>
@@ -269,7 +269,7 @@
           <input type="text" id="messageInput" placeholder="Type a message...">
           <button class="send-btn" onclick="sendMessage()" aria-label="Send message">➤</button>
         </div>
-        <button class="chat-back" onclick="backToConversations()">â† Back</button>
+        <button class="chat-back" onclick="backToConversations()">&larr; Back</button>
       </section>
     </div>
   </div>
@@ -278,7 +278,7 @@
 <!-- EDIT PROFILE MODAL -->
 <div id="editProfileModal" class="modal">
   <div class="modal-content">
-    <button class="modal-close" onclick="closeEditProfileModal()">Ã—</button>
+    <button class="modal-close" onclick="closeEditProfileModal()">&times;</button>
     <h3>Edit Profile</h3>
     <form id="editProfileForm">
       <div class="form-group">
@@ -317,10 +317,10 @@
 <!-- ITEM DETAIL MODAL -->
 <div id="itemModal" class="modal">
   <div class="modal-content item-modal-content">
-    <button class="modal-close" onclick="closeItemModal()">Ã—</button>
+    <button class="modal-close" onclick="closeItemModal()">&times;</button>
     <section class="product-detail" id="productDetailSection">
       <button class="back-btn" onclick="closeItemModal()" type="button">
-        â† Back 
+        &larr; Back 
       </button>
       <div class="product-detail-layout">
         <div class="product-gallery">
@@ -331,12 +331,12 @@
           <div class="detail-header">
             <span class="detail-tag" id="detailCategory">Category</span>
             <div class="detail-actions">
-              <button class="icon-btn" onclick="event.stopPropagation(); toggleWishlist(this.dataset.productId); this.textContent = this.textContent === 'â™¡' ? 'â™¥' : 'â™¡'; this.style.color = this.textContent === 'â™¥' ? 'red' : '#333';" data-product-id="">â™¡</button>
-              <button class="icon-btn">â†—</button>
+              <button class="icon-btn" onclick="event.stopPropagation(); toggleWishlist(this.dataset.productId); this.textContent = this.textContent === '\u2661' ? '\u2665' : '\u2661'; this.style.color = this.textContent === '\u2665' ? 'red' : '#333';" data-product-id="">&#9825;</button>
+              <button class="icon-btn">&#8599;</button>
             </div>
           </div>
           <h2 id="detailTitle">Product Title</h2>
-          <div class="detail-price" id="detailPrice">â‚± 0</div>
+          <div class="detail-price" id="detailPrice">PHP 0</div>
           <div class="detail-meta">
             <span id="detailCondition">Condition: --</span>
             <span id="detailLocation">Location: --</span>
@@ -352,7 +352,7 @@
               <strong id="detailSellerName">Seller</strong>
               <div class="detail-seller-role" id="detailSellerRole">Seller</div>
             </div>
-            <div class="detail-rating">â˜… 4.8 <span>(24 reviews)</span></div>
+            <div class="detail-rating">&#9733; 4.8 <span>(24 reviews)</span></div>
           </div>
           <button class="ghost-btn primary-btn" id="viewSellerProfileBtn">View Seller Profile</button>
           <button class="ghost-btn primary-btn" id="addToCartBtn">Add to Cart</button>

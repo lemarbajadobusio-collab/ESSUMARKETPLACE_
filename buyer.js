@@ -22,6 +22,8 @@ let cart = [];
 let conversationsCache = [];
 let messagesCache = {};
 let activeConversationId = "";
+const WISHLIST_EMPTY = "\u2661";
+const WISHLIST_FILLED = "\u2665";
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -224,12 +226,12 @@ function renderProducts(){
     grid.innerHTML += `
       <div class="card" data-id="${p.id}">
         <span class="tag ${tagClass}" onclick="event.stopPropagation(); setFilter('${filterValue}')">${p.condition}</span>
-        <span class="heart" onclick="event.stopPropagation(); toggleWishlist(${p.id}); this.textContent = this.textContent === 'â™¡' ? 'â™¥' : 'â™¡'; this.style.color = this.textContent === 'â™¥' ? 'red' : '#333';">â™¡</span>
+        <span class="heart" onclick="event.stopPropagation(); toggleWishlist(${p.id}); this.textContent = this.textContent === WISHLIST_EMPTY ? WISHLIST_FILLED : WISHLIST_EMPTY; this.style.color = this.textContent === WISHLIST_FILLED ? 'red' : '#333';">${WISHLIST_EMPTY}</span>
         <img src="${p.img}" alt="">
         <h3>${p.name}</h3>
         <p>${p.desc || ''}</p>
-        <h4>â‚±${p.price}</h4>
-        <span class="seller">ðŸ“ ${p.seller}</span>
+        <h4>PHP ${p.price}</h4>
+        <span class="seller">Location: ${p.seller}</span>
         <div style="margin-top:10px"><button onclick="event.stopPropagation(); addToCart(${p.id})">Add to Cart</button></div>
       </div>`;
   });
@@ -286,12 +288,12 @@ function renderFilteredProducts(filteredProducts) {
     grid.innerHTML += `
       <div class="card" onclick="openItemModal(${p.id})" style="cursor:pointer;">
         <span class="tag ${tagClass}" onclick="event.stopPropagation(); setFilter('${filterValue}')">${p.condition}</span>
-        <span class="heart" onclick="event.stopPropagation(); toggleWishlist(${p.id}); this.textContent = this.textContent === 'â™¡' ? 'â™¥' : 'â™¡'; this.style.color = this.textContent === 'â™¥' ? 'red' : '#333';">â™¡</span>
+        <span class="heart" onclick="event.stopPropagation(); toggleWishlist(${p.id}); this.textContent = this.textContent === WISHLIST_EMPTY ? WISHLIST_FILLED : WISHLIST_EMPTY; this.style.color = this.textContent === WISHLIST_FILLED ? 'red' : '#333';">${WISHLIST_EMPTY}</span>
         <img src="${p.img}" alt="">
         <h3>${p.name}</h3>
         <p>${p.desc || ''}</p>
-        <h4>â‚±${p.price}</h4>
-        <span class="seller">ðŸ“ ${p.seller}</span>
+        <h4>PHP ${p.price}</h4>
+        <span class="seller">Location: ${p.seller}</span>
         <div style="margin-top:10px"><button onclick="event.stopPropagation(); addToCart(${p.id})">Add to Cart</button></div>
       </div>`;
   });
@@ -347,7 +349,7 @@ function renderCart() {
       cartDiv.innerHTML += `
         <div class="cart-item">
           <span>${item.name} x ${item.qty}</span>
-          <span>â‚±${item.price * item.qty} <button onclick="removeFromCart(${i})" style="margin-left:8px;background:transparent;border:none;color:#c23;cursor:pointer">Remove</button></span>
+          <span>PHP ${item.price * item.qty} <button onclick="removeFromCart(${i})" style="margin-left:8px;background:transparent;border:none;color:#c23;cursor:pointer">Remove</button></span>
         </div>`;
     });
     const totalEl = document.getElementById("cartTotal");
@@ -478,7 +480,7 @@ function populateCheckoutSummary(){
         <img src="${it.img}" alt="${it.name}" style="width:50px;height:50px;object-fit:cover;border-radius:4px;margin-left:10px;margin-right:10px">
         ${it.name} <span class="muted">x ${it.qty}</span>
       </div>
-      <div>â‚±${it.price * it.qty}</div>
+      <div>PHP ${it.price * it.qty}</div>
     `;
     summary.appendChild(row);
   });
@@ -494,7 +496,7 @@ function updateCheckoutTotal(){
       total += it.price * it.qty;
     }
   });
-  totalEl.innerText = 'â‚±' + total;
+  totalEl.innerText = "PHP " + total;
 }
 
 function toAddressStep(){
@@ -576,7 +578,7 @@ async function confirmOrderFromModal(){
   updateCartBadge();
   closeCheckoutModal();
   closeMiniCart();
-  showToast('Order placed â€” check Profile for details');
+  showToast("Order placed - check Profile for details");
 }
 
 // Ensure cart renders on page load via bootstrapBuyerData()
@@ -602,21 +604,22 @@ function closeMiniCart(){
 function renderMiniCart(){
   const wrap = document.getElementById('miniCartList');
   const totalEl = document.getElementById('miniCartTotal');
+  if (!wrap || !totalEl) return;
   wrap.innerHTML = '';
   let total = 0;
   if(!cart.length) {
     wrap.innerHTML = '<div class="muted">Your cart is empty</div>';
-    totalEl.innerText = 'â‚±0';
+    totalEl.innerText = "PHP 0";
     return;
   }
   cart.forEach((it, i)=>{
     total += it.price * it.qty;
     const row = document.createElement('div');
     row.className = 'mini-item';
-    row.innerHTML = `<div style="display:flex;align-items:center;"><img src="${it.img}" alt="${it.name}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;margin-right:8px"><div style="display:flex;flex-direction:column"><div>${it.name}</div><div class="muted" style="font-size:13px">â‚±${it.price} each</div></div></div><div style="display:flex;align-items:center;gap:8px"><button onclick="changeQty(${i},-1)" class="qty-control">âˆ’</button><div>${it.qty}</div><button onclick="changeQty(${i},1)" class="qty-control">+</button><div style="min-width:8px"></div><div>â‚±${it.price * it.qty}</div></div>`;
+    row.innerHTML = `<div style="display:flex;align-items:center;"><img src="${it.img}" alt="${it.name}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;margin-right:8px"><div style="display:flex;flex-direction:column"><div>${it.name}</div><div class="muted" style="font-size:13px">PHP ${it.price} each</div></div></div><div style="display:flex;align-items:center;gap:8px"><button onclick="changeQty(${i},-1)" class="qty-control">-</button><div>${it.qty}</div><button onclick="changeQty(${i},1)" class="qty-control">+</button><div style="min-width:8px"></div><div>PHP ${it.price * it.qty}</div></div>`;
     wrap.appendChild(row);
   });
-  totalEl.innerText = 'â‚±' + total;
+  totalEl.innerText = "PHP " + total;
 }
 
 /* UI helpers: favorites */
@@ -626,8 +629,8 @@ function attachUIHandlers(){
     heart.onclick = () => {
       const productId = parseInt(heart.closest('.card').querySelector('button').getAttribute('onclick').match(/\d+/)[0]);
       toggleWishlist(productId);
-      heart.textContent = heart.textContent === 'â™¡' ? 'â™¥' : 'â™¡';
-      heart.style.color = heart.textContent === 'â™¥' ? 'red' : '#333';
+      heart.textContent = heart.textContent === WISHLIST_EMPTY ? WISHLIST_FILLED : WISHLIST_EMPTY;
+      heart.style.color = heart.textContent === WISHLIST_FILLED ? 'red' : '#333';
     };
   });
 }
@@ -656,7 +659,7 @@ function loadWishlist() {
   document.querySelectorAll('.heart').forEach(heart => {
     const productId = parseInt(heart.closest('.card').querySelector('button').getAttribute('onclick').match(/\d+/)[0]);
     if (userWishlist.includes(productId)) {
-      heart.textContent = 'â™¥';
+      heart.textContent = WISHLIST_FILLED;
       heart.style.color = 'red';
     }
   });
@@ -1007,7 +1010,7 @@ function openItemModal(productId) {
   if (detailTitle) detailTitle.textContent = product.name;
 
   const detailPrice = document.getElementById('detailPrice');
-  if (detailPrice) detailPrice.textContent = 'â‚±' + product.price;
+  if (detailPrice) detailPrice.textContent = "PHP " + product.price;
 
   const detailCategory = document.getElementById('detailCategory');
   if (detailCategory) detailCategory.textContent = product.category;
@@ -1158,7 +1161,7 @@ function toggleDarkMode(){
   body.classList.toggle('dark-mode');
   const isDark = body.classList.contains('dark-mode');
   localStorage.setItem('darkMode', isDark);
-  toggleBtn.textContent = isDark ? 'â˜€ï¸' : 'ðŸŒ™';
+  toggleBtn.textContent = isDark ? "Sun" : "Moon";
 }
 
 // Load dark mode on page load
@@ -1166,7 +1169,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const isDark = localStorage.getItem('darkMode') === 'true';
   if(isDark){
     document.body.classList.add('dark-mode');
-    document.getElementById('darkModeToggle').textContent = 'â˜€ï¸';
+    document.getElementById('darkModeToggle').textContent = "Sun";
   }
 });
 
@@ -1238,7 +1241,7 @@ async function updateProfileSidebar() {
         orderDiv.innerHTML = `
           <div class="sidebar-order-header">
             <strong>${order.id}</strong>
-            <div class="sidebar-order-total">â‚±${order.amount}</div>
+            <div class="sidebar-order-total">PHP ${order.amount}</div>
           </div>
           <div class="sidebar-order-date">${order.date || "-"}</div>
           <div class="sidebar-order-status">${order.status}</div>

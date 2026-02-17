@@ -412,6 +412,26 @@ footer {
   gap: 12px;
 }
 
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.nav-right .icon-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.nav-right .icon-btn svg {
+  fill: currentColor;
+}
+
 .sell-btn { padding: 8px 14px; font-size: 14px; }
 .icon { font-size: 18px; }
 
