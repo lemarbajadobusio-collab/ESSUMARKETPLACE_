@@ -211,6 +211,14 @@ app.get("/api/health", async (_req, res) => {
   return res.json({ ok: true, users: result.count || 0 });
 });
 
+app.get("/", (_req, res) => {
+  return res.json({
+    ok: true,
+    service: "ESSU Marketplace API",
+    health: "/api/health"
+  });
+});
+
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { fullname, email, password, role = "buyer", mobile = "" } = req.body || {};
