@@ -798,6 +798,100 @@ select.address-input { cursor: pointer; }
   color: #16a34a;
 }
 
+/* Mobile-first responsive additions */
+/* Small tablets / large phones */
+@media (max-width: 900px) {
+  .container { padding: 88px 20px 24px 20px; }
+  .grid { gap: 32px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .card { padding: 14px; }
+  .card img { width: 100%; height: auto; max-height: 320px; }
+  .navbar { padding: 10px 16px; }
+  .nav-left h1 { font-size: 20px; }
+}
+
+/* Typical mobile phones */
+@media (max-width: 600px) {
+  :root { --radius: 10px; }
+  html, body { -webkit-text-size-adjust: 100%; }
+  .container { padding: 84px 14px 20px 14px; max-width: 100%; }
+  .grid { gap: 18px; grid-template-columns: 1fr; }
+  .card { padding: 12px; margin: 10px 0; }
+  .card img { max-height: 240px; display: block; margin: 0 auto 10px auto; }
+  .card h3 { font-size: 15px; }
+  .card p { font-size: 13px; }
+  .card h4 { font-size: 16px; }
+  .categories { gap: 6px; }
+  .cat { padding: 6px 10px; font-size: 12px; }
+  .title-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .search-box { display: none; }
+  .nav-right { gap: 8px; }
+  .nav-right .icon-btn { width: 36px; height: 36px; }
+  /* Make profile sidebar full-width on mobile */
+  .profile-sidebar { width: 100%; right: -100%; }
+  .profile-sidebar.open { right: 0; }
+  /* Modals & panels should scale to viewport */
+  .modal .modal-content, #editProfileModal .modal-content, .item-modal-content { width: 94vw; max-width: 94vw; padding: 16px; }
+  .mini-cart { width: calc(100% - 28px); right: 14px; left: auto; bottom: 14px; }
+}
+
+/* Very small phones */
+@media (max-width: 420px) {
+  .container { padding-top: 76px; }
+  .card img { max-height: 200px; }
+  .primary-btn, .submit-btn { padding: 10px 12px; font-size: 14px; }
+  .auth-card { padding: 16px; }
+  .tag { font-size: 11px; padding: 5px 8px; }
+  .icon { font-size: 16px; }
+  .filter-btn { padding: 6px 12px; font-size: 13px; }
+}
+
+/* Accessibility: ensure tappable controls have comfortable sizes */
+@media (max-width: 900px) {
+  .icon-btn, .primary-btn, .verify-btn, .sidebar-btn { min-height: 40px; }
+}
+
+  /* Stronger mobile overrides to ensure fit on narrow devices */
+  @media (max-width: 600px) {
+    /* Neutralize any fixed image sizes for flexible layouts */
+    img { width: auto !important; max-width: 100% !important; height: auto !important; }
+
+    /* Navbar: reduce title, allow ellipsis to avoid wrap overflow */
+    .nav-left h1 { font-size: 16px !important; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Make header icons slightly smaller and spaced */
+    .nav-right .icon-btn { width: 34px; height: 34px; padding: 6px; }
+
+    /* Ensure container doesn't exceed viewport width */
+    .container, main.container { box-sizing: border-box; width: 100%; max-width: 100%; padding-left: 12px; padding-right: 12px; }
+
+    /* Full width modals/panels */
+    .modal .modal-content, .item-modal-content, #editProfileModal .modal-content { width: 96vw !important; max-width: 96vw !important; left: 2vw; right: 2vw; }
+
+    /* Messages panel and notifications should be full-screen drawer on small screens */
+    .notifications-panel, .messages-panel { width: 100% !important; transform: translateX(100%); border-left: none; }
+    .notifications-panel.open, .messages-panel.open { transform: translateX(0); }
+
+    /* Product detail layout stacks vertically on small screens */
+    .product-detail-layout { grid-template-columns: 1fr !important; gap: 12px !important; }
+    .detail-main { height: auto; max-height: 360px; }
+
+    /* Ensure fixed side elements (mini-cart, sidebar) are usable */
+    .mini-cart { left: 8px; right: 8px; width: calc(100% - 16px); }
+    .profile-sidebar { position: fixed; right: -100%; left: 0; width: 100%; height: 100%; }
+
+    /* Improve tappable area of controls */
+    button, .icon-btn { min-width: 44px; min-height: 44px; }
+  }
+
+  @media (max-width: 360px) {
+    .nav-left h1 { font-size: 14px !important; }
+    .card h3 { font-size: 14px; }
+    .card h4 { font-size: 15px; }
+    .categories { gap: 6px; }
+  }
+
+
+
 .sidebar-order-date {
   font-size: 12px;
   color: #888;
