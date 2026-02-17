@@ -83,6 +83,7 @@ function setBuyerSession(user) {
   localStorage.setItem("buyer", user.email);
   localStorage.setItem("buyer_user_id", String(user.id));
   localStorage.setItem("currentUser", JSON.stringify(user));
+  localStorage.removeItem("essu_force_buyer_auth");
 }
 
 async function refreshUsers() {
@@ -197,6 +198,7 @@ async function login() {
     // If admin logs in from this form, redirect to admin dashboard
     if (data.user.role === "admin") {
       // set admin session keys (keeps currentUser for convenience)
+      localStorage.removeItem("essu_force_buyer_auth");
       localStorage.setItem("currentUser", JSON.stringify(data.user));
       localStorage.setItem("admin", data.user.email || "admin");
       localStorage.setItem("admin_user_id", String(data.user.id || "0"));
@@ -228,6 +230,7 @@ function logout() {
   const b = currentBuyer();
   localStorage.removeItem("buyer");
   localStorage.removeItem("buyer_user_id");
+  localStorage.removeItem("essu_force_buyer_auth");
   resetBuyerViewState();
   localStorage.setItem("essu_preferred_role", "seller");
   if (b && typeof addActivity === 'function') addActivity('logout', b, {});

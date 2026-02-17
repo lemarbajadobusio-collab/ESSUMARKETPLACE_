@@ -11,9 +11,6 @@
     const LAST_PAGE_KEY = 'essu_last_page';
     localStorage.setItem(LAST_PAGE_KEY, 'index.html');
     const forceBuyerAuth = localStorage.getItem('essu_force_buyer_auth') === 'true';
-    if (forceBuyerAuth) {
-      localStorage.removeItem('essu_force_buyer_auth');
-    }
 
     const isHosted = window.location.hostname.endsWith('github.io');
     let currentUser = null;
@@ -118,7 +115,7 @@
   </section>
 
   <script src="runtime-config.js?v=20260217a"></script>
-  <script src="buyer.js?v=20260217c"></script>
+  <script src="buyer.js?v=20260217d"></script>
   <script>
     const INDEX_AUTH_TAB_KEY = 'essu_index_auth_tab';
 
