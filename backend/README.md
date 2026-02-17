@@ -60,6 +60,14 @@ If not set, frontend auto-uses:
 - local dev: `http://localhost:3000/api`
 - deployed same-domain: `https://your-frontend-domain/api`
 
+## 2.2 One-click Render setup in this repo
+
+Use `render.yaml` in the project root with Render Blueprint.
+
+- Setup guide: `SETUP_RENDER.md`
+- Runtime frontend config generated to: `runtime-config.js`
+- Generator script: `scripts/generate-runtime-config.js`
+
 On startup, backend attempts to seed default admin if table access allows it:
 
 - email: `admin@essu.local`

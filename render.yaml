@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: essu-marketplace-api
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: essu_marketplace
+
+  - type: web
+    name: essu-marketplace-web
+    runtime: static
+    rootDir: .
+    buildCommand: npm install && npm run generate:runtime-config
+    staticPublishPath: .
+    envVars:
+      - key: ESSU_API_ORIGIN
+        fromService:
+          type: web
+          name: essu-marketplace-api
+          envVarKey: RENDER_EXTERNAL_URL
