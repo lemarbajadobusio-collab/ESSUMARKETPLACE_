@@ -867,45 +867,9 @@ select.address-input { cursor: pointer; }
   :root { --radius: 10px; }
   html, body { -webkit-text-size-adjust: 100%; }
   .container { padding: 124px 14px 20px 14px; max-width: 100%; }
-  .navbar { padding: 10px 12px; gap: 10px; }
-  .nav-left { flex: 0 0 100%; }
-  .nav-left h1 { font-size: 16px !important; }
-  .nav-right { order: 2; margin-left: 0; gap: 8px; flex-wrap: nowrap; }
-  .sell-btn {
-    background: #ffffff;
-    color: #1e8e3e;
-    border: none;
-    border-radius: 12px;
-    padding: 8px 12px;
-    height: 40px;
-    font-size: 18px;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .nav-right .icon-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.14);
-    border: 1px solid rgba(255,255,255,0.12);
-    position: relative;
-  }
-  .search-box {
-    order: 3;
-    width: 104px;
-    min-width: 104px;
-    flex: 0 0 104px;
-  }
-  .search-box input {
-    width: 100%;
-    height: 40px;
-    border-radius: 12px;
-    padding: 8px 10px;
-    font-size: 18px;
-  }
   .grid { gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card { padding: 10px; margin: 6px 0; }
-  .card img { width: 100% !important; height: 168px !important; max-height: 168px !important; object-fit: cover; display: block; margin: 0 auto 8px auto; }
+  .card img { max-height: 130px; display: block; margin: 0 auto 8px auto; }
   .card h3 { font-size: 18px; margin-top: 8px; }
   .card p { font-size: 13px; min-height: 32px; margin-bottom: 6px; }
   .card h4 { font-size: 20px; margin-bottom: 8px; letter-spacing: 0; }
@@ -918,8 +882,10 @@ select.address-input { cursor: pointer; }
   .filters { gap: 8px; padding: 10px; }
   .filters input, .filters select { padding: 8px 10px; font-size: 13px; }
   .cat { padding: 6px 10px; font-size: 12px; }
-  .title-row { display: none; }
+  .title-row { flex-direction: column; align-items: flex-start; gap: 6px; }
   .search-box { display: block; }
+  .nav-right { gap: 8px; }
+  .nav-right .icon-btn { width: 36px; height: 36px; }
   /* Make profile sidebar full-width on mobile */
   .profile-sidebar { width: 100%; right: -100%; }
   .profile-sidebar.open { right: 0; }
@@ -930,11 +896,9 @@ select.address-input { cursor: pointer; }
 
 /* Very small phones */
 @media (max-width: 420px) {
-  .container { padding-top: 122px; }
+  .container { padding-top: 116px; }
   .grid { gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .card img { width: 100% !important; height: 130px !important; max-height: 130px !important; }
-  .sell-btn { font-size: 15px; padding: 8px 10px; }
-  .search-box { width: 96px; min-width: 96px; flex-basis: 96px; }
+  .card img { max-height: 115px; }
   .tag { top: 10px; left: 10px; padding: 8px 14px; font-size: 12px; }
   .heart { display: none; }
   .primary-btn, .submit-btn { padding: 10px 12px; font-size: 14px; }
@@ -952,14 +916,13 @@ select.address-input { cursor: pointer; }
   @media (max-width: 600px) {
     /* Neutralize any fixed image sizes for flexible layouts */
     img { width: auto !important; max-width: 100% !important; height: auto !important; }
-    .card img { width: 100% !important; height: 168px !important; max-height: 168px !important; object-fit: cover !important; }
 
     /* Navbar: reduce title, allow ellipsis to avoid wrap overflow */
     .nav-left { min-width: 0; }
     .nav-left h1 { font-size: 16px !important; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     /* Make header icons slightly smaller and spaced */
-    .nav-right .icon-btn { width: 40px; height: 40px; padding: 0; }
+    .nav-right .icon-btn { width: 34px; height: 34px; padding: 6px; }
 
     /* Ensure container doesn't exceed viewport width */
     .container, main.container { box-sizing: border-box; width: 100%; max-width: 100%; padding-left: 12px; padding-right: 12px; }
