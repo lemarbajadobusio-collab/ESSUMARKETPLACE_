@@ -2178,8 +2178,12 @@ if (changePhotoBtn && profilePhotoInput) {
   });
 }
 
-function appendSystemMessage(text) {
-  appendMessage(text);
+async function appendSystemMessage(text) {
+  if (!activeConversationId) {
+    alert("Select a conversation first.");
+    return;
+  }
+  await appendMessage(text);
 }
 
 if (chatAttachFileBtn && chatFileInput) {
@@ -2204,10 +2208,14 @@ if (chatFileInput) {
 }
 
 if (chatImageInput) {
-  chatImageInput.addEventListener("change", () => {
+  chatImageInput.addEventListener("change", async () => {
     const file = chatImageInput.files?.[0];
     if (!file) return;
-    appendSystemMessage(`Attached image: ${file.name}`);
+    try {
+      await appendSystemMessage(`Attached image: ${file.name}`);
+    } catch (error) {
+      alert(error.message || "Could not attach image.");
+    }
     chatImageInput.value = "";
   });
 }
