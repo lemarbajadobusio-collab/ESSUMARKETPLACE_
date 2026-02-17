@@ -520,14 +520,17 @@ async function loadCart(){
 }
 
 async function bootstrapBuyerData() {
-  try {
-    await refreshUsers();
-    await refreshProducts();
-    await loadCart();
-    await loadBuyerConversations();
-  } catch (error) {
-    console.error(error);
-  }
+  const results = await Promise.allSettled([
+    refreshUsers(),
+    refreshProducts(),
+    loadCart(),
+    loadBuyerConversations()
+  ]);
+  results.forEach(result => {
+    if (result.status === "rejected") {
+      console.error(result.reason);
+    }
+  });
   renderProducts();
   renderCart();
   updateCartBadge();
@@ -1542,6 +1545,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const maxPriceInput = document.getElementById('maxPrice');
   const conditionSelect = document.getElementById('condition');
   const sortSelect = document.getElementById('sort');
+  if (minPriceInput) minPriceInput.value = "";
+  if (maxPriceInput) maxPriceInput.value = "";
+  if (conditionSelect) conditionSelect.value = "All";
+  if (sortSelect) sortSelect.value = "latest";
   [minPriceInput, maxPriceInput, conditionSelect, sortSelect].forEach(el => {
     if (!el) return;
     el.addEventListener('input', () => renderProducts());
