@@ -131,6 +131,7 @@ function resolveApiBase() {
 const API_BASE = resolveApiBase();
 let usersCache = [];
 let currentUserId = Number(localStorage.getItem("essu_current_user_id") || 0);
+const PRODUCTS_UPDATED_KEY = "essu_products_updated_at";
 
 const STORAGE_KEYS = {
   lastPage: "essu_last_page",
@@ -166,6 +167,10 @@ let myListings = []
 let currentProduct = null;
 let activeConversationId = "";
 let editingListingId = "";
+
+function notifyProductsUpdated() {
+  localStorage.setItem(PRODUCTS_UPDATED_KEY, new Date().toISOString());
+}
 
 function loadStoredArray(key) {
   try {
@@ -1660,6 +1665,7 @@ if (listingForm) {
             description: details.value.trim()
           })
         });
+        notifyProductsUpdated();
       } else {
         await apiRequest("/products", {
           method: "POST",
@@ -1675,6 +1681,7 @@ if (listingForm) {
             description: details.value.trim()
           })
         });
+        notifyProductsUpdated();
       }
 
       await loadUserData();
@@ -1999,6 +2006,7 @@ if (listingGridCards) {
             method: "PATCH",
             body: JSON.stringify({ status: "sold" })
           });
+          notifyProductsUpdated();
           await loadUserData();
           renderMyListings();
           render(products);
@@ -2043,6 +2051,7 @@ if (listingGridCards) {
         if (!confirmDelete) return;
         try {
           await apiRequest(`/products/${item.id}`, { method: "DELETE" });
+          notifyProductsUpdated();
           await loadUserData();
           render(products);
           renderMyListings();
