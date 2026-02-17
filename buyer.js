@@ -371,8 +371,8 @@ function openSellerProfileModal(product) {
 }
 
 function renderProductCard(p) {
-  const tagClass = p.condition === 'New' ? 'new' : 'used';
-  const filterValue = p.condition === 'New' ? 'new' : 'used';
+  const categoryLabel = p.category || "Other";
+  const conditionLabel = String(p.condition || "Used").toUpperCase();
   const sellerPhoto = getUserPhotoByEmail(p.sellerEmail || "");
   const sellerInitials = getInitialsFromName(p.seller);
   const sellerAvatar = sellerPhoto
@@ -381,17 +381,18 @@ function renderProductCard(p) {
 
   return `
       <div class="card" data-id="${p.id}">
-        <span class="tag ${tagClass}" onclick="event.stopPropagation(); setFilter('${filterValue}')">${p.condition}</span>
+        <span class="tag">${categoryLabel}</span>
         <span class="heart" onclick="event.stopPropagation(); toggleWishlist(${p.id}); this.textContent = this.textContent === WISHLIST_EMPTY ? WISHLIST_FILLED : WISHLIST_EMPTY; this.style.color = this.textContent === WISHLIST_FILLED ? 'red' : '#333';">${WISHLIST_EMPTY}</span>
         <img src="${p.img}" alt="">
         <h3>${p.name}</h3>
         <p>${p.desc || ''}</p>
         <h4>PHP ${p.price}</h4>
+        <div class="condition-label">${conditionLabel}</div>
         <div class="seller-profile">
           ${sellerAvatar}
           <span class="seller-name">${p.seller}</span>
         </div>
-        <div style="margin-top:10px"><button onclick="event.stopPropagation(); addToCart(${p.id})">Add to Cart</button></div>
+        <div class="card-actions"><button onclick="event.stopPropagation(); addToCart(${p.id})">Add to cart</button></div>
       </div>`;
 }
 
