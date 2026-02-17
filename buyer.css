@@ -867,9 +867,9 @@ select.address-input { cursor: pointer; }
   :root { --radius: 10px; }
   html, body { -webkit-text-size-adjust: 100%; }
   .container { padding: 124px 14px 20px 14px; max-width: 100%; }
-  .grid { gap: 18px; grid-template-columns: 1fr; }
-  .card { padding: 12px; margin: 10px 0; }
-  .card img { max-height: 240px; display: block; margin: 0 auto 10px auto; }
+  .grid { gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card { padding: 10px; margin: 6px 0; }
+  .card img { max-height: 130px; display: block; margin: 0 auto 8px auto; }
   .card h3 { font-size: 15px; }
   .card p { font-size: 13px; }
   .card h4 { font-size: 26px; }
@@ -893,7 +893,8 @@ select.address-input { cursor: pointer; }
 /* Very small phones */
 @media (max-width: 420px) {
   .container { padding-top: 116px; }
-  .card img { max-height: 200px; }
+  .grid { gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card img { max-height: 115px; }
   .primary-btn, .submit-btn { padding: 10px 12px; font-size: 14px; }
   .auth-card { padding: 16px; }
   .tag { font-size: 11px; padding: 5px 8px; }
