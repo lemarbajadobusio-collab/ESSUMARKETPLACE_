@@ -873,10 +873,12 @@ function backToConversations(){
 }
 
 function updateNotifBadge(){
+  const badge = document.getElementById('notifBadge');
+  if (!badge) return;
   const buyer = currentBuyer();
   const notifs = JSON.parse(localStorage.getItem('notifications') || '[]');
   const unread = buyer ? notifs.filter(n => n.user === buyer && !n.read).length : 0;
-  document.getElementById('notifBadge').textContent = unread || '';
+  badge.textContent = unread || '';
 }
 
 function updateMsgBadge(){
