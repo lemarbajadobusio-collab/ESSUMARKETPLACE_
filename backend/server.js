@@ -613,6 +613,33 @@ app.delete("/api/cart/:userId/items/:productId", async (req, res) => {
   }
 });
 
+app.patch("/api/cart/:userId/items/:productId", async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    const productId = Number(req.params.productId);
+    const qty = Number(req.body?.qty);
+    if (!Number.isFinite(qty)) return res.status(400).json({ error: "qty is required." });
+
+    const cartId = await ensureCart(userId);
+    if (qty <= 0) {
+      const removed = await supabase.from("cart_items").delete().eq("cart_id", cartId).eq("product_id", productId);
+      if (removed.error) return res.status(500).json({ error: removed.error.message });
+    } else {
+      const updated = await supabase
+        .from("cart_items")
+        .update({ qty: Math.max(1, Math.floor(qty)) })
+        .eq("cart_id", cartId)
+        .eq("product_id", productId);
+      if (updated.error) return res.status(500).json({ error: updated.error.message });
+    }
+
+    await supabase.from("carts").update({ updated_at: nowIso() }).eq("id", cartId);
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 app.post("/api/checkout/:buyerUserId", async (req, res) => {
   try {
     const buyerUserId = Number(req.params.buyerUserId);
@@ -631,6 +658,7 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
       if (!product) continue;
       if (product.status !== "available") continue;
       if (Number(product.seller_user_id) === buyerUserId) continue;
+      const qty = Math.max(1, Number(item.qty) || 1);
 
       const productUpdate = await supabase
         .from("products")
@@ -643,8 +671,8 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
         product_id: product.id,
         buyer_user_id: buyerUserId,
         seller_user_id: product.seller_user_id,
-        item_name: product.name,
-        amount: Number(product.price),
+        item_name: qty > 1 ? `${product.name} (x${qty})` : product.name,
+        amount: Number(product.price) * qty,
         status: "Completed",
         created_at: nowIso()
       });
@@ -652,8 +680,9 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
 
       purchased.push({
         productId: Number(product.id),
+        qty,
         item: product.name,
-        amount: Number(product.price)
+        amount: Number(product.price) * qty
       });
     }
 
@@ -664,7 +693,7 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
     if (!purchased.length) return res.status(400).json({ error: "No purchasable items in cart." });
     return res.json({
       ok: true,
-      purchasedCount: purchased.length,
+      purchasedCount: purchased.reduce((sum, item) => sum + Number(item.qty || 1), 0),
       total: purchased.reduce((sum, item) => sum + Number(item.amount || 0), 0),
       purchased
     });

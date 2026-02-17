@@ -1096,6 +1096,11 @@ body {
   .product-detail-layout {
     grid-template-columns: 1fr;
   }
+
+  .cart {
+    width: 100%;
+    margin-left: 0;
+  }
 }
 
 /* DASHBOARD */
@@ -1173,6 +1178,43 @@ body {
   font-size: 12px;
 }
 
+.cart-item-main {
+  display: grid;
+  gap: 6px;
+}
+
+.cart-item-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cart-qty-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-qty-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cart-qty-value {
+  min-width: 24px;
+  text-align: center;
+  font-weight: 600;
+  color: #0f172a;
+}
+
 .cart-summary {
   background: #fff;
   border-radius: 12px;
@@ -1195,6 +1237,127 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   padding: 18px;
   color: #64748b;
+}
+
+.checkout-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.checkout-modal {
+  width: min(640px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  position: relative;
+  display: grid;
+  gap: 16px;
+}
+
+.checkout-modal h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.checkout-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.checkout-step {
+  display: grid;
+  gap: 10px;
+}
+
+.checkout-step-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.checkout-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #0f172a;
+}
+
+.checkout-radio-option.muted {
+  color: #94a3b8;
+}
+
+.saved-delivery-addresses {
+  display: grid;
+  gap: 8px;
+}
+
+.saved-address-option {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.saved-address-option strong {
+  color: #0f172a;
+}
+
+.saved-address-option small {
+  color: #64748b;
+}
+
+.saved-address-option .checkout-radio-option {
+  align-items: flex-start;
+}
+
+.checkout-add-address-btn {
+  justify-self: start;
+  font-size: 14px;
+}
+
+.checkout-address-form {
+  display: grid;
+  gap: 12px;
+}
+
+.checkout-address-form textarea {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5f5;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.checkout-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.secondary-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .messages {

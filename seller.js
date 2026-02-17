@@ -76,6 +76,19 @@ const backFromCart = document.getElementById("backFromCart");
 const cartItemsEl = document.getElementById("cartItems");
 const cartTotalEl = document.getElementById("cartTotal");
 const checkoutCartBtn = document.getElementById("checkoutCartBtn");
+const checkoutModalBackdrop = document.getElementById("checkoutModalBackdrop");
+const closeCheckoutModalBtn = document.getElementById("closeCheckoutModalBtn");
+const cancelCheckoutBtn = document.getElementById("cancelCheckoutBtn");
+const confirmCheckoutBtn = document.getElementById("confirmCheckoutBtn");
+const savedDeliveryAddressesEl = document.getElementById("savedDeliveryAddresses");
+const toggleNewAddressBtn = document.getElementById("toggleNewAddressBtn");
+const deliveryAddressForm = document.getElementById("deliveryAddressForm");
+const deliveryFullnameInput = document.getElementById("deliveryFullname");
+const deliveryPhoneInput = document.getElementById("deliveryPhone");
+const deliveryCityInput = document.getElementById("deliveryCity");
+const deliveryCampusInput = document.getElementById("deliveryCampus");
+const deliveryDepartmentInput = document.getElementById("deliveryDepartment");
+const deliveryInstructionsInput = document.getElementById("deliveryInstructions");
 const backToListingsBtn = document.getElementById("backToListingsBtn");
 const detailMainImage = document.getElementById("detailMainImage");
 const detailThumbs = document.getElementById("detailThumbs");
@@ -129,6 +142,7 @@ const STORAGE_KEYS = {
   transactions: "essu_transactions",
   users: "essu_users",
   cart: "essu_cart",
+  deliveryAddresses: "essu_delivery_addresses",
   currentUser: "essu_current_user",
   activeConversation: "essu_active_conversation",
   conversations: "essu_conversations"
@@ -136,6 +150,8 @@ const STORAGE_KEYS = {
 
 let transactions = []
 let cartItems = []
+let checkoutAddressSelection = "";
+let showNewAddressForm = false;
 
 function formatCurrency(value) {
   return `PHP ${value.toLocaleString()}`;
@@ -243,6 +259,7 @@ async function loadUserData() {
     cartItems.push(...(cartData.items || []).map(it => ({
       id: Number(it.id),
       productId: Number(it.product_id),
+      qty: Math.max(1, Number(it.qty) || 1),
       addedAt: new Date().toISOString()
     })));
   } else {
@@ -527,28 +544,191 @@ function isOwnListing(product) {
 
 function updateCartBadge() {
   if (!cartCountBadge) return;
-  if (!cartItems.length) {
+  const totalQty = cartItems.reduce((sum, item) => sum + Math.max(1, Number(item.qty) || 1), 0);
+  if (!totalQty) {
     cartCountBadge.setAttribute("hidden", "hidden");
     cartCountBadge.textContent = "0";
     return;
   }
   cartCountBadge.removeAttribute("hidden");
-  cartCountBadge.textContent = String(cartItems.length);
+  cartCountBadge.textContent = String(totalQty);
 }
 
 function removeProductFromAllCarts(productId) {
   cartItems = cartItems.filter(item => String(item.productId) !== String(productId));
 }
 
-function getCartProducts() {
+function getCartProductsWithQty() {
   return cartItems
-    .map(item => products.find(p => String(p.id) === String(item.productId)))
+    .map(item => {
+      const product = products.find(p => String(p.id) === String(item.productId));
+      if (!product) return null;
+      return {
+        ...product,
+        qty: Math.max(1, Number(item.qty) || 1)
+      };
+    })
     .filter(Boolean);
+}
+
+function getDeliveryAddressesStorageKey() {
+  return getUserStorageKey(STORAGE_KEYS.deliveryAddresses);
+}
+
+function loadDeliveryAddresses() {
+  return loadStoredArray(getDeliveryAddressesStorageKey()).map((address, index) => ({
+    id: address.id || `addr_${Date.now()}_${index}`,
+    fullname: String(address.fullname || "").trim(),
+    phone: String(address.phone || "").trim(),
+    city: String(address.city || "").trim(),
+    campus: String(address.campus || "").trim(),
+    department: String(address.department || "").trim(),
+    instructions: String(address.instructions || "").trim()
+  }));
+}
+
+function saveDeliveryAddresses(addresses) {
+  saveStoredArray(getDeliveryAddressesStorageKey(), addresses);
+}
+
+function formatAddressSingleLine(address) {
+  const fields = [address.city, address.campus, address.department].filter(Boolean);
+  return fields.join(" • ");
+}
+
+function getSelectedPaymentMethod() {
+  return document.querySelector("input[name='checkoutPaymentMethod']:checked")?.value || "Cash on Delivery";
+}
+
+function setDeliveryFormRequired(required) {
+  if (!deliveryAddressForm) return;
+  deliveryAddressForm
+    .querySelectorAll("input, select, textarea")
+    .forEach(el => {
+      if (el.tagName === "TEXTAREA") return;
+      if (!el.id) return;
+      const mustRequired = required && el.id !== "deliveryInstructions";
+      if (mustRequired) el.setAttribute("required", "required");
+      else el.removeAttribute("required");
+    });
+}
+
+function clearDeliveryAddressForm() {
+  if (deliveryFullnameInput) deliveryFullnameInput.value = "";
+  if (deliveryPhoneInput) deliveryPhoneInput.value = "";
+  if (deliveryCityInput) deliveryCityInput.value = "";
+  if (deliveryCampusInput) deliveryCampusInput.value = "";
+  if (deliveryDepartmentInput) deliveryDepartmentInput.value = "";
+  if (deliveryInstructionsInput) deliveryInstructionsInput.value = "";
+}
+
+function fillDeliveryAddressForm(address) {
+  if (deliveryFullnameInput) deliveryFullnameInput.value = address?.fullname || "";
+  if (deliveryPhoneInput) deliveryPhoneInput.value = address?.phone || "";
+  if (deliveryCityInput) deliveryCityInput.value = address?.city || "";
+  if (deliveryCampusInput) deliveryCampusInput.value = address?.campus || "";
+  if (deliveryDepartmentInput) deliveryDepartmentInput.value = address?.department || "";
+  if (deliveryInstructionsInput) deliveryInstructionsInput.value = address?.instructions || "";
+}
+
+function renderSavedDeliveryAddresses() {
+  if (!savedDeliveryAddressesEl) return;
+  const addresses = loadDeliveryAddresses();
+  if (!addresses.length) {
+    savedDeliveryAddressesEl.innerHTML = "";
+    savedDeliveryAddressesEl.setAttribute("hidden", "hidden");
+    showNewAddressForm = true;
+    if (toggleNewAddressBtn) toggleNewAddressBtn.setAttribute("hidden", "hidden");
+    return;
+  }
+
+  showNewAddressForm = false;
+  savedDeliveryAddressesEl.removeAttribute("hidden");
+  if (toggleNewAddressBtn) toggleNewAddressBtn.removeAttribute("hidden");
+  if (!checkoutAddressSelection || !addresses.some(addr => addr.id === checkoutAddressSelection)) {
+    checkoutAddressSelection = addresses[0].id;
+  }
+
+  savedDeliveryAddressesEl.innerHTML = addresses
+    .map(address => `
+      <label class="saved-address-option">
+        <span class="checkout-radio-option">
+          <input type="radio" name="savedAddressChoice" value="${address.id}" ${address.id === checkoutAddressSelection ? "checked" : ""}>
+          <span>
+            <strong>${address.fullname}</strong><br>
+            <small>${address.phone}</small><br>
+            <small>${formatAddressSingleLine(address)}</small>
+          </span>
+        </span>
+      </label>
+    `)
+    .join("");
+}
+
+function toggleDeliveryAddressForm(forceVisible) {
+  if (!deliveryAddressForm) return;
+  showNewAddressForm = typeof forceVisible === "boolean" ? forceVisible : !showNewAddressForm;
+  if (showNewAddressForm) {
+    deliveryAddressForm.removeAttribute("hidden");
+  } else {
+    deliveryAddressForm.setAttribute("hidden", "hidden");
+  }
+  setDeliveryFormRequired(showNewAddressForm);
+}
+
+function openCheckoutModal() {
+  if (!checkoutModalBackdrop) return;
+  renderSavedDeliveryAddresses();
+  if (showNewAddressForm) {
+    clearDeliveryAddressForm();
+    toggleDeliveryAddressForm(true);
+  } else {
+    const selectedAddress = loadDeliveryAddresses().find(addr => addr.id === checkoutAddressSelection);
+    fillDeliveryAddressForm(selectedAddress || {});
+    toggleDeliveryAddressForm(false);
+  }
+  checkoutModalBackdrop.removeAttribute("hidden");
+}
+
+function closeCheckoutModal() {
+  if (!checkoutModalBackdrop) return;
+  checkoutModalBackdrop.setAttribute("hidden", "hidden");
+}
+
+function readDeliveryAddressFromForm() {
+  return {
+    id: `addr_${Date.now()}`,
+    fullname: String(deliveryFullnameInput?.value || "").trim(),
+    phone: String(deliveryPhoneInput?.value || "").trim(),
+    city: String(deliveryCityInput?.value || "").trim(),
+    campus: String(deliveryCampusInput?.value || "").trim(),
+    department: String(deliveryDepartmentInput?.value || "").trim(),
+    instructions: String(deliveryInstructionsInput?.value || "").trim()
+  };
+}
+
+function validateDeliveryAddress(address) {
+  if (!address.fullname || !address.phone || !address.city || !address.campus || !address.department) {
+    return "Please complete full name, phone number, city, campus, and department.";
+  }
+  return "";
+}
+
+async function updateCartItemQuantity(productId, nextQty) {
+  if (!currentUserId) throw new Error("Account session is missing. Please log in again.");
+  if (nextQty <= 0) {
+    await apiRequest(`/cart/${currentUserId}/items/${productId}`, { method: "DELETE" });
+    return;
+  }
+  await apiRequest(`/cart/${currentUserId}/items/${productId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ qty: nextQty })
+  });
 }
 
 function renderCart() {
   if (!cartItemsEl || !cartTotalEl || !checkoutCartBtn) return;
-  const cartProducts = getCartProducts();
+  const cartProducts = getCartProductsWithQty();
   if (!cartProducts.length) {
     cartItemsEl.innerHTML = `<div class="cart-empty">Your cart is empty.</div>`;
     cartTotalEl.textContent = formatCurrency(0);
@@ -557,17 +737,24 @@ function renderCart() {
     return;
   }
 
-  const total = cartProducts.reduce((sum, product) => sum + (Number(product.price) || 0), 0);
+  const total = cartProducts.reduce((sum, product) => sum + ((Number(product.price) || 0) * product.qty), 0);
   cartItemsEl.innerHTML = cartProducts
     .map(product => {
       const seller = product.sellerName || getUserDisplayName(product.sellerEmail || "") || "Seller";
       return `
         <div class="cart-item">
           <img src="${product.image}" alt="${product.name}">
-          <div>
+          <div class="cart-item-main">
             <h4>${product.name}</h4>
             <p>Seller: ${seller}</p>
-            <div class="price">${formatCurrency(product.price)}</div>
+            <div class="cart-item-bottom">
+              <div class="price">${formatCurrency((Number(product.price) || 0) * product.qty)}</div>
+              <div class="cart-qty-controls">
+                <button type="button" class="cart-qty-btn" data-action="decrease-qty" data-product-id="${product.id}">-</button>
+                <span class="cart-qty-value">${product.qty}</span>
+                <button type="button" class="cart-qty-btn" data-action="increase-qty" data-product-id="${product.id}">+</button>
+              </div>
+            </div>
           </div>
           <button type="button" class="remove-cart-btn" data-product-id="${product.id}">Remove</button>
         </div>
@@ -613,7 +800,7 @@ async function addToCart(productId) {
   }
 }
 
-async function checkoutCart() {
+async function checkoutCart(deliveryAddress, paymentMethod) {
   if (!getCurrentUserEmail()) {
     alert("Please log in first.");
     return;
@@ -623,7 +810,13 @@ async function checkoutCart() {
     return;
   }
   try {
-    const result = await apiRequest(`/checkout/${currentUserId}`, { method: "POST" });
+    const result = await apiRequest(`/checkout/${currentUserId}`, {
+      method: "POST",
+      body: JSON.stringify({
+        paymentMethod: paymentMethod || "Cash on Delivery",
+        deliveryAddress: deliveryAddress || null
+      })
+    });
     await loadUserData();
     render(products);
     renderMyListings();
@@ -741,6 +934,9 @@ if (list) {
 }
 
 function renderDashboard(filter) {
+  if (!totalSalesEl || !totalPurchasesEl || !totalPendingEl || !totalSalesCountEl || !totalPurchasesCountEl || !totalPendingCountEl || !transactionRows) {
+    return;
+  }
   let totalSales = 0;
   let totalPurchases = 0;
   let totalPending = 0;
@@ -749,19 +945,23 @@ function renderDashboard(filter) {
   let totalPendingCount = 0;
 
   transactions.forEach(t => {
-    if (t.status === "Pending") {
-      totalPending += t.amount;
+    const amount = Number(t?.amount) || 0;
+    const status = String(t?.status || "");
+    const type = String(t?.type || "");
+
+    if (status === "Pending") {
+      totalPending += amount;
       totalPendingCount += 1;
       return;
     }
 
-    if (t.type === "Sale") {
-      totalSales += t.amount;
+    if (type === "Sale") {
+      totalSales += amount;
       totalSalesCount += 1;
     }
 
-    if (t.type === "Purchase") {
-      totalPurchases += t.amount;
+    if (type === "Purchase") {
+      totalPurchases += amount;
       totalPurchasesCount += 1;
     }
   });
@@ -786,6 +986,19 @@ function renderDashboard(filter) {
   });
 
   transactionRows.innerHTML = "";
+  if (!filtered.length) {
+    transactionRows.innerHTML = `
+      <div class="table-row">
+        <span>--</span>
+        <span>No transactions found for this filter.</span>
+        <span>--</span>
+        <span>--</span>
+        <span>${formatCurrency(0)}</span>
+      </div>
+    `;
+    return;
+  }
+
   filtered.forEach(t => {
     const statusClass = t.status === "Pending" ? "pending" : "completed";
     const typeClass = t.type === "Sale" ? "type-sale" : "type-purchase";
@@ -1476,22 +1689,103 @@ if (backFromCart) {
 if (cartItemsEl) {
   cartItemsEl.addEventListener("click", async event => {
     const removeBtn = event.target.closest(".remove-cart-btn");
-    if (!removeBtn) return;
-    const productId = removeBtn.dataset.productId;
+    const qtyBtn = event.target.closest(".cart-qty-btn");
+    const productId = Number(removeBtn?.dataset.productId || qtyBtn?.dataset.productId || 0);
+    if (!productId) return;
+    const existingItem = cartItems.find(item => Number(item.productId) === Number(productId));
+    const currentQty = Math.max(1, Number(existingItem?.qty) || 1);
     try {
-      if (!currentUserId) throw new Error("Account session is missing. Please log in again.");
-      await apiRequest(`/cart/${currentUserId}/items/${productId}`, { method: "DELETE" });
+      if (removeBtn) {
+        await updateCartItemQuantity(productId, 0);
+      } else if (qtyBtn?.dataset.action === "increase-qty") {
+        await updateCartItemQuantity(productId, currentQty + 1);
+      } else if (qtyBtn?.dataset.action === "decrease-qty") {
+        await updateCartItemQuantity(productId, currentQty - 1);
+      } else {
+        return;
+      }
       await loadUserData();
       renderCart();
       updateCartBadge();
     } catch (error) {
-      alert(error.message || "Could not remove cart item.");
+      alert(error.message || "Could not update cart item.");
     }
   });
 }
 
 if (checkoutCartBtn) {
-  checkoutCartBtn.addEventListener("click", checkoutCart);
+  checkoutCartBtn.addEventListener("click", openCheckoutModal);
+}
+
+if (savedDeliveryAddressesEl) {
+  savedDeliveryAddressesEl.addEventListener("change", event => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.name !== "savedAddressChoice") return;
+    checkoutAddressSelection = target.value;
+    const selectedAddress = loadDeliveryAddresses().find(addr => addr.id === checkoutAddressSelection);
+    fillDeliveryAddressForm(selectedAddress || {});
+    toggleDeliveryAddressForm(false);
+  });
+}
+
+if (toggleNewAddressBtn) {
+  toggleNewAddressBtn.addEventListener("click", () => {
+    clearDeliveryAddressForm();
+    toggleDeliveryAddressForm(true);
+  });
+}
+
+if (deliveryAddressForm) {
+  deliveryAddressForm.addEventListener("submit", event => {
+    event.preventDefault();
+  });
+}
+
+if (closeCheckoutModalBtn) {
+  closeCheckoutModalBtn.addEventListener("click", closeCheckoutModal);
+}
+
+if (cancelCheckoutBtn) {
+  cancelCheckoutBtn.addEventListener("click", closeCheckoutModal);
+}
+
+if (checkoutModalBackdrop) {
+  checkoutModalBackdrop.addEventListener("click", event => {
+    if (event.target === checkoutModalBackdrop) {
+      closeCheckoutModal();
+    }
+  });
+}
+
+if (confirmCheckoutBtn) {
+  confirmCheckoutBtn.addEventListener("click", async () => {
+    let selectedAddress = null;
+    if (showNewAddressForm) {
+      const newAddress = readDeliveryAddressFromForm();
+      const validationMessage = validateDeliveryAddress(newAddress);
+      if (validationMessage) {
+        alert(validationMessage);
+        return;
+      }
+      const existing = loadDeliveryAddresses();
+      existing.unshift(newAddress);
+      saveDeliveryAddresses(existing);
+      checkoutAddressSelection = newAddress.id;
+      selectedAddress = newAddress;
+    } else {
+      const existing = loadDeliveryAddresses();
+      selectedAddress = existing.find(addr => addr.id === checkoutAddressSelection) || null;
+      if (!selectedAddress) {
+        alert("Please select a delivery address or add a new one.");
+        return;
+      }
+    }
+
+    const paymentMethod = getSelectedPaymentMethod();
+    closeCheckoutModal();
+    await checkoutCart(selectedAddress, paymentMethod);
+  });
 }
 
 if (messagesBtn && messagesSection) {

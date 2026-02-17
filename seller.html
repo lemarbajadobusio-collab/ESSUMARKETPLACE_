@@ -273,6 +273,90 @@
   </div>
 </section>
 
+<div class="checkout-modal-backdrop" id="checkoutModalBackdrop" hidden>
+  <div class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutModalTitle">
+    <button type="button" class="checkout-close-btn" id="closeCheckoutModalBtn" aria-label="Close checkout">×</button>
+    <h3 id="checkoutModalTitle">Checkout</h3>
+
+    <div class="checkout-step">
+      <p class="checkout-step-title">Step 1 — Choose payment method</p>
+      <label class="checkout-radio-option">
+        <input type="radio" name="checkoutPaymentMethod" value="Cash on Delivery" checked />
+        <span>Cash on Delivery</span>
+      </label>
+      <label class="checkout-radio-option muted">
+        <input type="radio" name="checkoutPaymentMethod" value="GCash" disabled />
+        <span>GCash (Coming Soon)</span>
+      </label>
+      <label class="checkout-radio-option muted">
+        <input type="radio" name="checkoutPaymentMethod" value="PayMaya" disabled />
+        <span>PayMaya (Coming Soon)</span>
+      </label>
+    </div>
+
+    <div class="checkout-step">
+      <p class="checkout-step-title">Step 2 — Delivery address</p>
+      <div id="savedDeliveryAddresses" class="saved-delivery-addresses" hidden></div>
+      <button type="button" class="link-btn checkout-add-address-btn" id="toggleNewAddressBtn">+ Add new delivery address</button>
+
+      <form id="deliveryAddressForm" class="checkout-address-form">
+        <div class="input-group">
+          <label for="deliveryFullname">Full Name</label>
+          <input id="deliveryFullname" type="text" placeholder="e.g. Juan Dela Cruz" />
+        </div>
+        <div class="input-group">
+          <label for="deliveryPhone">Phone Number</label>
+          <input id="deliveryPhone" type="text" placeholder="e.g. +63 912 345 6789 or 09123456789" />
+        </div>
+        <div class="input-group">
+          <label for="deliveryCity">City / Municipality</label>
+          <input id="deliveryCity" type="text" placeholder="e.g. City of Borongan" />
+        </div>
+        <div class="input-group">
+          <label for="deliveryCampus">Campus</label>
+          <select id="deliveryCampus">
+            <option value="">Select Campus</option>
+            <option>ESSU Main Campus</option>
+            <option>ESSU Can-avid Campus</option>
+            <option>ESSU Guiuan Campus</option>
+            <option>ESSU Lawaan Campus</option>
+            <option>ESSU Salcedo Campus</option>
+            <option>ESSU Balangiga Campus</option>
+            <option>ESSU Arteche Campus</option>
+            <option>ESSU Mercedes Campus</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label for="deliveryDepartment">Department (Inside ESSU)</label>
+          <select id="deliveryDepartment">
+            <option value="">Select Department</option>
+            <option>College of Engineering</option>
+            <option>College of Arts and Sciences</option>
+            <option>College of Business and Management</option>
+            <option>College of Education</option>
+            <option>College of Nursing</option>
+            <option>College of Information Technology</option>
+            <option>College of Agriculture</option>
+            <option>College of Law</option>
+            <option>Administration Office</option>
+            <option>Library</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label for="deliveryInstructions">Additional Instructions (Optional)</label>
+          <textarea id="deliveryInstructions" rows="3" placeholder="e.g. Leave at the guard house, ring the bell twice"></textarea>
+        </div>
+      </form>
+    </div>
+
+    <div class="checkout-modal-actions">
+      <button type="button" class="secondary-btn" id="cancelCheckoutBtn">Cancel</button>
+      <button type="button" class="primary-btn" id="confirmCheckoutBtn">Continue</button>
+    </div>
+  </div>
+</div>
+
 <section class="profile-page" id="profileSection" hidden>
   <button class="back-btn" id="backFromProfile" type="button">
     ← Back 
