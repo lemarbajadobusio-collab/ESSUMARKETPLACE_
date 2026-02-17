@@ -934,6 +934,9 @@ if (list) {
 }
 
 function renderDashboard(filter) {
+  if (!totalSalesEl || !totalPurchasesEl || !totalPendingEl || !totalSalesCountEl || !totalPurchasesCountEl || !totalPendingCountEl || !transactionRows) {
+    return;
+  }
   let totalSales = 0;
   let totalPurchases = 0;
   let totalPending = 0;
@@ -942,19 +945,23 @@ function renderDashboard(filter) {
   let totalPendingCount = 0;
 
   transactions.forEach(t => {
-    if (t.status === "Pending") {
-      totalPending += t.amount;
+    const amount = Number(t?.amount) || 0;
+    const status = String(t?.status || "");
+    const type = String(t?.type || "");
+
+    if (status === "Pending") {
+      totalPending += amount;
       totalPendingCount += 1;
       return;
     }
 
-    if (t.type === "Sale") {
-      totalSales += t.amount;
+    if (type === "Sale") {
+      totalSales += amount;
       totalSalesCount += 1;
     }
 
-    if (t.type === "Purchase") {
-      totalPurchases += t.amount;
+    if (type === "Purchase") {
+      totalPurchases += amount;
       totalPurchasesCount += 1;
     }
   });
@@ -979,6 +986,19 @@ function renderDashboard(filter) {
   });
 
   transactionRows.innerHTML = "";
+  if (!filtered.length) {
+    transactionRows.innerHTML = `
+      <div class="table-row">
+        <span>--</span>
+        <span>No transactions found for this filter.</span>
+        <span>--</span>
+        <span>--</span>
+        <span>${formatCurrency(0)}</span>
+      </div>
+    `;
+    return;
+  }
+
   filtered.forEach(t => {
     const statusClass = t.status === "Pending" ? "pending" : "completed";
     const typeClass = t.type === "Sale" ? "type-sale" : "type-purchase";
