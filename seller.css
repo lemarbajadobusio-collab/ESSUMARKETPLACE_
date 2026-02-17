@@ -16,6 +16,12 @@ body {
   overflow: auto;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .auth {
   flex: 1;
   display: flex;
@@ -1816,6 +1822,29 @@ body {
 }
 
 @media (max-width: 760px) {
+  .navbar {
+    height: auto;
+    padding: 10px 12px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .navbar input {
+    min-width: 0;
+    width: 100%;
+    order: 3;
+  }
+
+  .main {
+    padding: 12px;
+  }
+
+  .products,
+  .cart {
+    width: 100%;
+    margin-left: 0;
+  }
+
   .messages-layout {
     grid-template-columns: 1fr;
     height: auto;

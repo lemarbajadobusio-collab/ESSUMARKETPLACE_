@@ -6,6 +6,7 @@
 body {
     margin: 0;
     background: #f4f6f8;
+    overflow-x: hidden;
 }
 
 /* Sidebar */
@@ -53,6 +54,17 @@ input[type="text"] {
     border-radius: 6px;
 }
 
+.table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-wrap .table {
+    min-width: 640px;
+    margin-bottom: 0;
+}
+
 /* RESPONSIVE */
 @media (max-width: 768px) {
     .sidebar {
@@ -75,6 +87,18 @@ input[type="text"] {
     }
 
     .content {
-        padding: 20px 10px;
+        padding: 72px 10px 16px;
+    }
+
+    .content h2 {
+        font-size: 1.2rem;
+    }
+
+    .card h3 {
+        font-size: 1.4rem;
+    }
+
+    .table-wrap .table {
+        min-width: 560px;
     }
 }
