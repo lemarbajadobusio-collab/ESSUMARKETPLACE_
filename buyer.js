@@ -160,7 +160,27 @@ async function login() {
       method: "POST",
       body: JSON.stringify({ email, password: pass })
     });
-    if (!data.user || data.user.role !== "buyer") {
+    if (!data.user) {
+      if (errEl) errEl.innerText = "Invalid login response";
+      return;
+    }
+
+    // If admin logs in from this form, redirect to admin dashboard
+    if (data.user.role === "admin") {
+      // set admin session keys (keeps currentUser for convenience)
+      localStorage.setItem("currentUser", JSON.stringify(data.user));
+      localStorage.setItem("admin", data.user.email || "admin");
+      localStorage.setItem("admin_user_id", String(data.user.id || "0"));
+      await refreshUsers();
+      showToast("Admin login successful!");
+      setTimeout(() => {
+        window.location.href = "admin.html";
+      }, 400);
+      return;
+    }
+
+    // Buyer login flow (unchanged)
+    if (data.user.role !== "buyer") {
       if (errEl) errEl.innerText = "This account is not a buyer account";
       return;
     }
@@ -169,7 +189,7 @@ async function login() {
     showToast("Login successful!");
     setTimeout(() => {
       window.location.href = "buyer.html";
-    }, 500);
+    }, 400);
   } catch (error) {
     if (errEl) errEl.innerText = error.message || "Invalid credentials";
   }
