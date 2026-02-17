@@ -38,6 +38,28 @@ npm start
 Server URL: `http://localhost:3000`
 Health check: `GET /api/health`
 
+## 2.1 Deploy so users do not run npm locally
+
+1. Deploy the backend (`backend/server.js`) to a Node host (Render, Railway, Fly.io, VPS, etc.).
+2. Set environment variables on that host:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (recommended)
+   - `SUPABASE_BUCKET` (optional)
+   - `PORT` (if required by your host)
+3. Deploy frontend files (`index.html`, `buyer.html`, `seller.html`, `admin.html`, JS/CSS) to static hosting (Netlify, Vercel static, GitHub Pages, cPanel, etc.).
+4. If backend and frontend use different domains, set this line before each page script include:
+
+```html
+<script>
+  window.ESSU_API_BASE = "https://your-backend-domain.com/api";
+</script>
+```
+
+If not set, frontend auto-uses:
+- local dev: `http://localhost:3000/api`
+- deployed same-domain: `https://your-frontend-domain/api`
+
 On startup, backend attempts to seed default admin if table access allows it:
 
 - email: `admin@essu.local`

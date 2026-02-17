@@ -98,7 +98,24 @@ const chatUserName = document.getElementById("chatUserName");
 const chatUserAvatar = document.getElementById("chatUserAvatar");
 const chatUserStatus = document.getElementById("chatUserStatus");
 const messageSearchInput = document.getElementById("messageSearchInput");
-const API_BASE = "http://localhost:3000/api";
+function resolveApiBase() {
+  const configured = typeof window !== "undefined" ? window.ESSU_API_BASE : "";
+  if (typeof configured === "string" && configured.trim()) {
+    return configured.trim().replace(/\/+$/, "");
+  }
+
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://localhost:3000/api";
+    }
+    return `${window.location.origin.replace(/\/+$/, "")}/api`;
+  }
+
+  return "http://localhost:3000/api";
+}
+
+const API_BASE = resolveApiBase();
 let usersCache = [];
 let currentUserId = Number(localStorage.getItem("essu_current_user_id") || 0);
 
@@ -1937,9 +1954,4 @@ document.querySelectorAll(".cat").forEach(btn => {
   control.addEventListener("input", applyFilters);
   control.addEventListener("change", applyFilters);
 });
-
-
-
-
-
 

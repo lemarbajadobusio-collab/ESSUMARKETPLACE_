@@ -1,4 +1,21 @@
-﻿const API_BASE = "http://localhost:3000/api";
+﻿function resolveApiBase() {
+  const configured = typeof window !== "undefined" ? window.ESSU_API_BASE : "";
+  if (typeof configured === "string" && configured.trim()) {
+    return configured.trim().replace(/\/+$/, "");
+  }
+
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://localhost:3000/api";
+    }
+    return `${window.location.origin.replace(/\/+$/, "")}/api`;
+  }
+
+  return "http://localhost:3000/api";
+}
+
+const API_BASE = resolveApiBase();
 let usersCache = [];
 let products = [];
 let cart = [];
@@ -1349,7 +1366,4 @@ document.addEventListener('keydown', function(e) {
     modals.forEach(m => m.classList.remove('open'));
   }
 });
-
-
-
 
