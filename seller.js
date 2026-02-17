@@ -1321,6 +1321,8 @@ if (toLoginBtn) {
 
 if (toBuyerLoginBtn) {
   toBuyerLoginBtn.addEventListener("click", () => {
+    localStorage.setItem("essu_force_buyer_auth", "true");
+    localStorage.setItem("essu_preferred_role", "buyer");
     window.location.href = "index.html";
   });
 }
