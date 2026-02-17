@@ -451,6 +451,36 @@ footer {
 .cat { padding:8px 12px; border-radius:18px; border:1px solid #e5e7eb; background:white; font-size:13px }
 .cat.active { background:#1e8e3e; color:#fff }
 
+/* FILTERS */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+  margin: 0 0 18px;
+}
+
+.filters input,
+.filters select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #fff;
+  color: #111827;
+}
+
+.filters input:focus,
+.filters select:focus {
+  outline: none;
+  border-color: #1e8e3e;
+  box-shadow: 0 0 0 2px rgba(30, 142, 62, 0.14);
+}
+
 /* GRID */
 .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:80px; }
 
@@ -810,6 +840,7 @@ select.address-input { cursor: pointer; }
 @media (max-width: 900px) {
   .container { padding: 88px 20px 24px 20px; }
   .grid { gap: 32px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card { padding: 14px; }
   .card img { width: 100%; height: auto; max-height: 320px; }
   .card h4 { font-size: 32px; }
@@ -830,6 +861,8 @@ select.address-input { cursor: pointer; }
   .card h4 { font-size: 26px; }
   .seller-name { font-size: 13px; }
   .categories { gap: 6px; }
+  .filters { gap: 8px; padding: 10px; }
+  .filters input, .filters select { padding: 8px 10px; font-size: 13px; }
   .cat { padding: 6px 10px; font-size: 12px; }
   .title-row { flex-direction: column; align-items: flex-start; gap: 6px; }
   .search-box { display: none; }

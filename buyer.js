@@ -266,6 +266,7 @@ function saveProducts() {
 
 let currentCategory = 'all';
 let currentFilter = 'all';
+let currentSearchQuery = '';
 
 const grid = document.getElementById("itemsGrid");
 
@@ -305,8 +306,49 @@ function renderProductCard(p) {
 
 function renderProducts(){
   if(!grid) return;
-  let filtered = products;
-  if(currentCategory !== 'all') filtered = filtered.filter(p => p.category === currentCategory);
+  let filtered = products.slice();
+  const minPrice = Number(document.getElementById('minPrice')?.value || 0);
+  const maxPriceRaw = document.getElementById('maxPrice')?.value;
+  const maxPrice = maxPriceRaw === "" ? Number.POSITIVE_INFINITY : Number(maxPriceRaw);
+  const condition = document.getElementById('condition')?.value || "All";
+  const sort = document.getElementById('sort')?.value || "latest";
+
+  if (currentCategory !== 'all') {
+    filtered = filtered.filter(p => String(p.category || "").toLowerCase() === currentCategory);
+  }
+
+  if (Number.isFinite(minPrice) && minPrice > 0) {
+    filtered = filtered.filter(p => Number(p.price) >= minPrice);
+  }
+  if (Number.isFinite(maxPrice)) {
+    filtered = filtered.filter(p => Number(p.price) <= maxPrice);
+  }
+
+  if (condition !== "All") {
+    filtered = filtered.filter(p => String(p.condition || "").toLowerCase() === condition.toLowerCase());
+  } else if (currentFilter === 'new') {
+    filtered = filtered.filter(p => String(p.condition || "").toLowerCase().includes("new"));
+  } else if (currentFilter === 'used') {
+    filtered = filtered.filter(p => !String(p.condition || "").toLowerCase().includes("new"));
+  }
+
+  if (currentSearchQuery) {
+    const q = currentSearchQuery.toLowerCase();
+    filtered = filtered.filter(p =>
+      String(p.name || "").toLowerCase().includes(q) ||
+      String(p.desc || "").toLowerCase().includes(q) ||
+      String(p.seller || "").toLowerCase().includes(q)
+    );
+  }
+
+  if (sort === "priceLow") {
+    filtered.sort((a, b) => Number(a.price) - Number(b.price));
+  } else if (sort === "priceHigh") {
+    filtered.sort((a, b) => Number(b.price) - Number(a.price));
+  } else {
+    filtered.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+  }
+
   grid.innerHTML = '';
   filtered.forEach(p=>{
     grid.innerHTML += renderProductCard(p);
@@ -340,29 +382,24 @@ function setCategory(category) {
 
 function setFilter(filter) {
   currentFilter = filter;
-  document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelector(`.filter-btn[onclick="setFilter('${filter}')"]`).classList.add('active');
+  const conditionSel = document.getElementById('condition');
+  if (conditionSel) conditionSel.value = "All";
   renderProducts();
 }
 
 // Search functionality
 function searchProducts(query) {
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(query.toLowerCase()) ||
-    p.desc.toLowerCase().includes(query.toLowerCase()) ||
-    p.seller.toLowerCase().includes(query.toLowerCase())
-  );
-  renderFilteredProducts(filtered);
+  currentSearchQuery = String(query || '').trim();
+  renderProducts();
 }
 
 function renderFilteredProducts(filteredProducts) {
-  if(!grid) return;
-  grid.innerHTML = '';
-  filteredProducts.forEach(p=>{
-    grid.innerHTML += renderProductCard(p);
-  });
-  attachUIHandlers();
-  loadWishlist();
+  // kept for compatibility with older calls
+  if (!Array.isArray(filteredProducts)) return;
+  const backup = products;
+  products = filteredProducts;
+  renderProducts();
+  products = backup;
 }
 
 // initial render happens in bootstrapBuyerData()
@@ -1501,6 +1538,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+  const minPriceInput = document.getElementById('minPrice');
+  const maxPriceInput = document.getElementById('maxPrice');
+  const conditionSelect = document.getElementById('condition');
+  const sortSelect = document.getElementById('sort');
+  [minPriceInput, maxPriceInput, conditionSelect, sortSelect].forEach(el => {
+    if (!el) return;
+    el.addEventListener('input', () => renderProducts());
+    el.addEventListener('change', () => renderProducts());
+  });
+
   // Check authentication on dashboard
   checkAuthOnDashboard();
   

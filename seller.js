@@ -738,9 +738,11 @@ async function updateCartItemQuantity(productId, nextQty) {
     await apiRequest(`/cart/${currentUserId}/items/${productId}`, { method: "DELETE" });
     return;
   }
-  await apiRequest(`/cart/${currentUserId}/items/${productId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ qty: nextQty })
+  // Use delete+post to avoid backend PATCH mismatches across deployments.
+  await apiRequest(`/cart/${currentUserId}/items/${productId}`, { method: "DELETE" }).catch(() => {});
+  await apiRequest(`/cart/${currentUserId}/items`, {
+    method: "POST",
+    body: JSON.stringify({ productId, qty: nextQty })
   });
 }
 
