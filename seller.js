@@ -1309,6 +1309,7 @@ if (signupTab) {
 
 const toSignupBtn = document.getElementById("toSignupBtn");
 const toLoginBtn = document.getElementById("toLoginBtn");
+const toBuyerLoginBtn = document.getElementById("toBuyerLoginBtn");
 
 if (toSignupBtn) {
   toSignupBtn.addEventListener("click", () => activateTab("signup"));
@@ -1316,6 +1317,12 @@ if (toSignupBtn) {
 
 if (toLoginBtn) {
   toLoginBtn.addEventListener("click", () => activateTab("login"));
+}
+
+if (toBuyerLoginBtn) {
+  toBuyerLoginBtn.addEventListener("click", () => {
+    window.location.href = "index.html";
+  });
 }
 
 if (profileForgotBtn) {
