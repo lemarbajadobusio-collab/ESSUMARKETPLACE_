@@ -850,6 +850,47 @@ select.address-input { cursor: pointer; }
   .icon-btn, .primary-btn, .verify-btn, .sidebar-btn { min-height: 40px; }
 }
 
+  /* Stronger mobile overrides to ensure fit on narrow devices */
+  @media (max-width: 600px) {
+    /* Neutralize any fixed image sizes for flexible layouts */
+    img { width: auto !important; max-width: 100% !important; height: auto !important; }
+
+    /* Navbar: reduce title, allow ellipsis to avoid wrap overflow */
+    .nav-left h1 { font-size: 16px !important; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Make header icons slightly smaller and spaced */
+    .nav-right .icon-btn { width: 34px; height: 34px; padding: 6px; }
+
+    /* Ensure container doesn't exceed viewport width */
+    .container, main.container { box-sizing: border-box; width: 100%; max-width: 100%; padding-left: 12px; padding-right: 12px; }
+
+    /* Full width modals/panels */
+    .modal .modal-content, .item-modal-content, #editProfileModal .modal-content { width: 96vw !important; max-width: 96vw !important; left: 2vw; right: 2vw; }
+
+    /* Messages panel and notifications should be full-screen drawer on small screens */
+    .notifications-panel, .messages-panel { width: 100% !important; transform: translateX(100%); border-left: none; }
+    .notifications-panel.open, .messages-panel.open { transform: translateX(0); }
+
+    /* Product detail layout stacks vertically on small screens */
+    .product-detail-layout { grid-template-columns: 1fr !important; gap: 12px !important; }
+    .detail-main { height: auto; max-height: 360px; }
+
+    /* Ensure fixed side elements (mini-cart, sidebar) are usable */
+    .mini-cart { left: 8px; right: 8px; width: calc(100% - 16px); }
+    .profile-sidebar { position: fixed; right: -100%; left: 0; width: 100%; height: 100%; }
+
+    /* Improve tappable area of controls */
+    button, .icon-btn { min-width: 44px; min-height: 44px; }
+  }
+
+  @media (max-width: 360px) {
+    .nav-left h1 { font-size: 14px !important; }
+    .card h3 { font-size: 14px; }
+    .card h4 { font-size: 15px; }
+    .categories { gap: 6px; }
+  }
+
+
 
 .sidebar-order-date {
   font-size: 12px;
