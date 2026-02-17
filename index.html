@@ -11,6 +11,8 @@
     const LAST_PAGE_KEY = 'essu_last_page';
     localStorage.setItem(LAST_PAGE_KEY, 'index.html');
     const forceBuyerAuth = localStorage.getItem('essu_force_buyer_auth') === 'true';
+    const navEntry = performance.getEntriesByType('navigation')[0];
+    const isReload = navEntry?.type === 'reload';
 
     const isHosted = window.location.hostname.endsWith('github.io');
     let currentUser = null;
@@ -18,7 +20,9 @@
       currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
     } catch {}
 
-    if (forceBuyerAuth) {
+    if (isReload) {
+      // Keep user on the current page after browser refresh.
+    } else if (forceBuyerAuth) {
       // stay on buyer auth (login/signup) page
     } else if (currentUser?.role === 'admin') {
       window.location.href = 'admin.html';
