@@ -270,6 +270,25 @@ let currentSearchQuery = '';
 
 const grid = document.getElementById("itemsGrid");
 
+function resetBuyerFiltersToDefault() {
+  currentCategory = 'all';
+  currentFilter = 'all';
+  currentSearchQuery = '';
+  const minPriceInput = document.getElementById('minPrice');
+  const maxPriceInput = document.getElementById('maxPrice');
+  const conditionSelect = document.getElementById('condition');
+  const sortSelect = document.getElementById('sort');
+  const searchInput = document.getElementById('searchInput');
+  if (minPriceInput) minPriceInput.value = "";
+  if (maxPriceInput) maxPriceInput.value = "";
+  if (conditionSelect) conditionSelect.value = "All";
+  if (sortSelect) sortSelect.value = "latest";
+  if (searchInput) searchInput.value = "";
+  document.querySelectorAll('.cat').forEach(btn => btn.classList.remove('active'));
+  const allCategoryBtn = document.querySelector(`.cat[onclick="setCategory('all')"]`);
+  if (allCategoryBtn) allCategoryBtn.classList.add('active');
+}
+
 function getInitialsFromName(name) {
   return String(name || "S")
     .trim()
@@ -520,6 +539,7 @@ async function loadCart(){
 }
 
 async function bootstrapBuyerData() {
+  resetBuyerFiltersToDefault();
   const results = await Promise.allSettled([
     refreshUsers(),
     refreshProducts(),
@@ -1545,10 +1565,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const maxPriceInput = document.getElementById('maxPrice');
   const conditionSelect = document.getElementById('condition');
   const sortSelect = document.getElementById('sort');
-  if (minPriceInput) minPriceInput.value = "";
-  if (maxPriceInput) maxPriceInput.value = "";
-  if (conditionSelect) conditionSelect.value = "All";
-  if (sortSelect) sortSelect.value = "latest";
+  resetBuyerFiltersToDefault();
   [minPriceInput, maxPriceInput, conditionSelect, sortSelect].forEach(el => {
     if (!el) return;
     el.addEventListener('input', () => renderProducts());
@@ -1568,6 +1585,7 @@ document.addEventListener('DOMContentLoaded', function() {
   updateNotifBadge();
   updateMsgBadge();
   renderMiniCart();
+  renderProducts();
 });
 
 // Handle keyboard shortcuts
