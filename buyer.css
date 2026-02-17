@@ -798,56 +798,59 @@ select.address-input { cursor: pointer; }
   color: #16a34a;
 }
 
-
-/* Responsive: mobile and small screens */
+/* Mobile-first responsive additions */
+/* Small tablets / large phones */
 @media (max-width: 900px) {
-  .container { padding: 92px 20px 24px 20px; }
-  .card { width: 100%; padding: 16px; margin: 12px 0; }
-  .grid { gap: 28px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-  .card img { width: 100%; height: auto; max-height: 260px; }
-  .navbar { padding: 10px 14px; gap: 10px; }
+  .container { padding: 88px 20px 24px 20px; }
+  .grid { gap: 32px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .card { padding: 14px; }
+  .card img { width: 100%; height: auto; max-height: 320px; }
+  .navbar { padding: 10px 16px; }
   .nav-left h1 { font-size: 20px; }
-  .search-box { min-width: 0; }
-  .search-box input { font-size: 14px; padding: 8px 10px; }
-  .nav-right .icon-btn { width: 36px; height: 36px; }
-  .title-row { gap: 8px; }
 }
 
+/* Typical mobile phones */
 @media (max-width: 600px) {
   :root { --radius: 10px; }
-  .container { padding: 88px 14px 20px 14px; }
-  .navbar { padding: 8px 12px; gap: 8px; }
-  .nav-left h1 { font-size: 18px; }
-  .search-box { display: none; }
-  .nav-right { gap: 8px; }
-  .icon { font-size: 16px; }
-  .grid { gap: 18px; grid-template-columns: repeat(1, minmax(0, 1fr)); }
-  .card img { width: 100%; height: auto; max-height: 220px; }
-  .card { padding: 12px; border-radius: 10px; }
+  html, body { -webkit-text-size-adjust: 100%; }
+  .container { padding: 84px 14px 20px 14px; max-width: 100%; }
+  .grid { gap: 18px; grid-template-columns: 1fr; }
+  .card { padding: 12px; margin: 10px 0; }
+  .card img { max-height: 240px; display: block; margin: 0 auto 10px auto; }
   .card h3 { font-size: 15px; }
   .card p { font-size: 13px; }
   .card h4 { font-size: 16px; }
   .categories { gap: 6px; }
   .cat { padding: 6px 10px; font-size: 12px; }
-  .title-row { flex-direction: column; align-items: flex-start; }
-  .modal .modal-content { width: 94%; max-width: 420px; padding: 14px; }
-  .mini-cart { width: calc(100% - 28px); right: 14px; left: auto; bottom: 14px; }
-  .mini-cart .mini-cart-content { padding: 12px; }
+  .title-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .search-box { display: none; }
+  .nav-right { gap: 8px; }
+  .nav-right .icon-btn { width: 36px; height: 36px; }
+  /* Make profile sidebar full-width on mobile */
   .profile-sidebar { width: 100%; right: -100%; }
   .profile-sidebar.open { right: 0; }
-  #editProfileModal .modal-content { padding: 20px; max-width: 94%; }
-  .avatar { width: 64px; height: 64px; font-size: 24px; }
-  footer { font-size: 12px; padding: 8px 12px; }
+  /* Modals & panels should scale to viewport */
+  .modal .modal-content, #editProfileModal .modal-content, .item-modal-content { width: 94vw; max-width: 94vw; padding: 16px; }
+  .mini-cart { width: calc(100% - 28px); right: 14px; left: auto; bottom: 14px; }
 }
 
+/* Very small phones */
 @media (max-width: 420px) {
-  .container { padding-top: 80px; }
+  .container { padding-top: 76px; }
   .card img { max-height: 200px; }
-  .primary-btn { padding: 10px; font-size: 14px; }
-  .auth-card, .card { padding: 12px; }
+  .primary-btn, .submit-btn { padding: 10px 12px; font-size: 14px; }
+  .auth-card { padding: 16px; }
   .tag { font-size: 11px; padding: 5px 8px; }
-  .icon-btn { width: 34px; height: 34px; }
+  .icon { font-size: 16px; }
+  .filter-btn { padding: 6px 12px; font-size: 13px; }
 }
+
+/* Accessibility: ensure tappable controls have comfortable sizes */
+@media (max-width: 900px) {
+  .icon-btn, .primary-btn, .verify-btn, .sidebar-btn { min-height: 40px; }
+}
+
+
 .sidebar-order-date {
   font-size: 12px;
   color: #888;
