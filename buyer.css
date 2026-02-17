@@ -868,16 +868,16 @@ select.address-input { cursor: pointer; }
   html, body { -webkit-text-size-adjust: 100%; }
   .container { padding: 124px 14px 20px 14px; max-width: 100%; }
   .grid { gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .card { padding: 10px; margin: 6px 0; }
-  .card img { max-height: 130px; display: block; margin: 0 auto 8px auto; }
-  .card h3 { font-size: 18px; margin-top: 8px; }
-  .card p { font-size: 13px; min-height: 32px; margin-bottom: 6px; }
-  .card h4 { font-size: 20px; margin-bottom: 8px; letter-spacing: 0; }
-  .condition-label { font-size: 11px; margin-bottom: 8px; }
-  .seller-name { font-size: 13px; }
-  .seller-avatar { width: 34px; height: 34px; font-size: 15px; }
+  .card { padding: 9px; margin: 4px 0; min-width: 0; overflow: hidden; }
+  .card img { width: 100% !important; height: 124px !important; max-height: 124px !important; object-fit: cover !important; display: block; margin: 0 auto 8px auto; border-radius: 10px; }
+  .card h3 { font-size: 16px; margin-top: 6px; margin-bottom: 4px; line-height: 1.2; }
+  .card p { font-size: 12px; min-height: 28px; margin-bottom: 4px; line-height: 1.25; }
+  .card h4 { font-size: 16px; margin-bottom: 6px; letter-spacing: 0; }
+  .condition-label { font-size: 10px; margin-bottom: 6px; }
+  .seller-name { font-size: 11px; }
+  .seller-avatar { width: 30px; height: 30px; font-size: 12px; }
   .card-actions { margin-top: 6px; }
-  .card button { font-size: 14px; padding: 6px 14px; }
+  .card button { font-size: 12px; padding: 5px 12px; }
   .categories { gap: 6px; }
   .filters { gap: 8px; padding: 10px; }
   .filters input, .filters select { padding: 8px 10px; font-size: 13px; }
@@ -898,7 +898,7 @@ select.address-input { cursor: pointer; }
 @media (max-width: 420px) {
   .container { padding-top: 116px; }
   .grid { gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .card img { max-height: 115px; }
+  .card img { width: 100% !important; height: 110px !important; max-height: 110px !important; object-fit: cover !important; }
   .tag { top: 10px; left: 10px; padding: 8px 14px; font-size: 12px; }
   .heart { display: none; }
   .primary-btn, .submit-btn { padding: 10px 12px; font-size: 14px; }
@@ -916,6 +916,7 @@ select.address-input { cursor: pointer; }
   @media (max-width: 600px) {
     /* Neutralize any fixed image sizes for flexible layouts */
     img { width: auto !important; max-width: 100% !important; height: auto !important; }
+    .card img { width: 100% !important; height: 124px !important; max-height: 124px !important; object-fit: cover !important; }
 
     /* Navbar: reduce title, allow ellipsis to avoid wrap overflow */
     .nav-left { min-width: 0; }
