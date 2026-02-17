@@ -16,6 +16,7 @@ function resolveApiBase() {
 }
 
 const API_BASE = resolveApiBase();
+localStorage.setItem("essu_last_page", "login.html");
 
 document.getElementById("loginForm").addEventListener("submit", async function(e){
     e.preventDefault();

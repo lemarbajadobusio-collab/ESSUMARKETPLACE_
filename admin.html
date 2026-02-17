@@ -24,11 +24,11 @@
     <div class="sidebar">
         <h4 class="text-center">Admin Panel</h4>
 
-        <a href="#" onclick="showSection('dashboard', this)" class="active">Dashboard</a>
-        <a href="#" onclick="showSection('users', this)">User Management</a>
-        <a href="#" onclick="showSection('products', this)">Product Monitoring</a>
-        <a href="#" onclick="showSection('orders', this)">Orders & Transactions</a>
-        <a href="#" onclick="showSection('reports', this)">Reports</a>
+        <a href="#" data-section="dashboard" onclick="showSection('dashboard', this); return false;" class="active">Dashboard</a>
+        <a href="#" data-section="users" onclick="showSection('users', this); return false;">User Management</a>
+        <a href="#" data-section="products" onclick="showSection('products', this); return false;">Product Monitoring</a>
+        <a href="#" data-section="orders" onclick="showSection('orders', this); return false;">Orders & Transactions</a>
+        <a href="#" data-section="reports" onclick="showSection('reports', this); return false;">Reports</a>
 
         <a href="#" onclick="logout()" class="text-danger mt-3">Logout</a>
     </div>
@@ -124,6 +124,6 @@
 </div>
 
 <script src="runtime-config.js?v=20260217a"></script>
-<script src="admin.js?v=20260217a"></script>
+<script src="admin.js?v=20260217b"></script>
 </body>
 </html>

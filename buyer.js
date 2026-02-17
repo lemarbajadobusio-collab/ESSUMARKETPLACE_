@@ -24,6 +24,34 @@ let messagesCache = {};
 let activeConversationId = "";
 const WISHLIST_EMPTY = "\u2661";
 const WISHLIST_FILLED = "\u2665";
+const LAST_PAGE_KEY = "essu_last_page";
+const BUYER_VIEW_STATE_KEY = "essu_buyer_view_state";
+
+function markCurrentPage() {
+  localStorage.setItem(LAST_PAGE_KEY, "buyer.html");
+}
+
+function readBuyerViewState() {
+  try {
+    return JSON.parse(localStorage.getItem(BUYER_VIEW_STATE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveBuyerViewState(patch = {}) {
+  const state = {
+    ...readBuyerViewState(),
+    ...patch
+  };
+  localStorage.setItem(BUYER_VIEW_STATE_KEY, JSON.stringify(state));
+}
+
+function resetBuyerViewState() {
+  localStorage.removeItem(BUYER_VIEW_STATE_KEY);
+}
+
+markCurrentPage();
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -199,6 +227,7 @@ function logout() {
   const b = currentBuyer();
   localStorage.removeItem("buyer");
   localStorage.removeItem("buyer_user_id");
+  resetBuyerViewState();
   localStorage.setItem("essu_preferred_role", "seller");
   if (b && typeof addActivity === 'function') addActivity('logout', b, {});
   window.location.href = "seller.html";
@@ -451,6 +480,60 @@ async function bootstrapBuyerData() {
   renderCart();
   updateCartBadge();
   updateMsgBadge();
+  restoreBuyerViewState();
+}
+
+async function restoreBuyerViewState() {
+  const state = readBuyerViewState();
+
+  if (state.notificationsOpen) openNotificationsPanel();
+  if (state.messagesOpen) {
+    openMessagesPanel();
+    if (state.activeConversationId) {
+      try {
+        await openChat(state.activeConversationId);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  }
+
+  if (state.profileOpen) {
+    const sidebar = document.getElementById("profileSidebar");
+    const overlay = document.getElementById("overlay");
+    if (sidebar) sidebar.classList.add("open");
+    if (overlay) overlay.classList.add("show");
+  }
+
+  if (state.editProfileOpen) openEditProfileModal();
+  if (state.miniCartOpen) openMiniCart();
+
+  if (state.checkoutOpen) {
+    openCheckoutModal(true);
+    if (state.checkoutStep === "login") {
+      document.getElementById('step-login')?.classList.remove('hidden');
+      document.getElementById('step-payment')?.classList.add('hidden');
+      document.getElementById('step-address')?.classList.add('hidden');
+      document.getElementById('step-review')?.classList.add('hidden');
+    } else if (state.checkoutStep === "payment") {
+      document.getElementById('step-login')?.classList.add('hidden');
+      document.getElementById('step-payment')?.classList.remove('hidden');
+      document.getElementById('step-address')?.classList.add('hidden');
+      document.getElementById('step-review')?.classList.add('hidden');
+    } else if (state.checkoutStep === "address") {
+      document.getElementById('step-login')?.classList.add('hidden');
+      document.getElementById('step-payment')?.classList.add('hidden');
+      document.getElementById('step-address')?.classList.remove('hidden');
+      document.getElementById('step-review')?.classList.add('hidden');
+    } else if (state.checkoutStep === "review") {
+      document.getElementById('step-login')?.classList.add('hidden');
+      document.getElementById('step-payment')?.classList.add('hidden');
+      document.getElementById('step-address')?.classList.add('hidden');
+      document.getElementById('step-review')?.classList.remove('hidden');
+    }
+  }
+
+  if (state.itemModalProductId) openItemModal(Number(state.itemModalProductId));
 }
 
 /* Checkout modal flow (modal-based stepper) */
@@ -463,9 +546,15 @@ function openCheckoutModal(showAddressToo){
     document.getElementById('step-payment').classList.add('hidden');
     document.getElementById('step-address').classList.add('hidden');
     document.getElementById('step-review').classList.add('hidden');
+    saveBuyerViewState({ checkoutOpen: true, checkoutStep: "login" });
     return;
   }
-  if(!cart.length){ showToast('Your cart is empty'); return; }
+  if(!cart.length){
+    saveBuyerViewState({ checkoutOpen: false, checkoutStep: "" });
+    showToast('Your cart is empty');
+    return;
+  }
+  saveBuyerViewState({ checkoutOpen: true, checkoutStep: "payment" });
   // populate summary
   populateCheckoutSummary();
   document.getElementById('checkoutModal').classList.add('open');
@@ -474,6 +563,7 @@ function openCheckoutModal(showAddressToo){
   // optionally show address input at the same time (combined flow)
   if(showAddressToo){
     document.getElementById('step-address').classList.remove('hidden');
+    saveBuyerViewState({ checkoutStep: "address" });
   } else {
     document.getElementById('step-address').classList.add('hidden');
   }
@@ -482,6 +572,7 @@ function openCheckoutModal(showAddressToo){
 
 function closeCheckoutModal(){
   document.getElementById('checkoutModal').classList.remove('open');
+  saveBuyerViewState({ checkoutOpen: false, checkoutStep: "" });
 }
 
 function populateCheckoutSummary(){
@@ -524,6 +615,7 @@ function toAddressStep(){
   if(!sel){ alert('Please select a payment method'); return; }
   document.getElementById('step-payment').classList.add('hidden');
   document.getElementById('step-address').classList.remove('hidden');
+  saveBuyerViewState({ checkoutOpen: true, checkoutStep: "address" });
 }
 
 function toReviewStep(){
@@ -547,6 +639,7 @@ function toReviewStep(){
   populateCheckoutSummary();
   document.getElementById('step-address').classList.add('hidden');
   document.getElementById('step-review').classList.remove('hidden');
+  saveBuyerViewState({ checkoutOpen: true, checkoutStep: "review" });
 }
 
 async function confirmOrderFromModal(){
@@ -601,6 +694,18 @@ async function confirmOrderFromModal(){
   showToast("Order placed - check Profile for details");
 }
 
+function backToPaymentStep() {
+  document.getElementById('step-address').classList.add('hidden');
+  document.getElementById('step-payment').classList.remove('hidden');
+  saveBuyerViewState({ checkoutOpen: true, checkoutStep: "payment" });
+}
+
+function backToAddressStep() {
+  document.getElementById('step-review').classList.add('hidden');
+  document.getElementById('step-address').classList.remove('hidden');
+  saveBuyerViewState({ checkoutOpen: true, checkoutStep: "address" });
+}
+
 // Ensure cart renders on page load via bootstrapBuyerData()
 
 /* --- Mini-cart, Orders and UI helpers --- */
@@ -616,9 +721,11 @@ function openMiniCart(){
   renderMiniCart();
   document.getElementById('miniCart').classList.add('open');
   updateCartBadge();
+  saveBuyerViewState({ miniCartOpen: true });
 }
 function closeMiniCart(){
   document.getElementById('miniCart').classList.remove('open');
+  saveBuyerViewState({ miniCartOpen: false });
 }
 
 function renderMiniCart(){
@@ -821,6 +928,7 @@ async function renderMessages(){
 
 async function openChat(conversationId){
   activeConversationId = String(conversationId || "");
+  saveBuyerViewState({ activeConversationId });
   const list = document.getElementById('conversationsList');
   const chatView = document.getElementById('chatView');
   if (list && window.innerWidth <= 900) list.classList.add('hidden');
@@ -893,6 +1001,7 @@ function backToConversations(){
   const list = document.getElementById('conversationsList');
   if (chatView) chatView.classList.add('hidden');
   if (list) list.classList.remove('hidden');
+  saveBuyerViewState({ activeConversationId: "" });
 }
 
 function updateNotifBadge(){
@@ -943,10 +1052,12 @@ function addActivity(type, user, details) {
 function openNotificationsPanel(){
   renderNotifications();
   document.getElementById('notificationsPanel').classList.add('open');
+  saveBuyerViewState({ notificationsOpen: true });
 }
 
 function closeNotificationsPanel(){
   document.getElementById('notificationsPanel').classList.remove('open');
+  saveBuyerViewState({ notificationsOpen: false });
 }
 
 // Open and close messages panel
@@ -958,6 +1069,7 @@ function openMessagesPanel(){
   }
   renderMessages();
   document.getElementById('messagesPanel').classList.add('open');
+  saveBuyerViewState({ messagesOpen: true });
   const chatView = document.getElementById('chatView');
   if (chatView && window.innerWidth > 900) {
     chatView.classList.remove('hidden');
@@ -966,6 +1078,7 @@ function openMessagesPanel(){
 
 function closeMessagesPanel(){
   document.getElementById('messagesPanel').classList.remove('open');
+  saveBuyerViewState({ messagesOpen: false, activeConversationId: "" });
 }
 
 // Initialize badges
@@ -1005,6 +1118,7 @@ async function ensureConversationForProduct(product) {
 function openItemModal(productId) {
   const product = products.find(p => p.id === productId);
   if (!product) return;
+  saveBuyerViewState({ itemModalProductId: Number(productId) });
 
   // Set main image
   const detailMainImage = document.getElementById('detailMainImage');
@@ -1085,6 +1199,7 @@ function openItemModal(productId) {
 
 function closeItemModal() {
   document.getElementById('itemModal').classList.remove('open');
+  saveBuyerViewState({ itemModalProductId: 0 });
 }
 
 // Sell Panel Functions
@@ -1213,6 +1328,7 @@ function toggleProfile() {
   const overlay = document.getElementById("overlay");
   sidebar.classList.toggle("open");
   overlay.classList.toggle("show");
+  saveBuyerViewState({ profileOpen: sidebar.classList.contains("open") });
   updateProfileSidebar();
 }
 
@@ -1295,10 +1411,12 @@ function openEditProfileModal() {
     document.getElementById('editConfirmPassword').value = '';
   }
   document.getElementById('editProfileModal').classList.add('open');
+  saveBuyerViewState({ editProfileOpen: true });
 }
 
 function closeEditProfileModal() {
   document.getElementById('editProfileModal').classList.remove('open');
+  saveBuyerViewState({ editProfileOpen: false });
 }
 
 // Handle Edit Profile Form Submission
@@ -1389,6 +1507,14 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     const modals = document.querySelectorAll('.modal.open, .profile-sidebar.open, .sell-panel.open');
     modals.forEach(m => m.classList.remove('open'));
+    saveBuyerViewState({
+      editProfileOpen: false,
+      profileOpen: false,
+      itemModalProductId: 0,
+      checkoutOpen: false,
+      checkoutStep: "",
+      miniCartOpen: false
+    });
   }
 });
 

@@ -11,8 +11,15 @@
 
 <!-- Check authentication immediately -->
   <script>
+  localStorage.setItem('essu_last_page', 'buyer.html');
   // Quick auth check before rendering
-  if (!localStorage.getItem('buyer')) {
+  let currentUser = null;
+  try {
+    currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+  } catch {}
+  if (currentUser?.role === 'admin') {
+    window.location.href = "admin.html";
+  } else if (!localStorage.getItem('buyer')) {
     window.location.href = "index.html";
   }
 </script>
@@ -181,7 +188,7 @@
         </div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-        <button onclick="document.getElementById('step-address').classList.add('hidden');document.getElementById('step-payment').classList.remove('hidden')" style="background:#f3f3f3;padding:8px 12px;border-radius:8px;border:none;">Back</button>
+        <button onclick="backToPaymentStep()" style="background:#f3f3f3;padding:8px 12px;border-radius:8px;border:none;">Back</button>
         <button onclick="toReviewStep()" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;">Continue</button>
       </div>
     </div>
@@ -198,7 +205,7 @@
         <textarea id="orderReview" placeholder="Add any review or notes for your order..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;min-height:60px;"></textarea>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button onclick="document.getElementById('step-review').classList.add('hidden');document.getElementById('step-address').classList.remove('hidden')" style="background:#f3f3f3;padding:8px 12px;border-radius:8px;border:none;">Back</button>
+        <button onclick="backToAddressStep()" style="background:#f3f3f3;padding:8px 12px;border-radius:8px;border:none;">Back</button>
         <button onclick="confirmOrderFromModal()" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;">Confirm Order</button>
       </div>
     </div>
@@ -230,7 +237,7 @@
 <div id="overlay" onclick="toggleProfile()"></div>
 
 <script src="runtime-config.js?v=20260217a"></script>
-<script src="buyer.js?v=20260217a"></script>
+<script src="buyer.js?v=20260217b"></script>
 
 <!-- NOTIFICATIONS PANEL -->
 <div id="notificationsPanel" class="notifications-panel">

@@ -133,8 +133,10 @@ let usersCache = [];
 let currentUserId = Number(localStorage.getItem("essu_current_user_id") || 0);
 
 const STORAGE_KEYS = {
+  lastPage: "essu_last_page",
   appState: "essu_app_state",
   section: "essu_app_section",
+  authTab: "essu_seller_auth_tab",
   listingOpen: "essu_listing_open",
   productIndex: "essu_product_index",
   products: "essu_products",
@@ -147,6 +149,8 @@ const STORAGE_KEYS = {
   activeConversation: "essu_active_conversation",
   conversations: "essu_conversations"
 };
+
+localStorage.setItem(STORAGE_KEYS.lastPage, "seller.html");
 
 let transactions = []
 let cartItems = []
@@ -1076,6 +1080,8 @@ function showAuth() {
   authSection.removeAttribute("hidden");
   appSection.setAttribute("hidden", "hidden");
   localStorage.setItem(STORAGE_KEYS.appState, "auth");
+  const savedAuthTab = localStorage.getItem(STORAGE_KEYS.authTab) || "login";
+  activateTab(savedAuthTab);
 }
 
 function showApp() {
@@ -1163,6 +1169,7 @@ initSellerApp();
 
 function activateTab(tab) {
   if (!loginTab || !signupTab || !loginForm || !signupForm) return;
+  localStorage.setItem(STORAGE_KEYS.authTab, tab);
   loginTab.classList.toggle("active", tab === "login");
   signupTab.classList.toggle("active", tab === "signup");
   if (tab === "login") {

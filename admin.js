@@ -16,6 +16,12 @@ function resolveApiBase() {
 }
 
 const API_BASE = resolveApiBase();
+const ADMIN_SECTION_KEY = "essu_admin_section";
+const LAST_PAGE_KEY = "essu_last_page";
+
+function markCurrentPage() {
+  localStorage.setItem(LAST_PAGE_KEY, "admin.html");
+}
 
 function showSection(id, element) {
   document.querySelectorAll(".section").forEach(sec => sec.classList.add("d-none"));
@@ -24,11 +30,18 @@ function showSection(id, element) {
 
   document.querySelectorAll(".sidebar a").forEach(link => link.classList.remove("active"));
   if (element) element.classList.add("active");
+  localStorage.setItem(ADMIN_SECTION_KEY, id);
 
   if (window.innerWidth <= 768) {
     const sidebar = document.querySelector(".sidebar");
     if (sidebar) sidebar.classList.remove("show");
   }
+}
+
+function restoreAdminSection() {
+  const saved = localStorage.getItem(ADMIN_SECTION_KEY) || "dashboard";
+  const link = document.querySelector(`.sidebar a[data-section="${saved}"]`);
+  showSection(saved, link || undefined);
 }
 
 async function apiGet(path) {
@@ -67,6 +80,7 @@ async function ensureAdminAccess() {
 
 function logout() {
   if (!confirm("Logout now?")) return;
+  localStorage.removeItem(ADMIN_SECTION_KEY);
   localStorage.removeItem("currentUser");
   localStorage.removeItem("essu_current_user");
   localStorage.removeItem("buyer");
@@ -204,7 +218,9 @@ function setupUI() {
 }
 
 window.addEventListener("load", async () => {
+  markCurrentPage();
   setupUI();
+  restoreAdminSection();
   const allowed = await ensureAdminAccess();
   if (!allowed) return;
   await loadAdminData();

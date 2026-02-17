@@ -8,8 +8,22 @@
 </head>
 <body>
   <script>
+    const LAST_PAGE_KEY = 'essu_last_page';
+    localStorage.setItem(LAST_PAGE_KEY, 'index.html');
+
     const isHosted = window.location.hostname.endsWith('github.io');
-    if (!isHosted && localStorage.getItem('essu_preferred_role') === 'seller' && !localStorage.getItem('buyer')) {
+    let currentUser = null;
+    try {
+      currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    } catch {}
+
+    if (currentUser?.role === 'admin') {
+      window.location.href = 'admin.html';
+    } else if (localStorage.getItem('buyer')) {
+      window.location.href = 'buyer.html';
+    } else if (localStorage.getItem('essu_current_user') || currentUser?.role === 'seller') {
+      window.location.href = 'seller.html';
+    } else if (!isHosted && localStorage.getItem('essu_preferred_role') === 'seller') {
       window.location.href = 'seller.html';
     }
   </script>
@@ -98,23 +112,28 @@
   </section>
 
   <script src="runtime-config.js?v=20260217a"></script>
-  <script src="buyer.js?v=20260217a"></script>
+  <script src="buyer.js?v=20260217b"></script>
   <script>
+    const INDEX_AUTH_TAB_KEY = 'essu_index_auth_tab';
+
+    function setIndexAuthTab(tab) {
+      localStorage.setItem(INDEX_AUTH_TAB_KEY, tab);
+      const isLogin = tab === 'login';
+      document.getElementById('loginForm').hidden = !isLogin;
+      document.getElementById('signupForm').hidden = isLogin;
+      document.getElementById('loginTab').classList.toggle('active', isLogin);
+      document.getElementById('signupTab').classList.toggle('active', !isLogin);
+    }
+
     // Tab switching for login/signup
     document.getElementById('loginTab').addEventListener('click', (e) => {
       e.preventDefault();
-      document.getElementById('loginForm').hidden = false;
-      document.getElementById('signupForm').hidden = true;
-      document.getElementById('loginTab').classList.add('active');
-      document.getElementById('signupTab').classList.remove('active');
+      setIndexAuthTab('login');
     });
     
     document.getElementById('signupTab').addEventListener('click', (e) => {
       e.preventDefault();
-      document.getElementById('loginForm').hidden = true;
-      document.getElementById('signupForm').hidden = false;
-      document.getElementById('signupTab').classList.add('active');
-      document.getElementById('loginTab').classList.remove('active');
+      setIndexAuthTab('signup');
     });
 
     // Sign Up link in login form
@@ -122,10 +141,7 @@
     if (signupLink) {
       signupLink.addEventListener('click', (e) => {
         e.preventDefault();
-        document.getElementById('loginForm').hidden = true;
-        document.getElementById('signupForm').hidden = false;
-        document.getElementById('signupTab').classList.add('active');
-        document.getElementById('loginTab').classList.remove('active');
+        setIndexAuthTab('signup');
       });
     }
 
@@ -138,6 +154,8 @@
         input.type = input.type === 'password' ? 'text' : 'password';
       });
     });
+
+    setIndexAuthTab(localStorage.getItem(INDEX_AUTH_TAB_KEY) || 'login');
   </script>
 </body>
 </html>
