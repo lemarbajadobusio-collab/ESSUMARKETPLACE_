@@ -142,7 +142,7 @@ async function ensureCart(userId) {
 }
 
 async function seedDefaultAdmin() {
-  const adminEmail = "admin@gmail.com";
+  const adminEmail = "admin@essu.local";
   const existing = await supabase.from("users").select("id").eq("email", adminEmail).maybeSingle();
   if (existing.error) return;
   if (existing.data?.id) return;
