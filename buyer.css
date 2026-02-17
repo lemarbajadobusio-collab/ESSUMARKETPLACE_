@@ -838,21 +838,35 @@ select.address-input { cursor: pointer; }
 /* Mobile-first responsive additions */
 /* Small tablets / large phones */
 @media (max-width: 900px) {
-  .container { padding: 88px 20px 24px 20px; }
+  .navbar {
+    height: auto;
+    padding: 10px 16px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .search-box {
+    order: 3;
+    width: 100%;
+    min-width: 0;
+  }
+  .search-box input {
+    width: 100%;
+  }
+  .container { padding: 132px 20px 24px 20px; }
   .grid { gap: 32px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
   .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card { padding: 14px; }
   .card img { width: 100%; height: auto; max-height: 320px; }
   .card h4 { font-size: 32px; }
-  .navbar { padding: 10px 16px; }
   .nav-left h1 { font-size: 20px; }
+  .nav-right { margin-left: 0; }
 }
 
 /* Typical mobile phones */
 @media (max-width: 600px) {
   :root { --radius: 10px; }
   html, body { -webkit-text-size-adjust: 100%; }
-  .container { padding: 84px 14px 20px 14px; max-width: 100%; }
+  .container { padding: 124px 14px 20px 14px; max-width: 100%; }
   .grid { gap: 18px; grid-template-columns: 1fr; }
   .card { padding: 12px; margin: 10px 0; }
   .card img { max-height: 240px; display: block; margin: 0 auto 10px auto; }
@@ -865,7 +879,7 @@ select.address-input { cursor: pointer; }
   .filters input, .filters select { padding: 8px 10px; font-size: 13px; }
   .cat { padding: 6px 10px; font-size: 12px; }
   .title-row { flex-direction: column; align-items: flex-start; gap: 6px; }
-  .search-box { display: none; }
+  .search-box { display: block; }
   .nav-right { gap: 8px; }
   .nav-right .icon-btn { width: 36px; height: 36px; }
   /* Make profile sidebar full-width on mobile */
@@ -878,7 +892,7 @@ select.address-input { cursor: pointer; }
 
 /* Very small phones */
 @media (max-width: 420px) {
-  .container { padding-top: 76px; }
+  .container { padding-top: 116px; }
   .card img { max-height: 200px; }
   .primary-btn, .submit-btn { padding: 10px 12px; font-size: 14px; }
   .auth-card { padding: 16px; }
@@ -898,7 +912,8 @@ select.address-input { cursor: pointer; }
     img { width: auto !important; max-width: 100% !important; height: auto !important; }
 
     /* Navbar: reduce title, allow ellipsis to avoid wrap overflow */
-    .nav-left h1 { font-size: 16px !important; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nav-left { min-width: 0; }
+    .nav-left h1 { font-size: 16px !important; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     /* Make header icons slightly smaller and spaced */
     .nav-right .icon-btn { width: 34px; height: 34px; padding: 6px; }
