@@ -24,12 +24,12 @@ let messagesCache = {};
 let activeConversationId = "";
 const WISHLIST_EMPTY = "\u2661";
 const WISHLIST_FILLED = "\u2665";
-const LAST_PAGE_KEY = "essu_last_page";
+const BUYER_LAST_PAGE_KEY = "essu_last_page";
 const BUYER_VIEW_STATE_KEY = "essu_buyer_view_state";
 const PRODUCTS_UPDATED_KEY = "essu_products_updated_at";
 
 function markCurrentPage() {
-  localStorage.setItem(LAST_PAGE_KEY, "buyer.html");
+  localStorage.setItem(BUYER_LAST_PAGE_KEY, "buyer.html");
 }
 
 function readBuyerViewState() {
