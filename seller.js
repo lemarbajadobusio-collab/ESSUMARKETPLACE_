@@ -237,6 +237,15 @@ async function loadUserData() {
     apiRequest("/users")
   ]);
   usersCache = usersData.users || [];
+  if (!currentUserId) {
+    const currentEmail = getCurrentUserEmail().toLowerCase();
+    if (currentEmail) {
+      const matchedUser = usersCache.find(u => String(u.email || "").toLowerCase() === currentEmail);
+      if (matchedUser?.id) {
+        setCurrentUserId(matchedUser.id);
+      }
+    }
+  }
   products = (productsData.products || []).map(item => ({
     ...item,
     image: item.image || (item.images && item.images[0]) || "",
@@ -1668,7 +1677,14 @@ if (listingForm) {
 }
 
 if (transactionsBtn && dashboardSection) {
-  transactionsBtn.addEventListener("click", () => {
+  transactionsBtn.addEventListener("click", async () => {
+    try {
+      await loadUserData();
+      renderDashboard(txnFilter?.value || "All");
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Could not load transactions.");
+    }
     showSection(dashboardSection);
   });
 }
