@@ -13,7 +13,7 @@ Both are defined in `render.yaml`.
 3. Have these values ready:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_SECRET_KEY`
    - `SUPABASE_BUCKET` (optional)
 
 ## 2. Deploy from Blueprint
@@ -24,7 +24,7 @@ Both are defined in `render.yaml`.
 4. Set secret env vars for `essu-marketplace-api`:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_SECRET_KEY`
 5. Click `Apply`.
 
 ## 3. How frontend API URL is wired

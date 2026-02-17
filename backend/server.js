@@ -11,7 +11,7 @@ app.use(express.json({ limit: "20mb" }));
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET || "essu_marketplace";
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -20,7 +20,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 
 const supabase = createClient(
   SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY,
+  SUPABASE_SECRET_KEY || SUPABASE_ANON_KEY,
   { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
 );
 
@@ -30,8 +30,8 @@ const supabaseAuth = createClient(
   { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
 );
 
-const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY
-  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+const supabaseAdmin = SUPABASE_SECRET_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SECRET_KEY, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
     })
   : null;
@@ -229,7 +229,7 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(400).json({ error: "Invalid role." });
     }
     if (!supabaseAdmin) {
-      return res.status(500).json({ error: "SUPABASE_SERVICE_ROLE_KEY is required for signup." });
+      return res.status(500).json({ error: "SUPABASE_SECRET_KEY is required for signup." });
     }
 
     const exists = await supabase.from("users").select("id").ilike("email", email.trim()).maybeSingle();
@@ -283,7 +283,7 @@ app.post("/api/auth/login", async (req, res) => {
       if (legacyRow.error) return res.status(500).json({ error: legacyRow.error.message });
       if (legacyRow.data && (await bcrypt.compare(password, legacyRow.data.password_hash))) {
         if (!supabaseAdmin) {
-          return res.status(500).json({ error: "SUPABASE_SERVICE_ROLE_KEY is required to migrate auth users." });
+          return res.status(500).json({ error: "SUPABASE_SECRET_KEY is required to migrate auth users." });
         }
         const create = await supabaseAdmin.auth.admin.createUser({
           email: email.trim().toLowerCase(),

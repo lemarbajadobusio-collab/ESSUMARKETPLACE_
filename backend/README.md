@@ -21,11 +21,11 @@ Example `.env`:
 ```env
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_SECRET_KEY=
 PORT=3000
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` is optional.  
+`SUPABASE_SECRET_KEY` is optional.  
 If present, backend uses it; otherwise it uses anon key.
 
 ## 2. Install and run
@@ -44,7 +44,7 @@ Health check: `GET /api/health`
 2. Set environment variables on that host:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY` (recommended)
+   - `SUPABASE_SECRET_KEY` (recommended)
    - `SUPABASE_BUCKET` (optional)
    - `PORT` (if required by your host)
 3. Deploy frontend files (`index.html`, `buyer.html`, `seller.html`, `admin.html`, JS/CSS) to static hosting (Netlify, Vercel static, GitHub Pages, cPanel, etc.).
