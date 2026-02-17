@@ -1099,6 +1099,10 @@ async function initSellerApp() {
   if (!currentUserEmail) {
     try {
       const cachedUser = JSON.parse(localStorage.getItem("currentUser") || "null");
+      if (cachedUser?.email && cachedUser.role === "admin") {
+        window.location.href = "admin.html";
+        return;
+      }
       if (cachedUser?.email && cachedUser.role === "seller") {
         setCurrentUserEmail(cachedUser.email);
         currentUserEmail = cachedUser.email;
@@ -1326,8 +1330,19 @@ if (loginForm) {
         })
       });
       const user = data.user;
-      if (!user || user.role !== "seller") {
-        alert("This account is not a seller account.");
+      if (!user) {
+        alert("Invalid login response.");
+        return;
+      }
+      if (user.role === "admin") {
+        localStorage.setItem("currentUser", JSON.stringify(user));
+        localStorage.setItem("admin", user.email || "admin");
+        localStorage.setItem("admin_user_id", String(user.id || "0"));
+        window.location.href = "admin.html";
+        return;
+      }
+      if (user.role !== "seller") {
+        alert("This account is not a seller or admin account.");
         return;
       }
       setCurrentUserEmail(user.email);
