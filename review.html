@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ESSU Marketplace - Messages & Reviews</title>
+  <link rel="stylesheet" href="review.css">
+</head>
+<body>
+
+<div class="container">
+
+  <h2>💬 Buyer & Seller Messages</h2>
+
+  <div class="chat-box" id="chatBox"></div>
+
+  <select id="role">
+    <option value="Buyer">Buyer</option>
+    <option value="Seller">Seller</option>
+  </select>
+
+  <input type="text" id="username" placeholder="Enter your name" />
+  <input type="text" id="messageInput" placeholder="Type your message..." />
+  <button onclick="sendMessage()">Send Message</button>
+
+  <hr>
+
+  <h2>⭐ Rate & Review Product</h2>
+
+  <div id="starRating">
+    <span class="stars" onclick="rate(1)">★</span>
+    <span class="stars" onclick="rate(2)">★</span>
+    <span class="stars" onclick="rate(3)">★</span>
+    <span class="stars" onclick="rate(4)">★</span>
+    <span class="stars" onclick="rate(5)">★</span>
+  </div>
+
+  <textarea id="reviewText" placeholder="Write your review here..."></textarea>
+  <button onclick="submitReview()">Submit Review</button>
+
+  <div class="review-display" id="reviewDisplay"></div>
+
+</div>
+
+<script src="review.js"></script>
+</body>
+</html>
