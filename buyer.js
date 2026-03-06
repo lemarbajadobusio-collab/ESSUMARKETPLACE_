@@ -653,7 +653,9 @@ async function restoreBuyerViewState() {
     }
   }
 
-  if (state.profileOpen) {
+  if (state.sellPromptOpen) {
+    openBuyerSellPromptSection();
+  } else if (state.profileOpen) {
     openBuyerProfileSection();
   }
 
@@ -1497,8 +1499,9 @@ function setBuyerProfileSectionVisible(visible) {
   const filters = document.getElementById('buyerFilters');
   const grid = document.getElementById('itemsGrid');
   const profileSection = document.getElementById('buyerProfileSection');
+  const sellPromptSection = document.getElementById('buyerSellPromptSection');
 
-  if (!discoverHeader || !categories || !filters || !grid || !profileSection) return;
+  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection) return;
 
   if (visible) {
     discoverHeader.setAttribute('hidden', 'hidden');
@@ -1506,12 +1509,41 @@ function setBuyerProfileSectionVisible(visible) {
     filters.setAttribute('hidden', 'hidden');
     grid.setAttribute('hidden', 'hidden');
     profileSection.removeAttribute('hidden');
+    sellPromptSection.setAttribute('hidden', 'hidden');
   } else {
     discoverHeader.removeAttribute('hidden');
     categories.removeAttribute('hidden');
     filters.removeAttribute('hidden');
     grid.removeAttribute('hidden');
     profileSection.setAttribute('hidden', 'hidden');
+    sellPromptSection.setAttribute('hidden', 'hidden');
+  }
+}
+
+function setBuyerSellPromptSectionVisible(visible) {
+  const discoverHeader = document.getElementById('buyerDiscoverHeader');
+  const categories = document.getElementById('buyerCategories');
+  const filters = document.getElementById('buyerFilters');
+  const grid = document.getElementById('itemsGrid');
+  const profileSection = document.getElementById('buyerProfileSection');
+  const sellPromptSection = document.getElementById('buyerSellPromptSection');
+
+  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection) return;
+
+  if (visible) {
+    discoverHeader.setAttribute('hidden', 'hidden');
+    categories.setAttribute('hidden', 'hidden');
+    filters.setAttribute('hidden', 'hidden');
+    grid.setAttribute('hidden', 'hidden');
+    profileSection.setAttribute('hidden', 'hidden');
+    sellPromptSection.removeAttribute('hidden');
+  } else {
+    discoverHeader.removeAttribute('hidden');
+    categories.removeAttribute('hidden');
+    filters.removeAttribute('hidden');
+    grid.removeAttribute('hidden');
+    profileSection.setAttribute('hidden', 'hidden');
+    sellPromptSection.setAttribute('hidden', 'hidden');
   }
 }
 
@@ -1603,13 +1635,32 @@ async function updateBuyerProfileSection() {
 async function openBuyerProfileSection() {
   closeProfileMenu();
   setBuyerProfileSectionVisible(true);
-  saveBuyerViewState({ profileOpen: true });
+  saveBuyerViewState({ profileOpen: true, sellPromptOpen: false });
   await updateBuyerProfileSection();
 }
 
 function closeBuyerProfileSection() {
   setBuyerProfileSectionVisible(false);
-  saveBuyerViewState({ profileOpen: false });
+  saveBuyerViewState({ profileOpen: false, sellPromptOpen: false });
+}
+
+function openBuyerSellPromptSection() {
+  closeProfileMenu();
+  setBuyerSellPromptSectionVisible(true);
+  saveBuyerViewState({ profileOpen: false, sellPromptOpen: true });
+}
+
+function proceedToSellerAuth() {
+  localStorage.removeItem("buyer");
+  localStorage.removeItem("buyer_user_id");
+  localStorage.removeItem("essu_force_buyer_auth");
+  localStorage.removeItem("currentUser");
+  localStorage.setItem("essu_preferred_role", "seller");
+  window.location.href = "seller.html";
+}
+
+function cancelSellPrompt() {
+  openBuyerProfileSection();
 }
 
 // Edit Profile Modal Functions
@@ -1740,6 +1791,21 @@ document.addEventListener('DOMContentLoaded', function() {
   if (profileEditBtn) {
     profileEditBtn.addEventListener('click', () => openEditProfileModal());
   }
+
+  const startSellingBtn = document.getElementById('buyerStartSellingBtn');
+  if (startSellingBtn) {
+    startSellingBtn.addEventListener('click', () => openBuyerSellPromptSection());
+  }
+
+  const sellPromptProceedBtn = document.getElementById('sellPromptProceedBtn');
+  if (sellPromptProceedBtn) {
+    sellPromptProceedBtn.addEventListener('click', () => proceedToSellerAuth());
+  }
+
+  const sellPromptCancelBtn = document.getElementById('sellPromptCancelBtn');
+  if (sellPromptCancelBtn) {
+    sellPromptCancelBtn.addEventListener('click', () => cancelSellPrompt());
+  }
   
   // Initialize cart UI
   updateCartBadge();
@@ -1760,6 +1826,7 @@ document.addEventListener('keydown', function(e) {
     saveBuyerViewState({
       editProfileOpen: false,
       profileOpen: false,
+      sellPromptOpen: false,
       itemModalProductId: 0,
       checkoutOpen: false,
       checkoutStep: "",

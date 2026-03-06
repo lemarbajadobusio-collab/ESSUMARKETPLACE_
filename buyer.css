@@ -1938,6 +1938,45 @@ select.address-input { cursor: pointer; }
   color: #0f172a;
 }
 
+.sell-ready-page {
+  width: min(760px, 100%);
+  margin: 12px auto 0;
+}
+
+.sell-ready-card {
+  background: #fff;
+  border: 1px solid #edf0f3;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 26px;
+  text-align: center;
+}
+
+.sell-ready-card h2 {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: 28px;
+}
+
+.sell-ready-card p {
+  margin: 0;
+  color: #475569;
+  font-size: 16px;
+}
+
+.sell-ready-actions {
+  margin-top: 22px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.sell-ready-actions .primary-btn,
+.sell-ready-actions .ghost-btn {
+  width: auto;
+  min-width: 140px;
+}
+
 @media (max-width: 900px) {
   .buyer-profile-page .profile-layout {
     grid-template-columns: 1fr;
@@ -1973,6 +2012,27 @@ select.address-input { cursor: pointer; }
 
   .buyer-profile-page .profile-contact {
     font-size: 14px;
+  }
+
+  .sell-ready-card {
+    padding: 18px;
+  }
+
+  .sell-ready-card h2 {
+    font-size: 22px;
+  }
+
+  .sell-ready-card p {
+    font-size: 15px;
+  }
+
+  .sell-ready-actions {
+    flex-direction: column;
+  }
+
+  .sell-ready-actions .primary-btn,
+  .sell-ready-actions .ghost-btn {
+    width: 100%;
   }
 }
 

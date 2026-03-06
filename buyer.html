@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESSU Marketplace</title>
-  <link rel="stylesheet" href="buyer.css?v=20260306d">
+  <link rel="stylesheet" href="buyer.css?v=20260306e">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -116,6 +116,7 @@
         <input id="buyerProfilePhotoInput" type="file" accept="image/*" hidden />
         <button class="primary-btn ghost-btn" id="buyerChangePhotoBtn" type="button">Change Photo</button>
         <button class="primary-btn ghost-btn" id="buyerEditProfileBtn" type="button">Edit Profile</button>
+        <button class="primary-btn ghost-btn" id="buyerStartSellingBtn" type="button">Start Selling</button>
         <div class="profile-contact">
           <div><strong>Email:</strong> <span id="buyerProfileEmail">--</span></div>
           <div><strong>Mobile:</strong> <span id="buyerProfileMobile">--</span></div>
@@ -128,6 +129,17 @@
           <h3>My Orders</h3>
           <div id="buyerProfileOrders"></div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sell-ready-page" id="buyerSellPromptSection" hidden>
+    <div class="sell-ready-card">
+      <h2>You&rsquo;re almost ready to sell!</h2>
+      <p>Please sign up as a seller to continue.</p>
+      <div class="sell-ready-actions">
+        <button class="primary-btn" type="button" id="sellPromptProceedBtn">Proceed</button>
+        <button class="ghost-btn primary-btn" type="button" id="sellPromptCancelBtn">Cancel</button>
       </div>
     </div>
   </section>
@@ -260,7 +272,7 @@
 
 
 <script src="runtime-config.js?v=20260217a"></script>
-<script src="buyer.js?v=20260306c"></script>
+<script src="buyer.js?v=20260306e"></script>
 
 <!-- NOTIFICATIONS PANEL -->
 <div id="notificationsPanel" class="notifications-panel">
