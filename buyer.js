@@ -372,27 +372,34 @@ function openSellerProfileModal(product) {
 
 function renderProductCard(p) {
   const categoryLabel = p.category || "Other";
-  const conditionLabel = String(p.condition || "Used").toUpperCase();
+  const description = p.desc ? p.desc : "No description provided.";
+  const conditionLabel = String(p.condition || "N/A");
   const sellerPhoto = getUserPhotoByEmail(p.sellerEmail || "");
   const sellerInitials = getInitialsFromName(p.seller);
-  const sellerAvatar = sellerPhoto
+  const canAddToCart = Number(p.sellerUserId || 0) !== Number(currentBuyerId() || 0);
+  const sellerAvatarMarkup = sellerPhoto
     ? `<span class="seller-avatar" style="background-image:url('${sellerPhoto}')"></span>`
     : `<span class="seller-avatar">${sellerInitials}</span>`;
 
   return `
       <div class="card" data-id="${p.id}">
-        <span class="tag">${categoryLabel}</span>
-        <span class="heart" onclick="event.stopPropagation(); toggleWishlist(${p.id}); this.textContent = this.textContent === WISHLIST_EMPTY ? WISHLIST_FILLED : WISHLIST_EMPTY; this.style.color = this.textContent === WISHLIST_FILLED ? 'red' : '#333';">${WISHLIST_EMPTY}</span>
-        <img src="${p.img}" alt="">
-        <h3>${p.name}</h3>
-        <p>${p.desc || ''}</p>
-        <h4>PHP ${p.price}</h4>
-        <div class="condition-label">${conditionLabel}</div>
-        <div class="seller-profile">
-          ${sellerAvatar}
-          <span class="seller-name">${p.seller}</span>
+        <div class="card-image">
+          <img src="${p.img}" alt="${p.name}">
+          <span class="tag">${categoryLabel}</span>
         </div>
-        <div class="card-actions"><button onclick="event.stopPropagation(); addToCart(${p.id})">Add to cart</button></div>
+        <div class="card-body">
+          <h4>${p.name}</h4>
+          <p class="card-desc">${description}</p>
+          <p class="price">PHP ${p.price}</p>
+          <span class="card-condition">${conditionLabel}</span>
+          <div class="card-seller">
+            ${sellerAvatarMarkup}
+            <span>${p.seller}</span>
+          </div>
+          <div class="card-actions">
+            <button type="button" class="mini-cart-btn" onclick="event.stopPropagation(); addToCart(${p.id})" ${canAddToCart ? "" : "disabled"}>Add to cart</button>
+          </div>
+        </div>
       </div>`;
 }
 
@@ -647,10 +654,7 @@ async function restoreBuyerViewState() {
   }
 
   if (state.profileOpen) {
-    const sidebar = document.getElementById("profileSidebar");
-    const overlay = document.getElementById("overlay");
-    if (sidebar) sidebar.classList.add("open");
-    if (overlay) overlay.classList.add("show");
+    openBuyerProfileSection();
   }
 
   if (state.editProfileOpen) openEditProfileModal();
@@ -1476,27 +1480,72 @@ function addSampleData(){
 }
 addSampleData();
 
-function toggleProfile() {
-  const sidebar = document.getElementById("profileSidebar");
-  const overlay = document.getElementById("overlay");
-  sidebar.classList.toggle("open");
-  overlay.classList.toggle("show");
-  saveBuyerViewState({ profileOpen: sidebar.classList.contains("open") });
-  updateProfileSidebar();
+function toggleProfileMenu(event) {
+  if (event) event.stopPropagation();
+  const profile = document.querySelector('.profile');
+  if (!profile) return;
+  profile.classList.toggle('open');
 }
 
-async function updateProfileSidebar() {
+function closeProfileMenu() {
+  document.querySelector('.profile')?.classList.remove('open');
+}
+
+function setBuyerProfileSectionVisible(visible) {
+  const discoverHeader = document.getElementById('buyerDiscoverHeader');
+  const categories = document.getElementById('buyerCategories');
+  const filters = document.getElementById('buyerFilters');
+  const grid = document.getElementById('itemsGrid');
+  const profileSection = document.getElementById('buyerProfileSection');
+
+  if (!discoverHeader || !categories || !filters || !grid || !profileSection) return;
+
+  if (visible) {
+    discoverHeader.setAttribute('hidden', 'hidden');
+    categories.setAttribute('hidden', 'hidden');
+    filters.setAttribute('hidden', 'hidden');
+    grid.setAttribute('hidden', 'hidden');
+    profileSection.removeAttribute('hidden');
+  } else {
+    discoverHeader.removeAttribute('hidden');
+    categories.removeAttribute('hidden');
+    filters.removeAttribute('hidden');
+    grid.removeAttribute('hidden');
+    profileSection.setAttribute('hidden', 'hidden');
+  }
+}
+
+function formatMemberSince(joinedAt) {
+  if (!joinedAt) return '--';
+  const date = new Date(joinedAt);
+  if (Number.isNaN(date.getTime())) return '--';
+  return String(date.getFullYear());
+}
+
+function getInitialsFromFullName(name) {
+  return String(name || 'B')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(x => x.charAt(0).toUpperCase())
+    .join('') || 'B';
+}
+
+async function updateBuyerProfileSection() {
   const buyer = localStorage.getItem('buyer');
   if (!usersCache.length) {
     try { await refreshUsers(); } catch {}
   }
   const users = getUsers();
 
-  const avatarDiv = document.querySelector('#profileSidebar .avatar');
-  const nameH3 = document.querySelector('#profileSidebar h3');
-  const emailEl = document.getElementById('sidebarEmail');
-  const sidebarNameEl = document.getElementById('sidebarName');
-  const sidebarOrdersEl = document.getElementById('sidebarOrders');
+  const avatarDiv = document.getElementById('buyerProfileAvatar');
+  const nameH3 = document.getElementById('buyerProfileName');
+  const emailEl = document.getElementById('buyerProfileEmail');
+  const mobileEl = document.getElementById('buyerProfileMobile');
+  const memberSinceEl = document.getElementById('buyerProfileMemberSince');
+  const statusEl = document.getElementById('buyerProfileStatus');
+  const ordersEl = document.getElementById('buyerProfileOrders');
+  if (!avatarDiv || !nameH3 || !emailEl || !mobileEl || !memberSinceEl || !statusEl || !ordersEl) return;
 
   if (buyer) {
     const user = users.find(u => u.email.toLowerCase() === buyer.toLowerCase());
@@ -1506,23 +1555,24 @@ async function updateProfileSidebar() {
     }
     nameH3.textContent = displayName;
     emailEl.textContent = buyer;
-    sidebarNameEl.textContent = 'Name: ' + displayName;
+    mobileEl.textContent = user?.mobile || '--';
+    memberSinceEl.textContent = formatMemberSince(user?.joinedAt);
+    statusEl.textContent = user?.status || 'ACTIVE';
     const photo = user?.photo || "";
     if (photo) {
       avatarDiv.innerHTML = `<img src="${photo}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
     } else {
-      avatarDiv.textContent = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+      avatarDiv.textContent = getInitialsFromFullName(displayName);
     }
 
-    // Display orders
     let userOrders = [];
     try {
       const tx = await apiRequest(`/transactions?userId=${currentBuyerId()}`);
       userOrders = (tx.transactions || []).filter(o => o.type === "Purchase");
     } catch {}
-    sidebarOrdersEl.innerHTML = '';
+    ordersEl.innerHTML = '';
     if (userOrders.length === 0) {
-      sidebarOrdersEl.innerHTML = '<p>Please login to see your orders.</p>';
+      ordersEl.innerHTML = '<p class="muted">No purchases yet.</p>';
     } else {
       userOrders.forEach(order => {
         const orderDiv = document.createElement('div');
@@ -1534,18 +1584,32 @@ async function updateProfileSidebar() {
           </div>
           <div class="sidebar-order-date">${order.date || "-"}</div>
           <div class="sidebar-order-status">${order.status}</div>
-          <div class="sidebar-order-more">Click for details</div>
+          <div class="sidebar-order-more">Purchase</div>
         `;
-        sidebarOrdersEl.appendChild(orderDiv);
+        ordersEl.appendChild(orderDiv);
       });
     }
   } else {
-    nameH3.textContent = 'Guest';
-    emailEl.textContent = '-';
-    sidebarNameEl.textContent = 'Name: ';
-    avatarDiv.textContent = 'G';
-    sidebarOrdersEl.innerHTML = '<p>Please login to see your orders.</p>';
+    nameH3.textContent = 'Buyer';
+    emailEl.textContent = '--';
+    mobileEl.textContent = '--';
+    memberSinceEl.textContent = '--';
+    statusEl.textContent = '--';
+    avatarDiv.textContent = 'B';
+    ordersEl.innerHTML = '<p class="muted">No purchases yet.</p>';
   }
+}
+
+async function openBuyerProfileSection() {
+  closeProfileMenu();
+  setBuyerProfileSectionVisible(true);
+  saveBuyerViewState({ profileOpen: true });
+  await updateBuyerProfileSection();
+}
+
+function closeBuyerProfileSection() {
+  setBuyerProfileSectionVisible(false);
+  saveBuyerViewState({ profileOpen: false });
 }
 
 // Edit Profile Modal Functions
@@ -1564,6 +1628,7 @@ function openEditProfileModal() {
     document.getElementById('editConfirmPassword').value = '';
   }
   document.getElementById('editProfileModal').classList.add('open');
+  closeProfileMenu();
   saveBuyerViewState({ editProfileOpen: true });
 }
 
@@ -1613,7 +1678,7 @@ document.addEventListener('DOMContentLoaded', function() {
           })
         });
         await refreshUsers();
-        updateProfileSidebar();
+        updateBuyerProfileSection();
         closeEditProfileModal();
         showToast('Profile updated successfully!');
         // Log profile update for admin
@@ -1627,7 +1692,7 @@ document.addEventListener('DOMContentLoaded', function() {
           })
         });
         await refreshUsers();
-        updateProfileSidebar();
+        updateBuyerProfileSection();
         closeEditProfileModal();
         showToast('Profile updated successfully!');
         // Log profile update for admin
@@ -1653,9 +1718,27 @@ document.addEventListener('DOMContentLoaded', function() {
   // Check authentication on dashboard
   checkAuthOnDashboard();
   
-  // Update profile sidebar if on dashboard
-  if (document.getElementById('profileSidebar')) {
-    updateProfileSidebar();
+  if (document.getElementById('buyerProfileSection')) {
+    updateBuyerProfileSection();
+  }
+
+  const profilePhotoBtn = document.getElementById('buyerChangePhotoBtn');
+  const profilePhotoInput = document.getElementById('buyerProfilePhotoInput');
+  if (profilePhotoBtn && profilePhotoInput) {
+    profilePhotoBtn.addEventListener('click', () => profilePhotoInput.click());
+    profilePhotoInput.addEventListener('change', () => {
+      const editPhotoInput = document.getElementById('editPhoto');
+      if (!profilePhotoInput.files?.[0] || !editPhotoInput) return;
+      const dt = new DataTransfer();
+      dt.items.add(profilePhotoInput.files[0]);
+      editPhotoInput.files = dt.files;
+      openEditProfileModal();
+    });
+  }
+
+  const profileEditBtn = document.getElementById('buyerEditProfileBtn');
+  if (profileEditBtn) {
+    profileEditBtn.addEventListener('click', () => openEditProfileModal());
   }
   
   // Initialize cart UI
@@ -1670,8 +1753,10 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('keydown', function(e) {
   // Press Escape to close modals/panels
   if (e.key === 'Escape') {
-    const modals = document.querySelectorAll('.modal.open, .profile-sidebar.open, .sell-panel.open');
+    const modals = document.querySelectorAll('.modal.open');
     modals.forEach(m => m.classList.remove('open'));
+    closeProfileMenu();
+    closeBuyerProfileSection();
     saveBuyerViewState({
       editProfileOpen: false,
       profileOpen: false,
@@ -1680,6 +1765,14 @@ document.addEventListener('keydown', function(e) {
       checkoutStep: "",
       miniCartOpen: false
     });
+  }
+});
+
+document.addEventListener('click', (event) => {
+  const profileWrap = document.querySelector('.profile');
+  if (!profileWrap) return;
+  if (!profileWrap.contains(event.target)) {
+    profileWrap.classList.remove('open');
   }
 });
 
