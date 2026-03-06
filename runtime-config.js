@@ -1,1 +1,1 @@
-window.ESSU_API_BASE = "https://essumarketplace-1.onrender.com/api";
+window.ESSU_API_BASE = "https://essumarketplace.onrender.com/api";
