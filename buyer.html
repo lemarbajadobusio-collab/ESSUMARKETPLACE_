@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESSU Marketplace</title>
-  <link rel="stylesheet" href="buyer.css?v=20260306e">
+  <link rel="stylesheet" href="buyer.css?v=20260306g">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -244,7 +244,7 @@
         </div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-        <button onclick="backToPaymentStep()" style="background:#f3f3f3;padding:8px 12px;border-radius:8px;border:none;">Back</button>
+        <button class="back-btn" onclick="backToPaymentStep()">&larr; Back</button>
         <button onclick="toReviewStep()" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;">Continue</button>
       </div>
     </div>
@@ -261,7 +261,7 @@
         <textarea id="orderReview" placeholder="Add any review or notes for your order..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;min-height:60px;"></textarea>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button onclick="backToAddressStep()" style="background:#f3f3f3;padding:8px 12px;border-radius:8px;border:none;">Back</button>
+        <button class="back-btn" onclick="backToAddressStep()">&larr; Back</button>
         <button onclick="confirmOrderFromModal()" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;">Confirm Order</button>
       </div>
     </div>

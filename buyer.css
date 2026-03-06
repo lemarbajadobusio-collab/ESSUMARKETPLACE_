@@ -1268,7 +1268,8 @@ select.address-input { cursor: pointer; }
 .chat-input input{flex:1;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px}
 .chat-input .send-btn{background:#1e8e3e;color:#fff;border:none;width:44px;height:44px;border-radius:12px;cursor:pointer;font-size:18px}
 .chat-input .send-btn:hover{background:#149140}
-.chat-back{display:none;margin:8px 18px 14px;background:transparent;border:none;color:#1e293b;cursor:pointer;text-align:left}
+.chat-back{display:none;margin:8px 18px 14px;background:transparent;border:none;color:#1e8e3e;cursor:pointer;text-align:left;font-weight:700;font-size:16px;line-height:1.25;padding:0}
+.chat-back:hover{color:#166534;text-decoration:underline}
 
 @media (max-width: 900px){
   .messages-shell{grid-template-columns:1fr}
@@ -1448,12 +1449,18 @@ select.address-input { cursor: pointer; }
   color: #1e8e3e;
   font-size: 16px;
   cursor: pointer;
-  margin-bottom: 15px;
-  font-weight: 600;
+  margin-bottom: 12px;
+  font-weight: 700;
   padding: 0;
+  border-radius: 0;
+  line-height: 1.25;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .back-btn:hover {
+  color: #166534;
   text-decoration: underline;
 }
 
