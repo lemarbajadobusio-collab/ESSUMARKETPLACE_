@@ -109,17 +109,15 @@
       &larr; Back
     </button>
     <div class="profile-layout">
-      <div class="profile-card">
-        <div class="profile-avatar" id="buyerProfileAvatar">B</div>
-        <h2 class="profile-title" id="buyerProfileName">Buyer Name</h2>
-        <div class="profile-rating">★ 4.8 <span>(24 reviews)</span></div>
-        <input id="buyerProfilePhotoInput" type="file" accept="image/*" hidden />
+        <div class="profile-card">
+          <div class="profile-avatar" id="buyerProfileAvatar">B</div>
+          <h2 class="profile-title" id="buyerProfileName">Buyer Name</h2>
+          <input id="buyerProfilePhotoInput" type="file" accept="image/*" hidden />
         <button class="primary-btn ghost-btn" id="buyerChangePhotoBtn" type="button">Change Photo</button>
         <button class="primary-btn ghost-btn" id="buyerEditProfileBtn" type="button">Edit Profile</button>
         <button class="primary-btn ghost-btn" id="buyerStartSellingBtn" type="button">Start Selling</button>
         <div class="profile-contact">
           <div><strong>Email:</strong> <span id="buyerProfileEmail">--</span></div>
-          <div><strong>Mobile:</strong> <span id="buyerProfileMobile">--</span></div>
           <div><strong>Member since:</strong> <span id="buyerProfileMemberSince">--</span></div>
           <div><strong>Status:</strong> <span id="buyerProfileStatus">--</span></div>
         </div>
@@ -304,7 +302,12 @@
               <div class="status" id="chatSellerStatus">Offline</div>
             </div>
           </div>
-          <button class="icon-btn chat-menu" type="button" aria-label="More options">⋯</button>
+          <div class="chat-menu-wrap">
+            <button class="icon-btn chat-menu" id="buyerChatMenuBtn" type="button" aria-label="More options">⋯</button>
+            <div class="chat-menu-panel" id="buyerChatMenuPanel">
+              <button type="button" class="chat-menu-item danger" id="buyerDeleteConversationBtn">Delete conversation</button>
+            </div>
+          </div>
         </div>
         <div id="chatMessages" class="chat-messages"></div>
         <div class="chat-input">
@@ -367,10 +370,6 @@
         <div class="product-info">
           <div class="detail-header">
             <span class="detail-tag" id="detailCategory">Category</span>
-            <div class="detail-actions">
-              <button class="icon-btn" onclick="event.stopPropagation(); toggleWishlist(this.dataset.productId); this.textContent = this.textContent === '\u2661' ? '\u2665' : '\u2661'; this.style.color = this.textContent === '\u2665' ? 'red' : '#333';" data-product-id="">&#9825;</button>
-              <button class="icon-btn">&#8599;</button>
-            </div>
           </div>
           <h2 id="detailTitle">Product Title</h2>
           <div class="detail-price" id="detailPrice">PHP 0</div>
@@ -378,7 +377,6 @@
             <span id="detailCondition">Condition: --</span>
             <span id="detailLocation">Location: --</span>
             <span id="detailPosted">Posted: --</span>
-            <span id="detailViews">Views: --</span>
           </div>
           <div class="detail-desc">
             <h3>Description</h3>
@@ -389,11 +387,10 @@
               <strong id="detailSellerName">Seller</strong>
               <div class="detail-seller-role" id="detailSellerRole">Seller</div>
             </div>
-            <div class="detail-rating">&#9733; 4.8 <span>(24 reviews)</span></div>
           </div>
           <button class="ghost-btn primary-btn" id="viewSellerProfileBtn">View Seller Profile</button>
           <button class="ghost-btn primary-btn" id="addToCartBtn">Add to Cart</button>
-          <button class="primary-btn" id="contactSellerBtn">Message Seller</button>
+          <button class="primary-btn" id="contactSellerBtn">Contact Seller</button>
         </div>
       </div>
     </section>

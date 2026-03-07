@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "node --watch backend/server.js",
-    "generate:runtime-config": "node scripts/generate-runtime-config.js"
+    "generate:runtime-config": "node scripts/generate-runtime-config.js",
+    "conversations:merge": "node scripts/merge-conversations.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

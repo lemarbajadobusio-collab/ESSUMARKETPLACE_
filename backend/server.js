@@ -194,13 +194,12 @@ async function findExistingConversation(participantUserIds, listingProductId) {
   const sharedIds = (secondRows.data || []).map(row => row.conversation_id);
   if (!sharedIds.length) return null;
 
-  let query = supabase.from("conversations").select("id, listing_product_id").in("id", sharedIds);
-  if (listingProductId == null) {
-    query = query.is("listing_product_id", null);
-  } else {
-    query = query.eq("listing_product_id", listingProductId);
-  }
-  const existing = await query.order("created_at", { ascending: false }).maybeSingle();
+  const existing = await supabase
+    .from("conversations")
+    .select("id")
+    .in("id", sharedIds)
+    .order("created_at", { ascending: false })
+    .maybeSingle();
   if (existing.error) return null;
   return existing.data?.id ? Number(existing.data.id) : null;
 }
@@ -757,6 +756,26 @@ app.get("/api/conversations", async (req, res) => {
     .order("created_at", { ascending: false });
   if (messages.error) return res.status(500).json({ error: messages.error.message });
 
+  const listingIds = Array.from(
+    new Set(
+      (convos.data || [])
+        .map(row => Number(row.listing_product_id || 0))
+        .filter(id => id > 0)
+    )
+  );
+  let listingNameById = {};
+  if (listingIds.length) {
+    const listingRows = await supabase
+      .from("products")
+      .select("id, name")
+      .in("id", listingIds);
+    if (listingRows.error) return res.status(500).json({ error: listingRows.error.message });
+    listingNameById = (listingRows.data || []).reduce((acc, row) => {
+      acc[Number(row.id)] = row.name || "";
+      return acc;
+    }, {});
+  }
+
   const participantsByConversation = {};
   (participants.data || []).forEach(row => {
     const key = String(row.conversation_id);
@@ -784,6 +803,9 @@ app.get("/api/conversations", async (req, res) => {
   const payload = (convos.data || []).map(convo => ({
     id: Number(convo.id),
     listingProductId: convo.listing_product_id ? Number(convo.listing_product_id) : null,
+    listingProductName: convo.listing_product_id
+      ? (listingNameById[Number(convo.listing_product_id)] || "")
+      : "",
     createdAt: convo.created_at,
     participants: participantsByConversation[String(convo.id)] || [],
     lastMessage: lastMessageByConversation[String(convo.id)] || null

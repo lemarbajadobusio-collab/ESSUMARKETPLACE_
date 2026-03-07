@@ -513,7 +513,10 @@ footer {
   color: #1e293b;
   border-radius: 8px;
   padding: 8px 10px;
-  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   cursor: pointer;
   font-size: 13px;
 }
@@ -1236,10 +1239,12 @@ select.address-input { cursor: pointer; }
 .conversation-item img{width:48px;height:48px;border-radius:50%;object-fit:cover}
 .conversation-item .info{flex:1}
 .conversation-item .name{font-weight:700}
+.conversation-item-tag{display:flex;align-items:center;gap:6px;font-size:12px;color:#0f766e;font-weight:700;margin-top:2px}
+.conversation-item-tag img{width:20px;height:20px;border-radius:6px;object-fit:cover;flex-shrink:0}
 .conversation-item .last-msg{color:#6b7280;font-size:13px;margin-top:4px}
 .conversation-item .time{font-size:12px;color:#94a3b8}
 
-.messages-panel{width:100%;background:#f3f5f7;border-left:none}
+.messages-panel{width:100%;background:#f3f5f7;border-left:none;top:64px;bottom:0;height:calc(100vh - 64px)}
 .messages-panel .panel-content{max-width:1150px;margin:16px auto 0 auto;background:transparent;box-shadow:none;padding:0}
 .messages-content{padding:0}
 .messages-shell{display:grid;grid-template-columns:280px 1fr;gap:18px;align-items:stretch}
@@ -1255,14 +1260,24 @@ select.address-input { cursor: pointer; }
 .chat-user .avatar{width:42px;height:42px;border-radius:50%;background:#e5e7eb;color:#475569;display:flex;align-items:center;justify-content:center;font-weight:700}
 .chat-header .name{font-weight:700}
 .chat-header .status{font-size:12px;color:#16a34a}
-.chat-menu{width:36px;height:36px;border-radius:12px;border:1px solid #e5e7eb;background:#f8fafc}
+.chat-item-context{display:inline-flex;align-items:center;gap:6px;color:#0f766e;font-weight:700}
+.chat-item-context img{width:18px;height:18px;border-radius:5px;object-fit:cover;flex-shrink:0}
+.chat-menu{width:36px;height:36px;border-radius:12px;border:1px solid #e5e7eb;background:#f8fafc;color:#334155;font-size:22px;font-weight:700;line-height:1}
 .chat-menu:hover{background:#eef2f7}
+.chat-menu-wrap{position:relative;display:inline-flex;align-items:center}
+.chat-menu-panel{position:absolute;right:0;top:44px;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 24px rgba(15,23,42,0.12);display:none;flex-direction:column;min-width:180px;z-index:30}
+.chat-menu-panel.open{display:flex}
+.chat-menu-item{border:none;background:transparent;padding:10px 12px;text-align:left;cursor:pointer;font-size:13px;color:#0f172a}
+.chat-menu-item:hover{background:#f1f5f9}
+.chat-menu-item.danger{color:#d32f2f}
 
 .chat-messages{flex:1;overflow:auto;padding:18px;background:#fafafa}
 .message{display:flex;margin-bottom:14px}
 .message.sent{justify-content:flex-end}
 .message .bubble{background:#16a34a;color:#fff;padding:10px 14px;border-radius:18px;max-width:70%;word-wrap:break-word}
 .message.received .bubble{background:#e5e7eb;color:#111827}
+.chat-time{font-size:12px;color:#94a3b8;margin:2px 0 10px}
+.chat-time.right{text-align:right}
 
 .chat-input{display:flex;gap:10px;padding:12px 18px;border-top:1px solid #eef1f4;align-items:center}
 .chat-input input{flex:1;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px}
@@ -1275,6 +1290,7 @@ select.address-input { cursor: pointer; }
   .messages-shell{grid-template-columns:1fr}
   .messages-sidebar{min-height:auto}
   .chat-back{display:block}
+  .messages-panel{top:108px;height:calc(100vh - 108px)}
 }
 
 /* ITEM MODAL / PRODUCT DETAIL STYLES */
@@ -1314,7 +1330,7 @@ select.address-input { cursor: pointer; }
 
 .detail-main {
   width: 100%;
-  height: 560px;
+  height: 360px;
   object-fit: cover;
   border-radius: 12px;
   background: #e2e8f0;
@@ -1403,6 +1419,10 @@ select.address-input { cursor: pointer; }
   background: none;
   border-top: 1px solid #edf0f3;
   border-radius: 0;
+}
+
+.detail-seller strong {
+  color: #0f172a;
 }
 
 .detail-seller-role {
@@ -1752,6 +1772,10 @@ select.address-input { cursor: pointer; }
   cursor: pointer;
   display: grid !important;
   border: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
 }
 
 #itemsGrid .card-image {
@@ -1823,10 +1847,36 @@ select.address-input { cursor: pointer; }
   cursor: pointer;
 }
 
+#itemsGrid .message-seller-btn {
+  border: 1px solid #0f766e;
+  background: #0f766e;
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 #itemsGrid .mini-cart-btn:disabled {
   border-color: #cbd5e1;
   color: #94a3b8;
+  background: #fff;
   cursor: not-allowed;
+}
+
+#itemsGrid .message-seller-btn:disabled {
+  border-color: #cbd5e1;
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+#itemsGrid .card-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 900px) {
@@ -1850,6 +1900,16 @@ select.address-input { cursor: pointer; }
   #itemsGrid .price {
     font-size: 14px !important;
     margin-top: 2px;
+  }
+
+  #itemsGrid .card-actions {
+    gap: 6px;
+  }
+
+  #itemsGrid .message-seller-btn,
+  #itemsGrid .mini-cart-btn {
+    padding: 5px 10px;
+    font-size: 11px;
   }
 }
 
@@ -2040,6 +2100,23 @@ select.address-input { cursor: pointer; }
   .sell-ready-actions .primary-btn,
   .sell-ready-actions .ghost-btn {
     width: 100%;
+  }
+}
+
+/* Final layout guard: prevent card overlap and keep 2-up mobile listing */
+#itemsGrid.grid {
+  align-items: stretch;
+}
+
+@media (max-width: 768px) {
+  #itemsGrid.grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  #itemsGrid .card {
+    width: 100% !important;
+    margin: 0 !important;
   }
 }
 

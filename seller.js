@@ -98,13 +98,21 @@ const detailCategory = document.getElementById("detailCategory");
 const detailCondition = document.getElementById("detailCondition");
 const detailLocation = document.getElementById("detailLocation");
 const detailPosted = document.getElementById("detailPosted");
-const detailViews = document.getElementById("detailViews");
 const detailDescription = document.getElementById("detailDescription");
 const detailSellerName = document.getElementById("detailSellerName");
 const detailSellerRole = document.getElementById("detailSellerRole");
 const viewSellerProfileBtn = document.getElementById("viewSellerProfileBtn");
 const addToCartBtn = document.getElementById("addToCartBtn");
 const contactSellerBtn = document.getElementById("contactSellerBtn");
+const sellerProfileModal = document.getElementById("sellerProfileModal");
+const sellerProfileModalCloseBtn = document.getElementById("sellerProfileModalCloseBtn");
+const sellerProfileAvatar = document.getElementById("sellerProfileAvatar");
+const sellerProfileName = document.getElementById("sellerProfileName");
+const sellerProfileEmail = document.getElementById("sellerProfileEmail");
+const sellerProfileListingCount = document.getElementById("sellerProfileListingCount");
+const sellerProfileActiveCount = document.getElementById("sellerProfileActiveCount");
+const sellerProfileSoldCount = document.getElementById("sellerProfileSoldCount");
+const sellerProfileListings = document.getElementById("sellerProfileListings");
 const listingGridCards = document.querySelector(".listing-grid-cards");
 const conversationList = document.getElementById("conversationList");
 const chatUserName = document.getElementById("chatUserName");
@@ -343,6 +351,7 @@ async function openConversation(conversationId) {
   const otherParticipant = (convo.participants || []).find(p => Number(p.id) !== Number(currentUserId));
   const otherName = otherParticipant?.fullname || getUserDisplayName(otherParticipant?.email || "") || "User";
   const otherEmail = otherParticipant?.email || "";
+  const itemInfo = getConversationItemContext(convo);
 
   if (chatUserName) chatUserName.textContent = otherName;
   if (chatUserAvatar) {
@@ -352,7 +361,13 @@ async function openConversation(conversationId) {
     chatUserAvatar.style.backgroundPosition = photo ? "center" : "";
     chatUserAvatar.textContent = photo ? "" : getInitials(otherName) || "--";
   }
-  if (chatUserStatus) chatUserStatus.textContent = "Online";
+  if (chatUserStatus) {
+    if (itemInfo.name) {
+      chatUserStatus.innerHTML = `<span class="chat-item-context">${itemInfo.image ? `<img src="${itemInfo.image}" alt="${itemInfo.name}">` : ""}<span>${itemInfo.name}</span></span>`;
+    } else {
+      chatUserStatus.textContent = "Online";
+    }
+  }
 
   const messages = await loadConversationMessages(conversationId);
   renderChatMessages(messages);
@@ -372,6 +387,17 @@ async function ensureConversationForCurrentProduct() {
   });
   activeConversationId = String(result.conversationId || "");
   if (!activeConversationId) return "";
+
+  if (!result.existing) {
+    const greetingText = `Hi! Thanks for reaching out about "${currentProduct.name}". Let me know if you want more details.`;
+    try {
+      await apiRequest(`/conversations/${activeConversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ senderUserId: otherUserId, text: greetingText })
+      });
+    } catch {}
+  }
+
   localStorage.setItem(STORAGE_KEYS.activeConversation, activeConversationId);
   await loadConversations();
   await openConversation(activeConversationId);
@@ -422,7 +448,12 @@ function renderConversations() {
     const otherParticipant = (convo.participants || []).find(p => Number(p.id) !== Number(currentUserId)) || {};
     const otherName = otherParticipant.fullname || getUserDisplayName(otherParticipant.email || "") || "User";
     const otherEmail = otherParticipant.email || "";
-    const preview = convo.lastMessage?.text || "No messages yet";
+    const itemInfo = getConversationItemContext(convo);
+    const itemLabel = itemInfo.name;
+    const previewParts = [];
+    if (itemLabel) previewParts.push(`Item: ${itemLabel}`);
+    if (convo.lastMessage?.text) previewParts.push(convo.lastMessage.text);
+    const preview = previewParts.join(" • ") || "No messages yet";
     const timeLabel = formatConversationTime(convo.lastMessage?.created_at);
     const isActive = String(convo.id) === String(activeConversationId);
 
@@ -515,6 +546,13 @@ function formatMessageTime(msg) {
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return String(raw);
   return parsed.toLocaleString();
+}
+
+function formatItemPostedDate(rawDate) {
+  if (!rawDate) return "--";
+  const parsed = new Date(rawDate);
+  if (Number.isNaN(parsed.getTime())) return String(rawDate);
+  return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 function renderMyListings() {
@@ -849,6 +887,22 @@ async function checkoutCart(deliveryAddress, paymentMethod) {
   }
 }
 
+function getConversationItemContext(convo) {
+  const empty = { name: "", image: "" };
+  if (!convo) return empty;
+  const directName = String(convo.listingProductName || "").trim();
+  const listingId = Number(convo.listingProductId || 0);
+  if (!listingId && !directName) return empty;
+  const item = (products || []).find(p => Number(p.id) === listingId);
+  if (item?.name || directName) {
+    return {
+      name: item?.name || directName,
+      image: item?.img || ""
+    };
+  }
+  return { name: `Item #${listingId}`, image: "" };
+}
+
 function render(data) {
   list.innerHTML = "";
   const visible = data.filter(product => (product.status || "available") !== "sold");
@@ -902,9 +956,8 @@ function showProductDetail(product, index = 0) {
   if (detailPrice) detailPrice.textContent = formatCurrency(product.price);
   if (detailCategory) detailCategory.textContent = product.category;
   if (detailCondition) detailCondition.textContent = `Condition: ${product.condition}`;
-  if (detailLocation) detailLocation.textContent = `Location: ${product.location || "ESSU Campus"}`;
-  if (detailPosted) detailPosted.textContent = `Posted: ${product.posted || "Recently"}`;
-  if (detailViews) detailViews.textContent = `Views: ${product.views || 0}`;
+  if (detailLocation) detailLocation.textContent = `Location: ${product.location || "--"}`;
+  if (detailPosted) detailPosted.textContent = `Posted: ${formatItemPostedDate(product.createdAt || product.posted)}`;
   if (detailDescription) detailDescription.textContent = product.description || "No description provided.";
   if (detailSellerName) detailSellerName.textContent = product.sellerName || "Seller";
   if (detailSellerRole) detailSellerRole.textContent = "Seller";
@@ -1263,6 +1316,101 @@ function getInitials(name) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function getProductSellerIdentity(product) {
+  const sellerUserId = Number(product?.sellerUserId || 0);
+  const sellerEmail = String(product?.sellerEmail || "").trim().toLowerCase();
+  const sellerName = String(product?.sellerName || "").trim();
+  return { sellerUserId, sellerEmail, sellerName };
+}
+
+function closeSellerProfileModal() {
+  if (sellerProfileModal) {
+    sellerProfileModal.classList.remove("open");
+  }
+}
+
+function openSellerProfileModal(product) {
+  if (!product || !sellerProfileModal) return;
+
+  const { sellerUserId, sellerEmail, sellerName } = getProductSellerIdentity(product);
+  const sellerListings = products.filter(item => {
+    const itemIdentity = getProductSellerIdentity(item);
+    if (sellerUserId && itemIdentity.sellerUserId) {
+      return itemIdentity.sellerUserId === sellerUserId;
+    }
+    if (sellerEmail && itemIdentity.sellerEmail) {
+      return itemIdentity.sellerEmail === sellerEmail;
+    }
+    if (sellerName && itemIdentity.sellerName) {
+      return itemIdentity.sellerName.toLowerCase() === sellerName.toLowerCase();
+    }
+    return false;
+  });
+
+  const matchingUser = loadUsers().find(user => {
+    const userId = Number(user?.id || 0);
+    const userEmail = String(user?.email || "").trim().toLowerCase();
+    if (sellerUserId && userId) return userId === sellerUserId;
+    if (sellerEmail && userEmail) return userEmail === sellerEmail;
+    return false;
+  });
+
+  const displayName = matchingUser?.fullname || sellerName || "Seller";
+  const displayEmail = matchingUser?.email || sellerEmail || "-";
+  const displayPhoto = matchingUser?.photo || getUserPhoto(displayEmail) || "";
+  const activeListings = sellerListings.filter(item => String(item.status || "available").toLowerCase() !== "sold");
+  const soldListings = sellerListings.filter(item => String(item.status || "").toLowerCase() === "sold");
+
+  if (sellerProfileAvatar) {
+    if (displayPhoto) {
+      sellerProfileAvatar.style.backgroundImage = `url('${displayPhoto}')`;
+      sellerProfileAvatar.textContent = "";
+    } else {
+      sellerProfileAvatar.style.backgroundImage = "";
+      sellerProfileAvatar.textContent = getInitials(displayName) || "S";
+    }
+  }
+  if (sellerProfileName) sellerProfileName.textContent = displayName;
+  if (sellerProfileEmail) sellerProfileEmail.textContent = displayEmail;
+  if (sellerProfileListingCount) sellerProfileListingCount.textContent = String(sellerListings.length);
+  if (sellerProfileActiveCount) sellerProfileActiveCount.textContent = String(activeListings.length);
+  if (sellerProfileSoldCount) sellerProfileSoldCount.textContent = String(soldListings.length);
+
+  if (sellerProfileListings) {
+    sellerProfileListings.innerHTML = "";
+    if (!sellerListings.length) {
+      const emptyText = document.createElement("p");
+      emptyText.className = "empty";
+      emptyText.textContent = "No listings from this seller yet.";
+      sellerProfileListings.appendChild(emptyText);
+    } else {
+      sellerListings
+        .slice()
+        .sort((a, b) => Number(b.id || 0) - Number(a.id || 0))
+        .slice(0, 12)
+        .forEach(item => {
+          const card = document.createElement("div");
+          card.className = "seller-profile-listing";
+          card.innerHTML = `
+            <img src="${item.image || ""}" alt="${item.name || "Listing"}">
+            <div>
+              <h5>${item.name || "Untitled item"}</h5>
+              <p>${formatCurrency(Number(item.price) || 0)}</p>
+            </div>
+          `;
+          card.addEventListener("click", () => {
+            closeSellerProfileModal();
+            const productIndex = products.findIndex(entry => String(entry.id) === String(item.id));
+            showProductDetail(item, productIndex >= 0 ? productIndex : 0);
+          });
+          sellerProfileListings.appendChild(card);
+        });
+    }
+  }
+
+  sellerProfileModal.classList.add("open");
 }
 
 function buildAvatarMarkup(name, email) {
@@ -1916,7 +2064,20 @@ if (addToCartBtn) {
 
 if (viewSellerProfileBtn) {
   viewSellerProfileBtn.addEventListener("click", () => {
-    showSection(profileSection);
+    if (!currentProduct) return;
+    openSellerProfileModal(currentProduct);
+  });
+}
+
+if (sellerProfileModalCloseBtn) {
+  sellerProfileModalCloseBtn.addEventListener("click", closeSellerProfileModal);
+}
+
+if (sellerProfileModal) {
+  sellerProfileModal.addEventListener("click", event => {
+    if (event.target === sellerProfileModal) {
+      closeSellerProfileModal();
+    }
   });
 }
 

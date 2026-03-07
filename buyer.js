@@ -22,6 +22,7 @@ let cart = [];
 let conversationsCache = [];
 let messagesCache = {};
 let activeConversationId = "";
+let buyerChatMenuBound = false;
 const WISHLIST_EMPTY = "\u2661";
 const WISHLIST_FILLED = "\u2665";
 const BUYER_LAST_PAGE_KEY = "essu_last_page";
@@ -251,13 +252,24 @@ async function refreshProducts() {
     img: p.image || (p.images && p.images[0]) || "",
     desc: p.description || "",
     seller: p.sellerName || "Seller",
+    sellerName: p.sellerName || "Seller",
     sellerEmail: p.sellerEmail || "",
     sellerUserId: Number(p.sellerUserId || 0),
     condition: p.condition || "Used",
     category: p.category || "Other",
-    status: p.status || "available"
+    status: p.status || "available",
+    location: p.location || "",
+    posted: p.posted || "",
+    createdAt: p.createdAt || ""
   }));
   return products;
+}
+
+function formatItemPostedDate(rawDate) {
+  if (!rawDate) return "--";
+  const parsed = new Date(rawDate);
+  if (Number.isNaN(parsed.getTime())) return String(rawDate);
+  return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 function saveProducts() {
@@ -376,7 +388,7 @@ function renderProductCard(p) {
   const conditionLabel = String(p.condition || "N/A");
   const sellerPhoto = getUserPhotoByEmail(p.sellerEmail || "");
   const sellerInitials = getInitialsFromName(p.seller);
-  const canAddToCart = Number(p.sellerUserId || 0) !== Number(currentBuyerId() || 0);
+  const canInteractWithSeller = Number(p.sellerUserId || 0) !== Number(currentBuyerId() || 0);
   const sellerAvatarMarkup = sellerPhoto
     ? `<span class="seller-avatar" style="background-image:url('${sellerPhoto}')"></span>`
     : `<span class="seller-avatar">${sellerInitials}</span>`;
@@ -397,10 +409,32 @@ function renderProductCard(p) {
             <span>${p.seller}</span>
           </div>
           <div class="card-actions">
-            <button type="button" class="mini-cart-btn" onclick="event.stopPropagation(); addToCart(${p.id})" ${canAddToCart ? "" : "disabled"}>Add to cart</button>
+            <button type="button" class="message-seller-btn" onclick="event.stopPropagation(); messageSellerFromCard(${p.id})" ${canInteractWithSeller ? "" : "disabled"}>Message Seller</button>
+            <button type="button" class="mini-cart-btn" onclick="event.stopPropagation(); addToCart(${p.id})" ${canInteractWithSeller ? "" : "disabled"}>Add to cart</button>
           </div>
         </div>
       </div>`;
+}
+
+async function messageSellerFromCard(productId) {
+  const product = products.find(p => Number(p.id) === Number(productId));
+  if (!product) return;
+  if (!currentBuyerId()) {
+    alert("Please log in first.");
+    return;
+  }
+  if (Number(product.sellerUserId || 0) === Number(currentBuyerId() || 0)) {
+    alert("You cannot message your own listing.");
+    return;
+  }
+
+  try {
+    const convoId = await ensureConversationForProduct(product);
+    openMessagesPanel();
+    if (convoId) await openChat(convoId);
+  } catch (error) {
+    alert(error.message || "Could not open conversation.");
+  }
 }
 
 function renderProducts(){
@@ -1061,8 +1095,13 @@ async function renderMessages(){
     const other = (convo.participants || []).find(p => Number(p.id) !== Number(buyerId)) || {};
     const otherName = other.fullname || other.email || 'Seller';
     const photo = getUserPhotoByEmail(other.email || "");
-    const lastText = convo.lastMessage?.text || 'No messages yet';
+    const itemInfo = getConversationItemContext(convo);
+    const itemLabel = itemInfo.name;
+    const lastText = convo.lastMessage?.text || (itemLabel ? `Item: ${itemLabel}` : 'No messages yet');
     const timeLabel = convo.lastMessage?.created_at ? new Date(convo.lastMessage.created_at).toLocaleString() : '';
+    const itemLine = itemLabel
+      ? `<div class="conversation-item-tag">${itemInfo.image ? `<img src="${itemInfo.image}" alt="${itemLabel}">` : ""}<span>${itemLabel}</span></div>`
+      : '';
 
     const item = document.createElement('div');
     item.className = 'conversation-item';
@@ -1070,6 +1109,7 @@ async function renderMessages(){
       <img src="${photo || "https://via.placeholder.com/50"}" alt="${otherName}">
       <div class="info">
         <div class="name">${otherName}</div>
+        ${itemLine}
         <div class="last-msg">${lastText}</div>
         <div class="time">${timeLabel}</div>
       </div>
@@ -1078,6 +1118,28 @@ async function renderMessages(){
     list.appendChild(item);
   });
   updateMsgBadge();
+}
+
+async function deleteBuyerConversation(conversationId) {
+  if (!conversationId) return;
+  await apiRequest(`/conversations/${conversationId}`, { method: "DELETE" });
+  await loadBuyerConversations();
+  if (String(activeConversationId) === String(conversationId)) {
+    activeConversationId = "";
+    saveBuyerViewState({ activeConversationId: "" });
+    const chatName = document.getElementById('chatSellerName');
+    if (chatName) chatName.textContent = 'Select a conversation';
+    const chatStatus = document.getElementById('chatSellerStatus');
+    if (chatStatus) chatStatus.textContent = 'Offline';
+    const chatAvatar = document.getElementById('chatAvatar');
+    if (chatAvatar) {
+      chatAvatar.style.backgroundImage = "";
+      chatAvatar.textContent = "--";
+    }
+    const chatDiv = document.getElementById('chatMessages');
+    if (chatDiv) chatDiv.innerHTML = '';
+  }
+  await renderMessages();
 }
 
 async function openChat(conversationId){
@@ -1090,10 +1152,17 @@ async function openChat(conversationId){
 
   const convo = conversationsCache.find(c => String(c.id) === String(activeConversationId));
   const other = (convo?.participants || []).find(p => Number(p.id) !== Number(currentBuyerId())) || {};
+  const itemInfo = getConversationItemContext(convo);
   const chatName = document.getElementById('chatSellerName');
   if (chatName) chatName.textContent = other.fullname || other.email || 'Seller';
   const chatStatus = document.getElementById('chatSellerStatus');
-  if (chatStatus) chatStatus.textContent = 'Online';
+  if (chatStatus) {
+    if (itemInfo.name) {
+      chatStatus.innerHTML = `<span class="chat-item-context">${itemInfo.image ? `<img src="${itemInfo.image}" alt="${itemInfo.name}">` : ""}<span>${itemInfo.name}</span></span>`;
+    } else {
+      chatStatus.textContent = 'Online';
+    }
+  }
   const chatAvatar = document.getElementById('chatAvatar');
   if (chatAvatar) {
     const photo = getUserPhotoByEmail(other.email || "");
@@ -1123,8 +1192,21 @@ async function renderChat(conversationId){
     msgDiv.className = 'message ' + bubbleClass;
     msgDiv.innerHTML = `<div class="bubble">${m.message_text || ''}</div>`;
     chatDiv.appendChild(msgDiv);
+    const timeDiv = document.createElement('div');
+    timeDiv.className = `chat-time${bubbleClass === 'sent' ? ' right' : ''}`;
+    timeDiv.textContent = formatBuyerMessageTime(m);
+    chatDiv.appendChild(timeDiv);
   });
   chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+function formatBuyerMessageTime(msg) {
+  if (!msg) return "";
+  const raw = msg.created_at || msg.time || msg.timestamp || "";
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return String(raw);
+  return parsed.toLocaleString();
 }
 
 async function sendMessage(){
@@ -1222,6 +1304,7 @@ function openMessagesPanel(){
     searchInput.dataset.bound = 'true';
   }
   renderMessages();
+  setupBuyerChatMenu();
   document.getElementById('messagesPanel').classList.add('open');
   saveBuyerViewState({ messagesOpen: true });
   const chatView = document.getElementById('chatView');
@@ -1232,7 +1315,46 @@ function openMessagesPanel(){
 
 function closeMessagesPanel(){
   document.getElementById('messagesPanel').classList.remove('open');
+  closeBuyerChatMenu();
   saveBuyerViewState({ messagesOpen: false, activeConversationId: "" });
+}
+
+function setupBuyerChatMenu() {
+  if (buyerChatMenuBound) return;
+  const menuBtn = document.getElementById('buyerChatMenuBtn');
+  const menuPanel = document.getElementById('buyerChatMenuPanel');
+  const deleteBtn = document.getElementById('buyerDeleteConversationBtn');
+  if (!menuBtn || !menuPanel || !deleteBtn) return;
+
+  menuBtn.addEventListener('click', event => {
+    event.stopPropagation();
+    menuPanel.classList.toggle('open');
+  });
+
+  deleteBtn.addEventListener('click', async event => {
+    event.stopPropagation();
+    closeBuyerChatMenu();
+    if (!activeConversationId) {
+      alert("Select a conversation first.");
+      return;
+    }
+    const shouldDelete = confirm("Delete conversation?");
+    if (!shouldDelete) return;
+    await deleteBuyerConversation(activeConversationId);
+  });
+
+  document.addEventListener('click', event => {
+    const insidePanel = menuPanel.contains(event.target);
+    const onBtn = menuBtn.contains(event.target);
+    if (!insidePanel && !onBtn) closeBuyerChatMenu();
+  });
+
+  buyerChatMenuBound = true;
+}
+
+function closeBuyerChatMenu() {
+  const menuPanel = document.getElementById('buyerChatMenuPanel');
+  if (menuPanel) menuPanel.classList.remove('open');
 }
 
 // Initialize badges
@@ -1265,8 +1387,37 @@ async function ensureConversationForProduct(product) {
       participantUserIds: [currentBuyerId(), otherUserId]
     })
   });
+  const conversationId = String(result.conversationId || "");
+  if (!conversationId) return "";
+
+  if (!result.existing) {
+    const greetingText = `Hi! Thanks for reaching out about "${product.name}". Let me know if you want more details.`;
+    try {
+      await apiRequest(`/conversations/${conversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ senderUserId: otherUserId, text: greetingText })
+      });
+    } catch {}
+  }
+
   await loadBuyerConversations();
-  return String(result.conversationId || "");
+  return conversationId;
+}
+
+function getConversationItemContext(convo) {
+  const empty = { name: "", image: "" };
+  if (!convo) return empty;
+  const directName = String(convo.listingProductName || "").trim();
+  const listingId = Number(convo.listingProductId || 0);
+  if (!listingId && !directName) return empty;
+  const item = products.find(p => Number(p.id) === listingId);
+  if (item?.name || directName) {
+    return {
+      name: item?.name || directName,
+      image: item?.img || ""
+    };
+  }
+  return { name: `Item #${listingId}`, image: "" };
 }
 
 function openItemModal(productId) {
@@ -1307,19 +1458,28 @@ function openItemModal(productId) {
   if (detailCondition) detailCondition.textContent = `Condition: ${product.condition}`;
 
   const detailLocation = document.getElementById('detailLocation');
-  if (detailLocation) detailLocation.textContent = `Location: ${product.seller}`;
+  if (detailLocation) detailLocation.textContent = `Location: ${product.location || "--"}`;
 
   const detailPosted = document.getElementById('detailPosted');
-  if (detailPosted) detailPosted.textContent = `Posted: Recently`;
+  if (detailPosted) detailPosted.textContent = `Posted: ${formatItemPostedDate(product.createdAt || product.posted)}`;
 
-  const detailViews = document.getElementById('detailViews');
-  if (detailViews) detailViews.textContent = `Views: 0`;
 
   const detailDescription = document.getElementById('detailDescription');
   if (detailDescription) detailDescription.textContent = product.desc || 'No description provided.';
 
+  const sellerFromEmail = getUserByEmail(product.sellerEmail || "")?.fullname || "";
+  const sellerFromId =
+    getUsers().find(u => Number(u.id || 0) === Number(product.sellerUserId || 0))?.fullname || "";
+  const sellerDisplayName =
+    String(
+      sellerFromEmail ||
+      sellerFromId ||
+      product.sellerName ||
+      product.seller ||
+      "Seller"
+    ).trim() || "Seller";
   const detailSellerName = document.getElementById('detailSellerName');
-  if (detailSellerName) detailSellerName.textContent = product.seller;
+  if (detailSellerName) detailSellerName.textContent = sellerDisplayName;
 
   const detailSellerRole = document.getElementById('detailSellerRole');
   if (detailSellerRole) detailSellerRole.textContent = 'Seller';
@@ -1337,7 +1497,7 @@ function openItemModal(productId) {
 
   const contactSellerBtn = document.getElementById('contactSellerBtn');
   if (contactSellerBtn) {
-    contactSellerBtn.textContent = 'Message Seller';
+    contactSellerBtn.textContent = 'Contact Seller';
     contactSellerBtn.onclick = async () => {
       const convoId = await ensureConversationForProduct(product);
       openMessagesPanel();
@@ -1577,7 +1737,7 @@ async function updateBuyerProfileSection() {
   const memberSinceEl = document.getElementById('buyerProfileMemberSince');
   const statusEl = document.getElementById('buyerProfileStatus');
   const ordersEl = document.getElementById('buyerProfileOrders');
-  if (!avatarDiv || !nameH3 || !emailEl || !mobileEl || !memberSinceEl || !statusEl || !ordersEl) return;
+  if (!avatarDiv || !nameH3 || !emailEl || !memberSinceEl || !statusEl || !ordersEl) return;
 
   if (buyer) {
     const user = users.find(u => u.email.toLowerCase() === buyer.toLowerCase());
@@ -1587,7 +1747,7 @@ async function updateBuyerProfileSection() {
     }
     nameH3.textContent = displayName;
     emailEl.textContent = buyer;
-    mobileEl.textContent = user?.mobile || '--';
+    if (mobileEl) mobileEl.textContent = user?.mobile || '--';
     memberSinceEl.textContent = formatMemberSince(user?.joinedAt);
     statusEl.textContent = user?.status || 'ACTIVE';
     const photo = user?.photo || "";
@@ -1624,7 +1784,7 @@ async function updateBuyerProfileSection() {
   } else {
     nameH3.textContent = 'Buyer';
     emailEl.textContent = '--';
-    mobileEl.textContent = '--';
+    if (mobileEl) mobileEl.textContent = '--';
     memberSinceEl.textContent = '--';
     statusEl.textContent = '--';
     avatarDiv.textContent = 'B';

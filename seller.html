@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ESSU Marketplace</title>
-  <link rel="stylesheet" href="seller.css?v=20260306b"/>
+  <link rel="stylesheet" href="seller.css?v=20260308a"/>
   
 </head>
 <body>
@@ -368,16 +368,12 @@
         </svg>
       </div>
       <h2 class="profile-title" id="profilePageName">Seller Name</h2>
-      <div class="profile-rating">
-        ★ 4.8 <span>(24 reviews)</span>
-      </div>
       <input id="profilePhotoInput" type="file" accept="image/*" hidden />
       <button class="primary-btn ghost-btn" id="changePhotoBtn" type="button">Change Photo</button>
       <button class="primary-btn ghost-btn">Edit Profile</button>
 
       <div class="profile-contact">
         <div><strong>Email:</strong> <span id="profileEmail">--</span></div>
-        <div><strong>Mobile:</strong> <span id="profileMobile">--</span></div>
         <div><strong>Member since:</strong> <span id="profileMemberSince">--</span></div>
         <div><strong>Status:</strong> <span id="profileStatus">--</span></div>
       </div>
@@ -392,25 +388,6 @@
         <div class="listing-grid-cards"></div>
       </div>
 
-      <div class="profile-section">
-        <h3>Reviews</h3>
-        <div class="review">
-          <div class="avatar">MS</div>
-          <div>
-            <div class="name">Maria Santos</div>
-            <div class="review-text">Great seller! Item was exactly as described.</div>
-          </div>
-          <div class="stars">★★★★★</div>
-        </div>
-        <div class="review">
-          <div class="avatar">PG</div>
-          <div>
-            <div class="name">Pedro Garcia</div>
-            <div class="review-text">Fast transaction and very accommodating.</div>
-          </div>
-          <div class="stars">★★★★★</div>
-        </div>
-      </div>
     </div>
   </div>
 </section>
@@ -500,10 +477,6 @@
     <div class="product-info">
       <div class="detail-header">
         <span class="detail-tag" id="detailCategory">Category</span>
-        <div class="detail-actions">
-          <button class="icon-btn">♡</button>
-          <button class="icon-btn">↗</button>
-        </div>
       </div>
       <h2 id="detailTitle">Product Title</h2>
       <div class="detail-price" id="detailPrice">PHP 0</div>
@@ -511,7 +484,6 @@
         <span id="detailCondition">Condition: --</span>
         <span id="detailLocation">Location: --</span>
         <span id="detailPosted">Posted: --</span>
-        <span id="detailViews">Views: --</span>
       </div>
       <div class="detail-desc">
         <h3>Description</h3>
@@ -522,7 +494,6 @@
           <strong id="detailSellerName">Seller</strong>
           <div class="detail-seller-role" id="detailSellerRole">Seller</div>
         </div>
-        <div class="detail-rating">★ 4.8 <span>(24 reviews)</span></div>
       </div>
       <button class="ghost-btn primary-btn" id="viewSellerProfileBtn">View Seller Profile</button>
       <button class="ghost-btn primary-btn" id="addToCartBtn">Add to Cart</button>
@@ -645,8 +616,28 @@
  </main>
 </div>
 
+<div id="sellerProfileModal" class="seller-profile-modal">
+  <div class="seller-profile-modal-content" role="dialog" aria-modal="true" aria-labelledby="sellerProfileName">
+    <button class="seller-profile-modal-close" id="sellerProfileModalCloseBtn" type="button" aria-label="Close seller profile">&times;</button>
+    <div class="seller-profile-modal-header">
+      <div class="seller-profile-avatar" id="sellerProfileAvatar">S</div>
+      <div>
+        <h3 id="sellerProfileName">Seller</h3>
+        <p id="sellerProfileEmail">-</p>
+      </div>
+    </div>
+    <div class="seller-profile-stats">
+      <div><strong id="sellerProfileListingCount">0</strong><span>Listings</span></div>
+      <div><strong id="sellerProfileActiveCount">0</strong><span>Active</span></div>
+      <div><strong id="sellerProfileSoldCount">0</strong><span>Sold</span></div>
+    </div>
+    <h4 class="seller-profile-listings-title">Seller Listings</h4>
+    <div class="seller-profile-listings" id="sellerProfileListings"></div>
+  </div>
+</div>
+
 <script src="runtime-config.js?v=20260217a"></script>
-<script src="seller.js?v=20260217i"></script>
+<script src="seller.js?v=20260308a"></script>
 </body>
 </html>
 
