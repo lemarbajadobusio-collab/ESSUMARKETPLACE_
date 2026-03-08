@@ -1247,6 +1247,8 @@ select.address-input { cursor: pointer; }
 .messages-panel{width:100%;background:#f3f5f7;border-left:none;top:64px;bottom:0;height:calc(100vh - 64px)}
 .messages-panel .panel-content{max-width:1150px;margin:16px auto 0 auto;background:transparent;box-shadow:none;padding:0}
 .messages-content{padding:0}
+.buyer-messages-section{width:min(1280px,100%);margin:0 auto}
+.buyer-messages-section .back-btn{margin:0 0 12px}
 .messages-shell{display:grid;grid-template-columns:280px 1fr;gap:18px;align-items:stretch}
 .messages-sidebar{background:#fff;border-radius:16px;padding:18px;border:1px solid #eef1f4;min-height:640px}
 .messages-title{font-size:20px;font-weight:800;margin-bottom:12px;color:#111827}
@@ -1290,7 +1292,7 @@ select.address-input { cursor: pointer; }
   .messages-shell{grid-template-columns:1fr}
   .messages-sidebar{min-height:auto}
   .chat-back{display:block}
-  .messages-panel{top:108px;height:calc(100vh - 108px)}
+  .buyer-messages-section{width:100%}
 }
 
 /* ITEM MODAL / PRODUCT DETAIL STYLES */

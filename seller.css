@@ -1849,7 +1849,27 @@ body {
   .navbar input {
     min-width: 0;
     width: 100%;
+    order: 2;
+  }
+
+  .nav-actions {
     order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .nav-actions .sell-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 8px 12px;
+  }
+
+  .nav-actions .icon-btn,
+  .nav-actions .profile-btn {
+    flex: 0 0 auto;
   }
 
   .main {

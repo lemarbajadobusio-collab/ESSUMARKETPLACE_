@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESSU Marketplace</title>
-  <link rel="stylesheet" href="buyer.css?v=20260306g">
+  <link rel="stylesheet" href="buyer.css?v=20260308h">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -142,6 +142,44 @@
     </div>
   </section>
 
+  <section class="buyer-messages-section" id="buyerMessagesSection" hidden>
+    <button class="back-btn" id="backFromBuyerMessages" type="button" onclick="closeMessagesPanel()">
+      &larr; Back
+    </button>
+    <div class="messages-shell">
+      <aside class="messages-sidebar">
+        <div class="messages-title">Messages</div>
+        <div class="messages-search">
+          <input id="buyerMessageSearch" type="text" placeholder="Search conversations...">
+        </div>
+        <div id="conversationsList" class="conversations-list"></div>
+      </aside>
+      <section id="chatView" class="chat-view hidden">
+        <div class="chat-header">
+          <div class="chat-user">
+            <span class="avatar" id="chatAvatar">--</span>
+            <div>
+              <div class="name" id="chatSellerName">Select a conversation</div>
+              <div class="status" id="chatSellerStatus">Offline</div>
+            </div>
+          </div>
+          <div class="chat-menu-wrap">
+            <button class="icon-btn chat-menu" id="buyerChatMenuBtn" type="button" aria-label="More options">⋯</button>
+            <div class="chat-menu-panel" id="buyerChatMenuPanel">
+              <button type="button" class="chat-menu-item danger" id="buyerDeleteConversationBtn">Delete conversation</button>
+            </div>
+          </div>
+        </div>
+        <div id="chatMessages" class="chat-messages"></div>
+        <div class="chat-input">
+          <input type="text" id="messageInput" placeholder="Type a message...">
+          <button class="send-btn" onclick="sendMessage()" aria-label="Send message">➤</button>
+        </div>
+        <button class="chat-back" onclick="backToConversations()">&larr; Back</button>
+      </section>
+    </div>
+  </section>
+
 </main>
 
 <!-- FOOTER -->
@@ -270,7 +308,7 @@
 
 
 <script src="runtime-config.js?v=20260217a"></script>
-<script src="buyer.js?v=20260306e"></script>
+<script src="buyer.js?v=20260308c"></script>
 
 <!-- NOTIFICATIONS PANEL -->
 <div id="notificationsPanel" class="notifications-panel">
@@ -278,45 +316,6 @@
     <button class="panel-close" onclick="closeNotificationsPanel()">&larr;</button>
     <h3>Notifications</h3>
     <div id="notificationsList" class="notifications-list"></div>
-  </div>
-</div>
-
-<!-- MESSAGES PANEL -->
-<div id="messagesPanel" class="messages-panel">
-  <div class="panel-content messages-content">
-    <button class="panel-close" onclick="closeMessagesPanel()">&larr;</button>
-    <div class="messages-shell">
-      <aside class="messages-sidebar">
-        <div class="messages-title">Messages</div>
-        <div class="messages-search">
-          <input id="buyerMessageSearch" type="text" placeholder="Search conversations...">
-        </div>
-        <div id="conversationsList" class="conversations-list"></div>
-      </aside>
-      <section id="chatView" class="chat-view hidden">
-        <div class="chat-header">
-          <div class="chat-user">
-            <span class="avatar" id="chatAvatar">--</span>
-            <div>
-              <div class="name" id="chatSellerName">Select a conversation</div>
-              <div class="status" id="chatSellerStatus">Offline</div>
-            </div>
-          </div>
-          <div class="chat-menu-wrap">
-            <button class="icon-btn chat-menu" id="buyerChatMenuBtn" type="button" aria-label="More options">⋯</button>
-            <div class="chat-menu-panel" id="buyerChatMenuPanel">
-              <button type="button" class="chat-menu-item danger" id="buyerDeleteConversationBtn">Delete conversation</button>
-            </div>
-          </div>
-        </div>
-        <div id="chatMessages" class="chat-messages"></div>
-        <div class="chat-input">
-          <input type="text" id="messageInput" placeholder="Type a message...">
-          <button class="send-btn" onclick="sendMessage()" aria-label="Send message">➤</button>
-        </div>
-        <button class="chat-back" onclick="backToConversations()">&larr; Back</button>
-      </section>
-    </div>
   </div>
 </div>
 

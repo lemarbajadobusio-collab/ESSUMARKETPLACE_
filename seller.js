@@ -235,6 +235,16 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
+function resolveMediaUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^(data:|blob:|https?:\/\/)/i.test(raw)) return raw;
+  const origin = API_BASE.replace(/\/api\/?$/, "");
+  if (!origin) return raw;
+  if (raw.startsWith("/")) return `${origin}${raw}`;
+  return `${origin}/${raw.replace(/^\.?\//, "")}`;
+}
+
 function setCurrentUserId(id) {
   currentUserId = Number(id || 0);
   if (currentUserId) {
@@ -330,6 +340,12 @@ function getUserDisplayName(email) {
   return user?.fullname?.trim() || email;
 }
 
+function getParticipantPhoto(participant) {
+  const directPhoto = resolveMediaUrl(participant?.photo || "");
+  if (directPhoto) return directPhoto;
+  return getUserPhoto(String(participant?.email || "").trim());
+}
+
 function resolveSellerEmail(product) {
   if (!product || product.sellerEmail) return product?.sellerEmail || "";
   const users = loadUsers();
@@ -342,6 +358,23 @@ function resolveSellerEmail(product) {
   return "";
 }
 
+function resolveSellerUserId(product) {
+  const directId = Number(product?.sellerUserId || 0);
+  if (directId) return directId;
+  const users = loadUsers();
+  const sellerEmail = String(resolveSellerEmail(product) || product?.sellerEmail || "").trim().toLowerCase();
+  if (sellerEmail) {
+    const matchedByEmail = users.find(u => String(u?.email || "").trim().toLowerCase() === sellerEmail);
+    if (matchedByEmail?.id) return Number(matchedByEmail.id);
+  }
+  const sellerName = String(product?.sellerName || "").trim().toLowerCase();
+  if (sellerName) {
+    const matchedByName = users.find(u => String(u?.fullname || "").trim().toLowerCase() === sellerName);
+    if (matchedByName?.id) return Number(matchedByName.id);
+  }
+  return 0;
+}
+
 async function openConversation(conversationId) {
   const convo = getConversationById(conversationId);
   if (!convo) return;
@@ -351,15 +384,15 @@ async function openConversation(conversationId) {
   const otherParticipant = (convo.participants || []).find(p => Number(p.id) !== Number(currentUserId));
   const otherName = otherParticipant?.fullname || getUserDisplayName(otherParticipant?.email || "") || "User";
   const otherEmail = otherParticipant?.email || "";
+  const otherPhoto = getParticipantPhoto(otherParticipant);
   const itemInfo = getConversationItemContext(convo);
 
   if (chatUserName) chatUserName.textContent = otherName;
   if (chatUserAvatar) {
-    const photo = getUserPhoto(otherEmail);
-    chatUserAvatar.style.backgroundImage = photo ? `url('${photo}')` : "";
-    chatUserAvatar.style.backgroundSize = photo ? "cover" : "";
-    chatUserAvatar.style.backgroundPosition = photo ? "center" : "";
-    chatUserAvatar.textContent = photo ? "" : getInitials(otherName) || "--";
+    chatUserAvatar.style.backgroundImage = otherPhoto ? `url('${otherPhoto}')` : "";
+    chatUserAvatar.style.backgroundSize = otherPhoto ? "cover" : "";
+    chatUserAvatar.style.backgroundPosition = otherPhoto ? "center" : "";
+    chatUserAvatar.textContent = otherPhoto ? "" : getInitials(otherName) || "--";
   }
   if (chatUserStatus) {
     if (itemInfo.name) {
@@ -375,7 +408,7 @@ async function openConversation(conversationId) {
 
 async function ensureConversationForCurrentProduct() {
   if (!currentProduct || !currentUserId) return "";
-  const otherUserId = Number(currentProduct.sellerUserId || 0);
+  const otherUserId = resolveSellerUserId(currentProduct);
   if (!otherUserId || otherUserId === currentUserId) return "";
 
   const result = await apiRequest("/conversations", {
@@ -388,7 +421,8 @@ async function ensureConversationForCurrentProduct() {
   activeConversationId = String(result.conversationId || "");
   if (!activeConversationId) return "";
 
-  if (!result.existing) {
+  const existingMessages = await loadConversationMessages(activeConversationId);
+  if (!result.existing && !existingMessages.length) {
     const greetingText = `Hi! Thanks for reaching out about "${currentProduct.name}". Let me know if you want more details.`;
     try {
       await apiRequest(`/conversations/${activeConversationId}/messages`, {
@@ -463,7 +497,7 @@ function renderConversations() {
     item.setAttribute("tabindex", "0");
     item.dataset.id = convo.id;
     item.innerHTML = `
-      ${buildAvatarMarkup(otherName, otherEmail)}
+      ${buildAvatarMarkup(otherName, otherEmail, getParticipantPhoto(otherParticipant))}
       <div class="conversation-meta">
         <span class="name">${otherName}</span>
         <span class="preview">${preview}</span>
@@ -1413,8 +1447,8 @@ function openSellerProfileModal(product) {
   sellerProfileModal.classList.add("open");
 }
 
-function buildAvatarMarkup(name, email) {
-  const photo = getUserPhoto(email || "");
+function buildAvatarMarkup(name, email, preferredPhoto = "") {
+  const photo = String(preferredPhoto || "").trim() || getUserPhoto(email || "");
   if (photo) {
     return `<span class="avatar" style="background-image: url('${photo}'); background-size: cover; background-position: center; color: transparent;">--</span>`;
   }
@@ -1426,7 +1460,7 @@ function getUserPhoto(email) {
   if (!email) return "";
   const users = loadUsers();
   const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-  if (user?.photo) return user.photo;
+  if (user?.photo) return resolveMediaUrl(user.photo);
   return "";
 }
 

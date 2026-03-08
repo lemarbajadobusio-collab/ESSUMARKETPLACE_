@@ -745,7 +745,7 @@ app.get("/api/conversations", async (req, res) => {
 
   const participants = await supabase
     .from("conversation_participants")
-    .select("conversation_id, user:users(id, fullname, email)")
+    .select("conversation_id, user:users(id, fullname, email, photo)")
     .in("conversation_id", ids);
   if (participants.error) return res.status(500).json({ error: participants.error.message });
 
@@ -784,7 +784,8 @@ app.get("/api/conversations", async (req, res) => {
       participantsByConversation[key].push({
         id: Number(row.user.id),
         fullname: row.user.fullname || "",
-        email: row.user.email || ""
+        email: row.user.email || "",
+        photo: row.user.photo || ""
       });
     }
   });

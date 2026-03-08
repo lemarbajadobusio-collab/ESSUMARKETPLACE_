@@ -68,6 +68,16 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
+function resolveMediaUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^(data:|blob:|https?:\/\/)/i.test(raw)) return raw;
+  const origin = API_BASE.replace(/\/api\/?$/, "");
+  if (!origin) return raw;
+  if (raw.startsWith("/")) return `${origin}${raw}`;
+  return `${origin}/${raw.replace(/^\.?\//, "")}`;
+}
+
 function getUsers() {
   return usersCache.slice();
 }
@@ -100,7 +110,13 @@ function getUserByEmail(email) {
 
 function getUserPhotoByEmail(email) {
   const user = getUserByEmail(email);
-  return user?.photo || "";
+  return resolveMediaUrl(user?.photo || "");
+}
+
+function getParticipantPhoto(participant) {
+  const directPhoto = resolveMediaUrl(participant?.photo || "");
+  if (directPhoto) return directPhoto;
+  return getUserPhotoByEmail(participant?.email || "");
 }
 
 async function loadBuyerConversations() {
@@ -1061,7 +1077,8 @@ function renderNotifications(){
   });
 }
 
-async function renderMessages(){
+async function renderMessages(options = {}){
+  const { autoOpenRecent = false } = options;
   const buyerId = currentBuyerId();
   const list = document.getElementById('conversationsList');
   if (!list) return;
@@ -1087,6 +1104,23 @@ async function renderMessages(){
 
   if (!filteredConversations.length) {
     list.innerHTML = '<p class="muted">No messages yet.</p>';
+    if (autoOpenRecent) {
+      activeConversationId = "";
+      saveBuyerViewState({ activeConversationId: "" });
+      const chatName = document.getElementById('chatSellerName');
+      if (chatName) chatName.textContent = 'Select a conversation';
+      const chatStatus = document.getElementById('chatSellerStatus');
+      if (chatStatus) chatStatus.textContent = 'Offline';
+      const chatAvatar = document.getElementById('chatAvatar');
+      if (chatAvatar) {
+        chatAvatar.style.backgroundImage = "";
+        chatAvatar.style.backgroundSize = "";
+        chatAvatar.style.backgroundPosition = "";
+        chatAvatar.textContent = "--";
+      }
+      const chatDiv = document.getElementById('chatMessages');
+      if (chatDiv) chatDiv.innerHTML = '';
+    }
     updateMsgBadge();
     return;
   }
@@ -1094,7 +1128,7 @@ async function renderMessages(){
   filteredConversations.forEach(convo => {
     const other = (convo.participants || []).find(p => Number(p.id) !== Number(buyerId)) || {};
     const otherName = other.fullname || other.email || 'Seller';
-    const photo = getUserPhotoByEmail(other.email || "");
+    const photo = getParticipantPhoto(other);
     const itemInfo = getConversationItemContext(convo);
     const itemLabel = itemInfo.name;
     const lastText = convo.lastMessage?.text || (itemLabel ? `Item: ${itemLabel}` : 'No messages yet');
@@ -1117,6 +1151,16 @@ async function renderMessages(){
     item.onclick = () => openChat(convo.id);
     list.appendChild(item);
   });
+
+  if (autoOpenRecent) {
+    const keepActive = filteredConversations.some(c => String(c.id) === String(activeConversationId));
+    const targetConversationId = keepActive
+      ? activeConversationId
+      : String(filteredConversations[0].id || "");
+    if (targetConversationId) {
+      await openChat(targetConversationId);
+    }
+  }
   updateMsgBadge();
 }
 
@@ -1165,7 +1209,7 @@ async function openChat(conversationId){
   }
   const chatAvatar = document.getElementById('chatAvatar');
   if (chatAvatar) {
-    const photo = getUserPhotoByEmail(other.email || "");
+    const photo = getParticipantPhoto(other);
     if (photo) {
       chatAvatar.style.backgroundImage = `url('${photo}')`;
       chatAvatar.style.backgroundSize = "cover";
@@ -1297,15 +1341,17 @@ function closeNotificationsPanel(){
 }
 
 // Open and close messages panel
-function openMessagesPanel(){
+async function openMessagesPanel(){
   const searchInput = document.getElementById('buyerMessageSearch');
   if (searchInput && !searchInput.dataset.bound) {
-    searchInput.addEventListener('input', () => renderMessages());
+    searchInput.addEventListener('input', () => {
+      renderMessages({ autoOpenRecent: false });
+    });
     searchInput.dataset.bound = 'true';
   }
-  renderMessages();
+  await renderMessages({ autoOpenRecent: true });
   setupBuyerChatMenu();
-  document.getElementById('messagesPanel').classList.add('open');
+  setBuyerMessagesSectionVisible(true);
   saveBuyerViewState({ messagesOpen: true });
   const chatView = document.getElementById('chatView');
   if (chatView && window.innerWidth > 900) {
@@ -1314,7 +1360,7 @@ function openMessagesPanel(){
 }
 
 function closeMessagesPanel(){
-  document.getElementById('messagesPanel').classList.remove('open');
+  setBuyerMessagesSectionVisible(false);
   closeBuyerChatMenu();
   saveBuyerViewState({ messagesOpen: false, activeConversationId: "" });
 }
@@ -1660,8 +1706,9 @@ function setBuyerProfileSectionVisible(visible) {
   const grid = document.getElementById('itemsGrid');
   const profileSection = document.getElementById('buyerProfileSection');
   const sellPromptSection = document.getElementById('buyerSellPromptSection');
+  const messagesSection = document.getElementById('buyerMessagesSection');
 
-  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection) return;
+  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection || !messagesSection) return;
 
   if (visible) {
     discoverHeader.setAttribute('hidden', 'hidden');
@@ -1670,6 +1717,7 @@ function setBuyerProfileSectionVisible(visible) {
     grid.setAttribute('hidden', 'hidden');
     profileSection.removeAttribute('hidden');
     sellPromptSection.setAttribute('hidden', 'hidden');
+    messagesSection.setAttribute('hidden', 'hidden');
   } else {
     discoverHeader.removeAttribute('hidden');
     categories.removeAttribute('hidden');
@@ -1677,6 +1725,7 @@ function setBuyerProfileSectionVisible(visible) {
     grid.removeAttribute('hidden');
     profileSection.setAttribute('hidden', 'hidden');
     sellPromptSection.setAttribute('hidden', 'hidden');
+    messagesSection.setAttribute('hidden', 'hidden');
   }
 }
 
@@ -1687,8 +1736,9 @@ function setBuyerSellPromptSectionVisible(visible) {
   const grid = document.getElementById('itemsGrid');
   const profileSection = document.getElementById('buyerProfileSection');
   const sellPromptSection = document.getElementById('buyerSellPromptSection');
+  const messagesSection = document.getElementById('buyerMessagesSection');
 
-  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection) return;
+  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection || !messagesSection) return;
 
   if (visible) {
     discoverHeader.setAttribute('hidden', 'hidden');
@@ -1697,6 +1747,7 @@ function setBuyerSellPromptSectionVisible(visible) {
     grid.setAttribute('hidden', 'hidden');
     profileSection.setAttribute('hidden', 'hidden');
     sellPromptSection.removeAttribute('hidden');
+    messagesSection.setAttribute('hidden', 'hidden');
   } else {
     discoverHeader.removeAttribute('hidden');
     categories.removeAttribute('hidden');
@@ -1704,6 +1755,37 @@ function setBuyerSellPromptSectionVisible(visible) {
     grid.removeAttribute('hidden');
     profileSection.setAttribute('hidden', 'hidden');
     sellPromptSection.setAttribute('hidden', 'hidden');
+    messagesSection.setAttribute('hidden', 'hidden');
+  }
+}
+
+function setBuyerMessagesSectionVisible(visible) {
+  const discoverHeader = document.getElementById('buyerDiscoverHeader');
+  const categories = document.getElementById('buyerCategories');
+  const filters = document.getElementById('buyerFilters');
+  const grid = document.getElementById('itemsGrid');
+  const profileSection = document.getElementById('buyerProfileSection');
+  const sellPromptSection = document.getElementById('buyerSellPromptSection');
+  const messagesSection = document.getElementById('buyerMessagesSection');
+
+  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection || !messagesSection) return;
+
+  if (visible) {
+    discoverHeader.setAttribute('hidden', 'hidden');
+    categories.setAttribute('hidden', 'hidden');
+    filters.setAttribute('hidden', 'hidden');
+    grid.setAttribute('hidden', 'hidden');
+    profileSection.setAttribute('hidden', 'hidden');
+    sellPromptSection.setAttribute('hidden', 'hidden');
+    messagesSection.removeAttribute('hidden');
+  } else {
+    discoverHeader.removeAttribute('hidden');
+    categories.removeAttribute('hidden');
+    filters.removeAttribute('hidden');
+    grid.removeAttribute('hidden');
+    profileSection.setAttribute('hidden', 'hidden');
+    sellPromptSection.setAttribute('hidden', 'hidden');
+    messagesSection.setAttribute('hidden', 'hidden');
   }
 }
 
