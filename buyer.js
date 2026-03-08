@@ -137,6 +137,17 @@ async function loadBuyerMessages(conversationId) {
   return messages;
 }
 
+function findBuyerConversationIdByUserPair(otherUserId) {
+  const buyerId = Number(currentBuyerId() || 0);
+  const normalizedOther = Number(otherUserId || 0);
+  if (!buyerId || !normalizedOther) return "";
+  const found = (conversationsCache || []).find(convo => {
+    const ids = (convo.participants || []).map(p => Number(p.id || 0)).filter(Boolean);
+    return ids.includes(buyerId) && ids.includes(normalizedOther);
+  });
+  return found?.id ? String(found.id) : "";
+}
+
 // Check if on dashboard and redirect to login if not authenticated
 function checkAuthOnDashboard() {
   const isDashboard = window.location.pathname.includes('buyer.html') || 
@@ -1426,18 +1437,36 @@ async function ensureConversationForProduct(product) {
   const otherUserId = Number(product.sellerUserId || 0);
   if (!otherUserId) return "";
 
-  const result = await apiRequest("/conversations", {
-    method: "POST",
-    body: JSON.stringify({
-      listingProductId: product.id,
-      participantUserIds: [currentBuyerId(), otherUserId]
-    })
-  });
-  const conversationId = String(result.conversationId || "");
+  if (!conversationsCache.length) {
+    await loadBuyerConversations();
+  }
+
+  let conversationId = findBuyerConversationIdByUserPair(otherUserId);
+  if (!conversationId) {
+    const result = await apiRequest("/conversations", {
+      method: "POST",
+      body: JSON.stringify({
+        listingProductId: product.id,
+        participantUserIds: [currentBuyerId(), otherUserId]
+      })
+    });
+    conversationId = String(result.conversationId || "");
+  } else {
+    await apiRequest("/conversations", {
+      method: "POST",
+      body: JSON.stringify({
+        listingProductId: product.id,
+        participantUserIds: [currentBuyerId(), otherUserId]
+      })
+    });
+  }
+
   if (!conversationId) return "";
 
-  if (!result.existing) {
-    const greetingText = `Hi! Thanks for reaching out about "${product.name}". Let me know if you want more details.`;
+  const greetingText = `Hi! Thanks for reaching out about "${product.name}" (Item #${product.id}). Let me know if you want more details.`;
+  const existingMessages = await loadBuyerMessages(conversationId);
+  const hasSameGreeting = existingMessages.some(m => String(m.message_text || "").trim() === greetingText);
+  if (!hasSameGreeting) {
     try {
       await apiRequest(`/conversations/${conversationId}/messages`, {
         method: "POST",

@@ -119,6 +119,8 @@ const chatUserName = document.getElementById("chatUserName");
 const chatUserAvatar = document.getElementById("chatUserAvatar");
 const chatUserStatus = document.getElementById("chatUserStatus");
 const messageSearchInput = document.getElementById("messageSearchInput");
+const messagesLayout = document.querySelector(".messages-layout");
+const chatBackToListBtn = document.getElementById("chatBackToListBtn");
 function resolveApiBase() {
   const configured = typeof window !== "undefined" ? window.ESSU_API_BASE : "";
   if (typeof configured === "string" && configured.trim()) {
@@ -219,6 +221,19 @@ function getPhotoStorageKey(email) {
 
 let conversationsCache = [];
 let conversationMessages = {};
+
+function isMobileMessagesView() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+}
+
+function setMobileMessagesChatOpen(isOpen) {
+  if (!messagesLayout) return;
+  if (!isMobileMessagesView()) {
+    messagesLayout.classList.remove("mobile-chat-open");
+    return;
+  }
+  messagesLayout.classList.toggle("mobile-chat-open", Boolean(isOpen));
+}
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -321,6 +336,16 @@ function getConversationById(conversationId) {
   return conversationsCache.find(c => String(c.id) === String(conversationId));
 }
 
+function findConversationIdByUserPair(otherUserId) {
+  const normalizedOther = Number(otherUserId || 0);
+  if (!normalizedOther || !currentUserId) return "";
+  const found = (conversationsCache || []).find(convo => {
+    const ids = (convo.participants || []).map(p => Number(p.id || 0)).filter(Boolean);
+    return ids.includes(Number(currentUserId)) && ids.includes(normalizedOther);
+  });
+  return found?.id ? String(found.id) : "";
+}
+
 async function loadConversationMessages(conversationId) {
   if (!conversationId) return [];
   const data = await apiRequest(`/conversations/${conversationId}/messages`);
@@ -404,6 +429,7 @@ async function openConversation(conversationId) {
 
   const messages = await loadConversationMessages(conversationId);
   renderChatMessages(messages);
+  setMobileMessagesChatOpen(true);
 }
 
 async function ensureConversationForCurrentProduct() {
@@ -411,19 +437,37 @@ async function ensureConversationForCurrentProduct() {
   const otherUserId = resolveSellerUserId(currentProduct);
   if (!otherUserId || otherUserId === currentUserId) return "";
 
-  const result = await apiRequest("/conversations", {
-    method: "POST",
-    body: JSON.stringify({
-      listingProductId: currentProduct.id,
-      participantUserIds: [currentUserId, otherUserId]
-    })
-  });
-  activeConversationId = String(result.conversationId || "");
+  if (!conversationsCache.length) {
+    await loadConversations();
+  }
+
+  let conversationId = findConversationIdByUserPair(otherUserId);
+  if (!conversationId) {
+    const result = await apiRequest("/conversations", {
+      method: "POST",
+      body: JSON.stringify({
+        listingProductId: currentProduct.id,
+        participantUserIds: [currentUserId, otherUserId]
+      })
+    });
+    conversationId = String(result.conversationId || "");
+  } else {
+    await apiRequest("/conversations", {
+      method: "POST",
+      body: JSON.stringify({
+        listingProductId: currentProduct.id,
+        participantUserIds: [currentUserId, otherUserId]
+      })
+    });
+  }
+
+  activeConversationId = conversationId;
   if (!activeConversationId) return "";
 
+  const greetingText = `Hi! Thanks for reaching out about "${currentProduct.name}" (Item #${currentProduct.id}). Let me know if you want more details.`;
   const existingMessages = await loadConversationMessages(activeConversationId);
-  if (!result.existing && !existingMessages.length) {
-    const greetingText = `Hi! Thanks for reaching out about "${currentProduct.name}". Let me know if you want more details.`;
+  const hasSameGreeting = existingMessages.some(m => String(m.message_text || "").trim() === greetingText);
+  if (!hasSameGreeting) {
     try {
       await apiRequest(`/conversations/${activeConversationId}/messages`, {
         method: "POST",
@@ -442,12 +486,26 @@ async function ensureConversationForCurrentProduct() {
 function renderChatMessages(messages) {
   if (!chatBody) return;
   chatBody.innerHTML = "";
+  const activeConvo = getConversationById(activeConversationId);
+  const activeItemInfo = getConversationItemContext(activeConvo);
   messages.forEach(msg => {
     const senderId = Number(msg.sender_user_id || 0);
     const bubbleType = senderId === Number(currentUserId) ? "outgoing" : "incoming";
+    const messageText = msg.message_text || "";
+
+    if (isApiGreetingMessage(messageText) && activeItemInfo.image) {
+      const preview = document.createElement("div");
+      preview.className = `chat-item-preview ${bubbleType}`;
+      const previewImg = document.createElement("img");
+      previewImg.src = activeItemInfo.image;
+      previewImg.alt = activeItemInfo.name || "Item image";
+      preview.appendChild(previewImg);
+      chatBody.appendChild(preview);
+    }
+
     const bubble = document.createElement("div");
     bubble.className = `chat-bubble ${bubbleType}`;
-    bubble.textContent = msg.message_text || "";
+    bubble.textContent = messageText;
     const time = document.createElement("div");
     time.className = `chat-time${bubbleType === "outgoing" ? " right" : ""}`;
     time.textContent = formatMessageTime(msg);
@@ -470,7 +528,7 @@ function renderConversations() {
     return otherName.includes(searchTerm) || otherEmail.includes(searchTerm) || preview.includes(searchTerm);
   });
 
-  if (!activeConversationId && conversations.length) {
+  if (!activeConversationId && conversations.length && !isMobileMessagesView()) {
     activeConversationId = String(conversations[0].id);
   }
   if (activeConversationId) {
@@ -519,7 +577,7 @@ function renderConversations() {
     conversationList.appendChild(item);
   });
 
-  if (activeConversationId) {
+  if (activeConversationId && !isMobileMessagesView()) {
     const activeConvo = conversations.find(c => String(c.id) === String(activeConversationId));
     if (activeConvo) {
       openConversation(activeConvo.id);
@@ -548,6 +606,7 @@ async function deleteConversation(convoId) {
   if (String(activeConversationId) === String(convoId)) {
     activeConversationId = "";
     localStorage.removeItem(STORAGE_KEYS.activeConversation);
+    setMobileMessagesChatOpen(false);
     if (chatUserName) chatUserName.textContent = "Select a conversation";
     if (chatUserStatus) chatUserStatus.textContent = "Offline";
     if (chatUserAvatar) {
@@ -582,11 +641,26 @@ function formatMessageTime(msg) {
   return parsed.toLocaleString();
 }
 
+function isApiGreetingMessage(text) {
+  return /^Hi!\s*Thanks for reaching out about/i.test(String(text || "").trim());
+}
+
 function formatItemPostedDate(rawDate) {
   if (!rawDate) return "--";
   const parsed = new Date(rawDate);
   if (Number.isNaN(parsed.getTime())) return String(rawDate);
   return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function buildImageCanonicalKey(imageUrl) {
+  const raw = String(imageUrl || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw, typeof window !== "undefined" ? window.location.origin : "http://localhost");
+    return `${url.pathname}`.toLowerCase();
+  } catch {
+    return raw.replace(/^https?:\/\/[^/]+/i, "").replace(/\?.*$/, "").toLowerCase();
+  }
 }
 
 function renderMyListings() {
@@ -928,10 +1002,11 @@ function getConversationItemContext(convo) {
   const listingId = Number(convo.listingProductId || 0);
   if (!listingId && !directName) return empty;
   const item = (products || []).find(p => Number(p.id) === listingId);
+  const imageFromItem = item?.image || (Array.isArray(item?.images) ? item.images.find(Boolean) : "") || "";
   if (item?.name || directName) {
     return {
       name: item?.name || directName,
-      image: item?.img || ""
+      image: imageFromItem
     };
   }
   return { name: `Item #${listingId}`, image: "" };
@@ -1005,11 +1080,30 @@ function showProductDetail(product, index = 0) {
     else addToCartBtn.textContent = "Add to Cart";
   }
 
-  const images = product.images && product.images.length ? product.images : [product.image];
-  if (detailMainImage) detailMainImage.src = images[0];
+  const rawImages = Array.isArray(product.images) && product.images.length ? product.images : [product.image];
+  const uniqueImages = [];
+  const seenImageKeys = new Set();
+  rawImages
+    .map(img => String(img || "").trim())
+    .filter(Boolean)
+    .forEach(img => {
+      const key = buildImageCanonicalKey(img);
+      if (!key || seenImageKeys.has(key)) return;
+      seenImageKeys.add(key);
+      uniqueImages.push(img);
+    });
+
+  const mainImage = uniqueImages[0] || product.image || "";
+  const thumbnailImages = uniqueImages.slice(1);
+  if (detailMainImage) detailMainImage.src = mainImage;
   if (detailThumbs) {
     detailThumbs.innerHTML = "";
-    images.forEach(img => {
+    if (!thumbnailImages.length) {
+      detailThumbs.style.display = "none";
+      return;
+    }
+    detailThumbs.style.display = "";
+    thumbnailImages.forEach(img => {
       const thumb = document.createElement("img");
       thumb.src = img;
       thumb.className = "detail-thumb";
@@ -2031,6 +2125,11 @@ if (confirmCheckoutBtn) {
 
 if (messagesBtn && messagesSection) {
   messagesBtn.addEventListener("click", async () => {
+    if (isMobileMessagesView()) {
+      activeConversationId = "";
+      localStorage.removeItem(STORAGE_KEYS.activeConversation);
+      setMobileMessagesChatOpen(false);
+    }
     await loadConversations();
     renderConversations();
     showSection(messagesSection);
@@ -2451,7 +2550,18 @@ if (backFromDashboard) {
 
 if (backFromMessages) {
   backFromMessages.addEventListener("click", () => {
+    if (isMobileMessagesView() && messagesLayout?.classList.contains("mobile-chat-open")) {
+      setMobileMessagesChatOpen(false);
+      return;
+    }
+    setMobileMessagesChatOpen(false);
     showDiscover();
+  });
+}
+
+if (chatBackToListBtn) {
+  chatBackToListBtn.addEventListener("click", () => {
+    setMobileMessagesChatOpen(false);
   });
 }
 

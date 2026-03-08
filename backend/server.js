@@ -172,7 +172,7 @@ async function findAuthUserIdByEmail(email) {
   return match?.id || "";
 }
 
-async function findExistingConversation(participantUserIds, listingProductId) {
+async function findExistingConversation(participantUserIds) {
   const participants = Array.from(new Set((participantUserIds || []).map(id => Number(id)).filter(Boolean)));
   if (participants.length < 2) return null;
 
@@ -199,6 +199,7 @@ async function findExistingConversation(participantUserIds, listingProductId) {
     .select("id")
     .in("id", sharedIds)
     .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (existing.error) return null;
   return existing.data?.id ? Number(existing.data.id) : null;
@@ -821,8 +822,14 @@ app.post("/api/conversations", async (req, res) => {
     return res.status(400).json({ error: "participantUserIds must contain at least 2 users." });
   }
 
-  const existingId = await findExistingConversation(participantUserIds, listingProductId);
+  const existingId = await findExistingConversation(participantUserIds);
   if (existingId) {
+    if (listingProductId) {
+      await supabase
+        .from("conversations")
+        .update({ listing_product_id: Number(listingProductId) || null })
+        .eq("id", Number(existingId));
+    }
     return res.json({ conversationId: Number(existingId), existing: true });
   }
 
