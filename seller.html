@@ -272,27 +272,19 @@
 
 <div class="checkout-modal-backdrop" id="checkoutModalBackdrop" hidden>
   <div class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutModalTitle">
-    <button type="button" class="checkout-close-btn" id="closeCheckoutModalBtn" aria-label="Close checkout">×</button>
+    <button type="button" class="checkout-close-btn" id="closeCheckoutModalBtn" aria-label="Close checkout">&times;</button>
     <h3 id="checkoutModalTitle">Checkout</h3>
 
     <div class="checkout-step">
-      <p class="checkout-step-title">Step 1 — Choose payment method</p>
+      <p class="checkout-step-title">Step 1 &mdash; Choose payment method</p>
       <label class="checkout-radio-option">
         <input type="radio" name="checkoutPaymentMethod" value="Cash on Delivery" checked />
         <span>Cash on Delivery</span>
       </label>
-      <label class="checkout-radio-option muted">
-        <input type="radio" name="checkoutPaymentMethod" value="GCash" disabled />
-        <span>GCash (Coming Soon)</span>
-      </label>
-      <label class="checkout-radio-option muted">
-        <input type="radio" name="checkoutPaymentMethod" value="PayMaya" disabled />
-        <span>PayMaya (Coming Soon)</span>
-      </label>
     </div>
 
     <div class="checkout-step">
-      <p class="checkout-step-title">Step 2 — Delivery address</p>
+      <p class="checkout-step-title">Step 2 &mdash; Delivery address</p>
       <div id="savedDeliveryAddresses" class="saved-delivery-addresses" hidden></div>
       <button type="button" class="link-btn checkout-add-address-btn" id="toggleNewAddressBtn">+ Add new delivery address</button>
 
@@ -383,6 +375,13 @@
           <button class="primary-btn small-btn" id="addNewListingBtn">Add New</button>
         </div>
         <div class="listing-grid-cards"></div>
+      </div>
+
+      <div class="profile-section my-orders-section">
+        <div class="section-header">
+          <h3>My Orders</h3>
+        </div>
+        <div class="my-orders-list" id="myOrdersList"></div>
       </div>
 
     </div>
@@ -633,6 +632,8 @@
 <script src="seller.js?v=20260308p"></script>
 </body>
 </html>
+
+
 
 
 

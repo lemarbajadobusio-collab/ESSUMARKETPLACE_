@@ -114,6 +114,7 @@ const sellerProfileActiveCount = document.getElementById("sellerProfileActiveCou
 const sellerProfileSoldCount = document.getElementById("sellerProfileSoldCount");
 const sellerProfileListings = document.getElementById("sellerProfileListings");
 const listingGridCards = document.querySelector(".listing-grid-cards");
+const myOrdersList = document.getElementById("myOrdersList");
 const conversationList = document.getElementById("conversationList");
 const chatUserName = document.getElementById("chatUserName");
 const chatUserAvatar = document.getElementById("chatUserAvatar");
@@ -166,6 +167,7 @@ localStorage.setItem(STORAGE_KEYS.lastPage, "seller.html");
 let transactions = []
 let cartItems = []
 let checkoutAddressSelection = "";
+let checkoutProductSelection = "";
 let showNewAddressForm = false;
 
 function formatCurrency(value) {
@@ -664,31 +666,76 @@ function buildImageCanonicalKey(imageUrl) {
 }
 
 function renderMyListings() {
-  if (!listingGridCards) return;
-  listingGridCards.innerHTML = "";
-  myListings.forEach((item, index) => {
-    const statusValue = item.status || "available";
-    const statusClass = statusValue === "sold" ? "status-tag sold" : "status-tag";
-    const itemId = item.id ?? index;
-    listingGridCards.innerHTML += `
-      <div class="listing-mini" data-id="${itemId}">
-        <div class="listing-image">
-          <img src="${item.image}" alt="${item.name}">
-          <button class="listing-menu-btn" type="button" aria-label="Listing options">⋯</button>
-          <div class="listing-menu">
-            <button type="button" class="listing-menu-item" data-action="sold">Mark as sold</button>
-            <button type="button" class="listing-menu-item" data-action="edit">Edit</button>
-            <button type="button" class="listing-menu-item danger" data-action="delete">Delete</button>
+  if (listingGridCards) {
+    listingGridCards.innerHTML = "";
+    myListings.forEach((item, index) => {
+      const statusValue = item.status || "available";
+      const statusClass = statusValue === "sold" ? "status-tag sold" : "status-tag";
+      const itemId = item.id ?? index;
+      listingGridCards.innerHTML += `
+        <div class="listing-mini" data-id="${itemId}">
+          <div class="listing-image">
+            <img src="${item.image}" alt="${item.name}">
+            <button class="listing-menu-btn" type="button" aria-label="Listing options">⋯</button>
+            <div class="listing-menu">
+              <button type="button" class="listing-menu-item" data-action="sold">Mark as sold</button>
+              <button type="button" class="listing-menu-item" data-action="edit">Edit</button>
+              <button type="button" class="listing-menu-item danger" data-action="delete">Delete</button>
+            </div>
+          </div>
+          <div>
+            <h4>${item.name}</h4>
+            <div class="price">${formatCurrency(item.price)}</div>
+            <span class="${statusClass}">${statusValue}</span>
           </div>
         </div>
-        <div>
-          <h4>${item.name}</h4>
-          <div class="price">${formatCurrency(item.price)}</div>
-          <span class="${statusClass}">${statusValue}</span>
+      `;
+    });
+  }
+  renderMyOrders();
+}
+
+function normalizeTransactionItemName(name) {
+  return String(name || "").replace(/\s*\(x\d+\)\s*$/i, "").trim().toLowerCase();
+}
+
+function getOrderImageFromTransaction(itemName) {
+  const normalized = normalizeTransactionItemName(itemName);
+  const matchedProduct = products.find(product => normalizeTransactionItemName(product.name) === normalized);
+  return matchedProduct?.image || "";
+}
+
+function renderMyOrders() {
+  if (!myOrdersList) return;
+  const myOrders = transactions
+    .filter(txn => String(txn?.type || "") === "Purchase")
+    .slice()
+    .sort((a, b) => String(b?.date || "").localeCompare(String(a?.date || "")));
+
+  if (!myOrders.length) {
+    myOrdersList.innerHTML = `<div class="my-orders-empty">No orders yet.</div>`;
+    return;
+  }
+
+  myOrdersList.innerHTML = myOrders
+    .map(order => {
+      const orderImage = getOrderImageFromTransaction(order.item);
+      const statusClass = String(order.status || "").toLowerCase() === "pending" ? "pending" : "completed";
+      return `
+        <div class="my-order-card">
+          ${orderImage
+            ? `<img src="${orderImage}" alt="${order.item}" class="my-order-image">`
+            : `<div class="my-order-image placeholder">#</div>`}
+          <div class="my-order-main">
+            <h4>${order.item}</h4>
+            <p>${order.date}</p>
+            <span class="badge ${statusClass}">${order.status || "Completed"}</span>
+          </div>
+          <div class="my-order-amount">${formatCurrency(Number(order.amount) || 0)}</div>
         </div>
-      </div>
-    `;
-  });
+      `;
+    })
+    .join("");
 }
 
 function removeProductForListing(item) {
@@ -733,6 +780,12 @@ function getCartProductsWithQty() {
       };
     })
     .filter(Boolean);
+}
+
+function getSelectedCartTotal(cartProducts) {
+  const selected = (cartProducts || []).find(product => String(product.id) === String(checkoutProductSelection));
+  if (!selected) return 0;
+  return (Number(selected.price) || 0) * Math.max(1, Number(selected.qty) || 1);
 }
 
 function getDeliveryAddressesStorageKey() {
@@ -896,6 +949,7 @@ function renderCart() {
   if (!cartItemsEl || !cartTotalEl || !checkoutCartBtn) return;
   const cartProducts = getCartProductsWithQty();
   if (!cartProducts.length) {
+    checkoutProductSelection = "";
     cartItemsEl.innerHTML = `<div class="cart-empty">Your cart is empty.</div>`;
     cartTotalEl.textContent = formatCurrency(0);
     checkoutCartBtn.disabled = true;
@@ -903,12 +957,17 @@ function renderCart() {
     return;
   }
 
-  const total = cartProducts.reduce((sum, product) => sum + ((Number(product.price) || 0) * product.qty), 0);
+  if (!checkoutProductSelection || !cartProducts.some(product => String(product.id) === String(checkoutProductSelection))) {
+    checkoutProductSelection = String(cartProducts[0].id);
+  }
+
   cartItemsEl.innerHTML = cartProducts
     .map(product => {
       const seller = product.sellerName || getUserDisplayName(product.sellerEmail || "") || "Seller";
+      const checked = String(product.id) === String(checkoutProductSelection) ? "checked" : "";
       return `
         <div class="cart-item">
+          <input type="radio" class="cart-checkout-radio" name="checkoutProductChoice" value="${product.id}" ${checked} aria-label="Select ${product.name} for checkout">
           <img src="${product.image}" alt="${product.name}">
           <div class="cart-item-main">
             <h4>${product.name}</h4>
@@ -927,7 +986,7 @@ function renderCart() {
       `;
     })
     .join("");
-  cartTotalEl.textContent = formatCurrency(total);
+  cartTotalEl.textContent = formatCurrency(getSelectedCartTotal(cartProducts));
   checkoutCartBtn.disabled = false;
   updateCartBadge();
 }
@@ -966,7 +1025,7 @@ async function addToCart(productId) {
   }
 }
 
-async function checkoutCart(deliveryAddress, paymentMethod) {
+async function checkoutCart(deliveryAddress, paymentMethod, selectedProductId) {
   if (!getCurrentUserEmail()) {
     alert("Please log in first.");
     return;
@@ -975,12 +1034,17 @@ async function checkoutCart(deliveryAddress, paymentMethod) {
     alert("Account session is missing. Please log in again.");
     return;
   }
+  if (!selectedProductId) {
+    alert("Please select an item to checkout.");
+    return;
+  }
   try {
     const result = await apiRequest(`/checkout/${currentUserId}`, {
       method: "POST",
       body: JSON.stringify({
         paymentMethod: paymentMethod || "Cash on Delivery",
-        deliveryAddress: deliveryAddress || null
+        deliveryAddress: deliveryAddress || null,
+        selectedProductId: Number(selectedProductId)
       })
     });
     await loadUserData();
@@ -1014,12 +1078,12 @@ function getConversationItemContext(convo) {
 
 function render(data) {
   list.innerHTML = "";
-  const visible = data.filter(product => (product.status || "available") !== "sold");
-  visible.forEach(p => {
+  data.forEach(p => {
     const description = p.description ? p.description : "No description provided.";
     const seller = p.sellerName || getUserDisplayName(p.sellerEmail || "") || "Seller";
     const sellerEmail = p.sellerEmail || resolveSellerEmail(p) || "";
-    const canAddToCart = !isOwnListing(p);
+    const sold = String(p.status || "available").toLowerCase() === "sold";
+    const canAddToCart = !isOwnListing(p) && !sold;
     const sellerPhoto = getUserPhoto(sellerEmail);
     const sellerInitials = getInitials(seller);
     const sellerAvatarMarkup = sellerPhoto
@@ -1030,6 +1094,7 @@ function render(data) {
         <div class="card-image">
           <img src="${p.image}" alt="${p.name}">
           <span class="tag">${p.category}</span>
+          ${sold ? '<span class="sold-out-badge">Sold Out</span>' : ""}
         </div>
         <div class="card-body">
           <h4>${p.name}</h4>
@@ -1042,7 +1107,7 @@ function render(data) {
           </div>
           <div class="card-actions">
             <button type="button" class="mini-cart-btn" data-action="add-to-cart" data-id="${p.id}" ${canAddToCart ? "" : "disabled"}>
-              Add to cart
+              ${sold ? "Sold out" : "Add to cart"}
             </button>
           </div>
         </div>
@@ -1078,6 +1143,10 @@ function showProductDetail(product, index = 0) {
     if (sold) addToCartBtn.textContent = "Sold";
     else if (own) addToCartBtn.textContent = "Your listing";
     else addToCartBtn.textContent = "Add to Cart";
+  }
+  if (contactSellerBtn) {
+    const own = isOwnListing(product);
+    contactSellerBtn.style.display = own ? "none" : "";
   }
 
   const rawImages = Array.isArray(product.images) && product.images.length ? product.images : [product.image];
@@ -1140,10 +1209,8 @@ function renderDashboard(filter) {
   }
   let totalSales = 0;
   let totalPurchases = 0;
-  let totalPending = 0;
   let totalSalesCount = 0;
   let totalPurchasesCount = 0;
-  let totalPendingCount = 0;
 
   transactions.forEach(t => {
     const amount = Number(t?.amount) || 0;
@@ -1151,8 +1218,6 @@ function renderDashboard(filter) {
     const type = String(t?.type || "");
 
     if (status === "Pending") {
-      totalPending += amount;
-      totalPendingCount += 1;
       return;
     }
 
@@ -1167,12 +1232,16 @@ function renderDashboard(filter) {
     }
   });
 
+  const activeListings = myListings.filter(item => String(item?.status || "available").toLowerCase() === "available");
+  const totalPendingAmount = activeListings.reduce((sum, item) => sum + (Number(item?.price) || 0), 0);
+  const totalPendingCount = activeListings.length;
+
   totalSalesEl.textContent = formatCurrency(totalSales);
   totalPurchasesEl.textContent = formatCurrency(totalPurchases);
-  totalPendingEl.textContent = formatCurrency(totalPending);
+  totalPendingEl.textContent = formatCurrency(totalPendingAmount);
   totalSalesCountEl.textContent = `${totalSalesCount} completed sales`;
   totalPurchasesCountEl.textContent = `${totalPurchasesCount} completed purchases`;
-  totalPendingCountEl.textContent = `${totalPendingCount} pending transactions`;
+  totalPendingCountEl.textContent = `${totalPendingCount} items up for sale`;
 
   const filtered = transactions.filter(t => {
     if (filter === "Pending") {
@@ -1519,10 +1588,14 @@ function openSellerProfileModal(product) {
         .sort((a, b) => Number(b.id || 0) - Number(a.id || 0))
         .slice(0, 12)
         .forEach(item => {
+          const sold = String(item.status || "available").toLowerCase() === "sold";
           const card = document.createElement("div");
           card.className = "seller-profile-listing";
           card.innerHTML = `
-            <img src="${item.image || ""}" alt="${item.name || "Listing"}">
+            <div class="seller-profile-listing-media">
+              <img src="${item.image || ""}" alt="${item.name || "Listing"}">
+              ${sold ? '<span class="seller-profile-sold-badge">Sold</span>' : ""}
+            </div>
             <div>
               <h5>${item.name || "Untitled item"}</h5>
               <p>${formatCurrency(Number(item.price) || 0)}</p>
@@ -2022,6 +2095,15 @@ if (backFromCart) {
 }
 
 if (cartItemsEl) {
+  cartItemsEl.addEventListener("change", event => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.name !== "checkoutProductChoice") return;
+    checkoutProductSelection = target.value;
+    const cartProducts = getCartProductsWithQty();
+    cartTotalEl.textContent = formatCurrency(getSelectedCartTotal(cartProducts));
+  });
+
   cartItemsEl.addEventListener("click", async event => {
     const removeBtn = event.target.closest(".remove-cart-btn");
     const qtyBtn = event.target.closest(".cart-qty-btn");
@@ -2095,6 +2177,12 @@ if (checkoutModalBackdrop) {
 
 if (confirmCheckoutBtn) {
   confirmCheckoutBtn.addEventListener("click", async () => {
+    const selectedProductId = Number(checkoutProductSelection || 0);
+    if (!selectedProductId) {
+      alert("Please select one cart item to checkout.");
+      return;
+    }
+
     let selectedAddress = null;
     if (showNewAddressForm) {
       const newAddress = readDeliveryAddressFromForm();
@@ -2119,7 +2207,7 @@ if (confirmCheckoutBtn) {
 
     const paymentMethod = getSelectedPaymentMethod();
     closeCheckoutModal();
-    await checkoutCart(selectedAddress, paymentMethod);
+    await checkoutCart(selectedAddress, paymentMethod, selectedProductId);
   });
 }
 
@@ -2585,7 +2673,6 @@ function applyFilters() {
   const sort = sortSelect?.value || "latest";
 
   let filtered = products.filter(item => {
-    if ((item.status || "available") === "sold") return false;
     if (query && !item.name.toLowerCase().includes(query)) return false;
     if (activeCat !== "All" && item.category !== activeCat) return false;
     if (minPrice && item.price < minPrice) return false;

@@ -643,6 +643,7 @@ app.patch("/api/cart/:userId/items/:productId", async (req, res) => {
 app.post("/api/checkout/:buyerUserId", async (req, res) => {
   try {
     const buyerUserId = Number(req.params.buyerUserId);
+    const selectedProductId = Number(req.body?.selectedProductId || 0);
     const cartId = await ensureCart(buyerUserId);
 
     const cartItems = await supabase
@@ -652,8 +653,16 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
     if (cartItems.error) return res.status(500).json({ error: cartItems.error.message });
     if (!cartItems.data?.length) return res.status(400).json({ error: "Cart is empty." });
 
+    const candidateItems = selectedProductId
+      ? cartItems.data.filter(item => Number(item?.product?.id || 0) === selectedProductId)
+      : cartItems.data;
+    if (!candidateItems.length) {
+      return res.status(400).json({ error: "Selected item is not in cart." });
+    }
+
     const purchased = [];
-    for (const item of cartItems.data) {
+    const purchasedCartItemIds = [];
+    for (const item of candidateItems) {
       const product = item.product;
       if (!product) continue;
       if (product.status !== "available") continue;
@@ -684,13 +693,19 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
         item: product.name,
         amount: Number(product.price) * qty
       });
+      purchasedCartItemIds.push(Number(item.id));
     }
 
-    const clear = await supabase.from("cart_items").delete().eq("cart_id", cartId);
+    if (!purchased.length) return res.status(400).json({ error: "No purchasable items in cart." });
+
+    const clear = await supabase
+      .from("cart_items")
+      .delete()
+      .eq("cart_id", cartId)
+      .in("id", purchasedCartItemIds);
     if (clear.error) return res.status(500).json({ error: clear.error.message });
     await supabase.from("carts").update({ updated_at: nowIso() }).eq("id", cartId);
 
-    if (!purchased.length) return res.status(400).json({ error: "No purchasable items in cart." });
     return res.json({
       ok: true,
       purchasedCount: purchased.reduce((sum, item) => sum + Number(item.qty || 1), 0),

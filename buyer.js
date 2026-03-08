@@ -387,10 +387,14 @@ function openSellerProfileModal(product) {
       listingsEl.innerHTML = `<p class="muted">No listings from this seller yet.</p>`;
     } else {
       sellerListings.slice(0, 12).forEach(item => {
+        const sold = String(item.status || "available").toLowerCase() === "sold";
         const card = document.createElement('div');
         card.className = 'seller-profile-listing';
         card.innerHTML = `
-          <img src="${item.img}" alt="${item.name}">
+          <div class="seller-profile-listing-media">
+            <img src="${item.img}" alt="${item.name}">
+            ${sold ? '<span class="seller-profile-sold-badge">Sold</span>' : ""}
+          </div>
           <div>
             <h5>${item.name}</h5>
             <p>PHP ${item.price}</p>
@@ -413,9 +417,12 @@ function renderProductCard(p) {
   const categoryLabel = p.category || "Other";
   const description = p.desc ? p.desc : "No description provided.";
   const conditionLabel = String(p.condition || "N/A");
+  const sold = String(p.status || "available").toLowerCase() === "sold";
   const sellerPhoto = getUserPhotoByEmail(p.sellerEmail || "");
   const sellerInitials = getInitialsFromName(p.seller);
   const canInteractWithSeller = Number(p.sellerUserId || 0) !== Number(currentBuyerId() || 0);
+  const canAddToCart = canInteractWithSeller && !sold;
+  const canMessageSeller = canInteractWithSeller;
   const sellerAvatarMarkup = sellerPhoto
     ? `<span class="seller-avatar" style="background-image:url('${sellerPhoto}')"></span>`
     : `<span class="seller-avatar">${sellerInitials}</span>`;
@@ -425,6 +432,7 @@ function renderProductCard(p) {
         <div class="card-image">
           <img src="${p.img}" alt="${p.name}">
           <span class="tag">${categoryLabel}</span>
+          ${sold ? '<span class="sold-out-badge">Sold Out</span>' : ""}
         </div>
         <div class="card-body">
           <h4>${p.name}</h4>
@@ -436,8 +444,8 @@ function renderProductCard(p) {
             <span>${p.seller}</span>
           </div>
           <div class="card-actions">
-            <button type="button" class="message-seller-btn" onclick="event.stopPropagation(); messageSellerFromCard(${p.id})" ${canInteractWithSeller ? "" : "disabled"}>Message Seller</button>
-            <button type="button" class="mini-cart-btn" onclick="event.stopPropagation(); addToCart(${p.id})" ${canInteractWithSeller ? "" : "disabled"}>Add to cart</button>
+            ${canMessageSeller ? `<button type="button" class="message-seller-btn" onclick="event.stopPropagation(); messageSellerFromCard(${p.id})">Message Seller</button>` : ""}
+            <button type="button" class="mini-cart-btn" onclick="event.stopPropagation(); addToCart(${p.id})" ${canAddToCart ? "" : "disabled"}>${sold ? "Sold out" : "Add to cart"}</button>
           </div>
         </div>
       </div>`;
@@ -581,6 +589,10 @@ function normalizeCart(c){
 async function addToCart(id) {
   const item = products.find(p => p.id === id);
   if (!item) return;
+  if (String(item.status || "available").toLowerCase() === "sold") {
+    alert("This item is already sold.");
+    return;
+  }
   if (!currentBuyerId()) {
     alert("Please log in first.");
     return;
@@ -792,7 +804,6 @@ function closeCheckoutModal(){
 
 function populateCheckoutSummary(){
   const summary = document.getElementById('checkoutItems');
-  const totalEl = document.getElementById('checkoutTotal');
   summary.innerHTML = '';
   cart.forEach((it,i)=>{
     const row = document.createElement('div');
@@ -802,7 +813,7 @@ function populateCheckoutSummary(){
     row.style.padding = '8px 0';
     row.innerHTML = `
       <div style="display:flex;align-items:center;">
-        <input type="checkbox" id="item-${i}" onchange="updateCheckoutTotal()">
+        <input type="radio" name="checkoutItemChoice" id="item-${i}" value="${it.id}" ${i === 0 ? "checked" : ""} onchange="updateCheckoutTotal()">
         <img src="${it.img}" alt="${it.name}" style="width:50px;height:50px;object-fit:cover;border-radius:4px;margin-left:10px;margin-right:10px">
         ${it.name} <span class="muted">x ${it.qty}</span>
       </div>
@@ -815,13 +826,9 @@ function populateCheckoutSummary(){
 
 function updateCheckoutTotal(){
   const totalEl = document.getElementById('checkoutTotal');
-  let total = 0;
-  cart.forEach((it,i)=>{
-    const checkbox = document.getElementById(`item-${i}`);
-    if(checkbox && checkbox.checked){
-      total += it.price * it.qty;
-    }
-  });
+  const selected = document.querySelector('input[name="checkoutItemChoice"]:checked');
+  const selectedItem = selected ? cart.find(it => String(it.id) === String(selected.value)) : null;
+  const total = selectedItem ? (Number(selectedItem.price) || 0) * (Number(selectedItem.qty) || 1) : 0;
   totalEl.innerText = "PHP " + total;
 }
 
@@ -864,19 +871,14 @@ async function confirmOrderFromModal(){
   const addr = localStorage.getItem('tempAddress');
   if(!sel || !addr){ alert('Missing payment or address'); return; }
 
-  // Get selected items
-  const selectedItems = [];
-  let total = 0;
-  cart.forEach((it, i) => {
-    const checkbox = document.getElementById(`item-${i}`);
-    if (checkbox && checkbox.checked) {
-      selectedItems.push(it);
-      total += it.price * it.qty;
-    }
-  });
-
-  if (selectedItems.length === 0) {
-    alert('Please select at least one item to order.');
+  const selectedItemRadio = document.querySelector('input[name="checkoutItemChoice"]:checked');
+  if (!selectedItemRadio) {
+    alert('Please select one item to order.');
+    return;
+  }
+  const selectedProductId = Number(selectedItemRadio.value || 0);
+  if (!selectedProductId) {
+    alert('Invalid selected item.');
     return;
   }
 
@@ -885,7 +887,15 @@ async function confirmOrderFromModal(){
 
   let checkoutResult;
   try {
-    checkoutResult = await apiRequest(`/checkout/${currentBuyerId()}`, { method: "POST" });
+    checkoutResult = await apiRequest(`/checkout/${currentBuyerId()}`, {
+      method: "POST",
+      body: JSON.stringify({
+        paymentMethod: sel.value || "Cash on Delivery",
+        deliveryAddress: addr,
+        review,
+        selectedProductId
+      })
+    });
   } catch (error) {
     alert(error.message || "Checkout failed.");
     return;
@@ -1572,15 +1582,22 @@ function openItemModal(productId) {
 
   const contactSellerBtn = document.getElementById('contactSellerBtn');
   if (contactSellerBtn) {
-    contactSellerBtn.textContent = 'Contact Seller';
-    contactSellerBtn.onclick = async () => {
-      const convoId = await ensureConversationForProduct(product);
-      openMessagesPanel();
-      if (convoId) {
-        openChat(convoId);
-      }
-      closeItemModal();
-    };
+    const ownListing = Number(product.sellerUserId || 0) === Number(currentBuyerId() || 0);
+    if (ownListing) {
+      contactSellerBtn.style.display = 'none';
+      contactSellerBtn.onclick = null;
+    } else {
+      contactSellerBtn.style.display = '';
+      contactSellerBtn.textContent = 'Contact Seller';
+      contactSellerBtn.onclick = async () => {
+        const convoId = await ensureConversationForProduct(product);
+        openMessagesPanel();
+        if (convoId) {
+          openChat(convoId);
+        }
+        closeItemModal();
+      };
+    }
   }
 
   const viewSellerProfileBtn = document.getElementById('viewSellerProfileBtn');

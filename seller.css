@@ -618,6 +618,69 @@ body {
   margin-top: 8px;
 }
 
+.my-orders-section {
+  margin-top: 16px;
+}
+
+.my-orders-list {
+  display: grid;
+  gap: 10px;
+}
+
+.my-order-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.my-order-image {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.my-order-image.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.my-order-main h4 {
+  margin: 0 0 2px;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.my-order-main p {
+  margin: 0 0 6px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.my-order-amount {
+  font-weight: 700;
+  color: #166534;
+  font-size: 14px;
+}
+
+.my-orders-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 12px;
+  color: #64748b;
+  font-size: 13px;
+  background: #f8fafc;
+}
+
 .ghost-btn {
   background: white;
   border: 1px solid #1e8e3e;
@@ -929,6 +992,19 @@ body {
   font-weight: 600;
 }
 
+.sold-out-badge {
+  position: absolute;
+  inset: auto auto 12px 12px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .price {
   font-weight: bold;
   margin-top: 5px;
@@ -1147,9 +1223,15 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   padding: 12px;
   display: grid;
-  grid-template-columns: 72px 1fr auto;
+  grid-template-columns: auto 72px 1fr auto;
   gap: 12px;
   align-items: center;
+}
+
+.cart-checkout-radio {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 .cart-item img {
@@ -1760,6 +1842,7 @@ body {
   border-radius: 12px;
   padding: 16px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border: 1px solid #d1fae5;
 }
 
 .stat-label {
@@ -1778,6 +1861,21 @@ body {
 .stat-sub {
   color: #5f6b7a;
   font-size: 12px;
+}
+
+.stats .stat-card:nth-child(1) {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.stats .stat-card:nth-child(2) {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.stats .stat-card:nth-child(3) {
+  background: #f7fee7;
+  border-color: #d9f99d;
 }
 
 .transactions {
@@ -2025,6 +2123,37 @@ body {
     min-width: 560px;
     grid-template-columns: 120px 1.6fr 100px 120px 120px;
   }
+
+  .cart-item {
+    grid-template-columns: auto 56px 1fr;
+    align-items: start;
+    gap: 8px;
+  }
+
+  .cart-item img {
+    width: 56px;
+    height: 56px;
+  }
+
+  .remove-cart-btn {
+    grid-column: 3;
+    justify-self: end;
+    margin-top: 4px;
+  }
+
+  .my-order-card {
+    grid-template-columns: 48px 1fr;
+  }
+
+  .my-order-image {
+    width: 48px;
+    height: 48px;
+  }
+
+  .my-order-amount {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
 
 .seller-profile-modal {
@@ -2148,10 +2277,27 @@ body {
   cursor: pointer;
 }
 
+.seller-profile-listing-media {
+  position: relative;
+}
+
 .seller-profile-listing img {
   width: 100%;
   height: 90px;
   object-fit: cover;
+}
+
+.seller-profile-sold-badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .seller-profile-listing div {
