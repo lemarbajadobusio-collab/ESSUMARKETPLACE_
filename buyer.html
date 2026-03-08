@@ -31,28 +31,28 @@
   <input type="text" id="searchInput" placeholder="Search products..." oninput="searchProducts(this.value)" />
 
   <div class="nav-actions">
-    <button onclick="openNotificationsPanel()" style="position:relative;background:transparent;border:none;cursor:pointer" class="icon-btn" title="Notifications" aria-label="Notifications">
+    <button onclick="openNotificationsPanel()" class="icon-btn" title="Notifications" aria-label="Notifications">
       <svg viewBox="0 0 24 24" width="20" height="20">
         <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.93 6 11v5l-2 2v1h16v-1l-2-2z"/>
       </svg>
-      <span id="notifBadge" class="badge"></span>
+      <span id="notifBadge" class="nav-count"></span>
     </button>
-    <button onclick="openMessagesPanel()" style="position:relative;background:transparent;border:none;cursor:pointer" class="icon-btn" title="Messages" aria-label="Messages">
+    <button onclick="openMessagesPanel()" class="icon-btn" title="Messages" aria-label="Messages">
       <svg viewBox="0 0 24 24" width="20" height="20">
         <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
       </svg>
-      <span id="msgBadge" class="badge"></span>
+      <span id="msgBadge" class="nav-count"></span>
     </button>
-    <button onclick="openMiniCart()" style="position:relative;background:transparent;border:none;cursor:pointer" class="icon-btn" title="Cart" aria-label="Cart">
+    <button onclick="openMiniCart()" class="icon-btn" title="Cart" aria-label="Cart">
       <svg viewBox="0 0 24 24" width="20" height="20">
         <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
       </svg>
-      <span id="cartBadge" class="badge"></span>
+      <span id="cartBadge" class="nav-count"></span>
     </button>
     <div class="profile">
-      <button onclick="toggleProfileMenu(event)" style="background:transparent;border:none;cursor:pointer" class="icon-btn profile-btn" title="Settings" aria-label="Settings">
+      <button onclick="toggleProfileMenu(event)" class="icon-btn profile-btn" title="Settings" aria-label="Settings">
         <svg viewBox="0 0 24 24" width="20" height="20">
-          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+          <path d="M19.4 13a7.94 7.94 0 0 0 .06-1 7.94 7.94 0 0 0-.06-1l2.11-1.65a.5.5 0 0 0 .12-.63l-2-3.46a.5.5 0 0 0-.6-.22l-2.49 1a7.36 7.36 0 0 0-1.73-1L12.5 2.5a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.5l-.31 2.56a7.36 7.36 0 0 0-1.73 1l-2.49-1a.5.5 0 0 0-.6.22l-2 3.46a.5.5 0 0 0 .12.63L2.6 11a7.94 7.94 0 0 0-.06 1 7.94 7.94 0 0 0 .06 1L.49 14.65a.5.5 0 0 0-.12.63l2 3.46a.5.5 0 0 0 .6.22l2.49-1a7.36 7.36 0 0 0 1.73 1l.31 2.56a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5l.31-2.56a7.36 7.36 0 0 0 1.73-1l2.49 1a.5.5 0 0 0 .6-.22l2-3.46a.5.5 0 0 0-.12-.63ZM10 15a3 3 0 1 1 3-3 3 3 0 0 1-3 3Z"/>
         </svg>
       </button>
       <div class="profile-menu">
@@ -143,7 +143,7 @@
   </section>
 
   <section class="buyer-messages-section" id="buyerMessagesSection" hidden>
-    <button class="back-btn" id="backFromBuyerMessages" type="button" onclick="closeMessagesPanel()">
+    <button class="back-btn" id="backFromBuyerMessages" type="button" onclick="backToConversations()">
       &larr; Back
     </button>
     <div class="messages-shell">
@@ -164,7 +164,11 @@
             </div>
           </div>
           <div class="chat-menu-wrap">
-            <button class="icon-btn chat-menu" id="buyerChatMenuBtn" type="button" aria-label="More options">?</button>
+            <button class="icon-btn chat-menu" id="buyerChatMenuBtn" type="button" aria-label="More options">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 7a2 2 0 1 0-2-2 2 2 0 0 0 2 2zm0 5a2 2 0 1 0-2-2 2 2 0 0 0 2 2zm0 7a2 2 0 1 0-2-2 2 2 0 0 0 2 2z"/>
+              </svg>
+            </button>
             <div class="chat-menu-panel" id="buyerChatMenuPanel">
               <button type="button" class="chat-menu-item danger" id="buyerDeleteConversationBtn">Delete conversation</button>
             </div>
@@ -172,10 +176,19 @@
         </div>
         <div id="chatMessages" class="chat-messages"></div>
         <div class="chat-input">
-          <input type="text" id="messageInput" placeholder="Type a message...">
-          <button class="send-btn" onclick="sendMessage()" aria-label="Send message">?</button>
+          <button class="icon-btn" id="chatAttachImageBtn" type="button" aria-label="Attach image">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V5h14zm-3-11a2 2 0 1 1-2 2 2 2 0 0 1 2-2zm3 9H5l4-5 3 4 2-3 5 4z"/>
+            </svg>
+          </button>
+          <input type="file" id="chatImageInput" accept="image/*" hidden />
+          <input type="text" id="chatMessageInput" placeholder="Type a message...">
+          <button class="icon-btn send-btn" id="chatSendBtn" type="button" aria-label="Send message">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+            </svg>
+          </button>
         </div>
-        <button class="chat-back" onclick="backToConversations()">&larr; Back</button>
       </section>
     </div>
   </section>

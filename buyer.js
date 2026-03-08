@@ -23,6 +23,7 @@ let conversationsCache = [];
 let messagesCache = {};
 let activeConversationId = "";
 let buyerChatMenuBound = false;
+let buyerChatControlsBound = false;
 const WISHLIST_EMPTY = "\u2661";
 const WISHLIST_FILLED = "\u2665";
 const BUYER_LAST_PAGE_KEY = "essu_last_page";
@@ -422,7 +423,6 @@ function renderProductCard(p) {
   const sellerInitials = getInitialsFromName(p.seller);
   const canInteractWithSeller = Number(p.sellerUserId || 0) !== Number(currentBuyerId() || 0);
   const canAddToCart = canInteractWithSeller && !sold;
-  const canMessageSeller = canInteractWithSeller;
   const sellerAvatarMarkup = sellerPhoto
     ? `<span class="seller-avatar" style="background-image:url('${sellerPhoto}')"></span>`
     : `<span class="seller-avatar">${sellerInitials}</span>`;
@@ -444,7 +444,6 @@ function renderProductCard(p) {
             <span>${p.seller}</span>
           </div>
           <div class="card-actions">
-            ${canMessageSeller ? `<button type="button" class="message-seller-btn" onclick="event.stopPropagation(); messageSellerFromCard(${p.id})">Message Seller</button>` : ""}
             <button type="button" class="mini-cart-btn" onclick="event.stopPropagation(); addToCart(${p.id})" ${canAddToCart ? "" : "disabled"}>${sold ? "Sold out" : "Add to cart"}</button>
           </div>
         </div>
@@ -1149,25 +1148,26 @@ async function renderMessages(options = {}){
   filteredConversations.forEach(convo => {
     const other = (convo.participants || []).find(p => Number(p.id) !== Number(buyerId)) || {};
     const otherName = other.fullname || other.email || 'Seller';
-    const photo = getParticipantPhoto(other);
+    const otherEmail = other.email || "";
     const itemInfo = getConversationItemContext(convo);
     const itemLabel = itemInfo.name;
-    const lastText = convo.lastMessage?.text || (itemLabel ? `Item: ${itemLabel}` : 'No messages yet');
-    const timeLabel = convo.lastMessage?.created_at ? new Date(convo.lastMessage.created_at).toLocaleString() : '';
-    const itemLine = itemLabel
-      ? `<div class="conversation-item-tag">${itemInfo.image ? `<img src="${itemInfo.image}" alt="${itemLabel}">` : ""}<span>${itemLabel}</span></div>`
-      : '';
+    const previewParts = [];
+    if (itemLabel) previewParts.push(`Item: ${itemLabel}`);
+    if (convo.lastMessage?.text) previewParts.push(convo.lastMessage.text);
+    const preview = previewParts.join(" • ") || "No messages yet";
+    const timeLabel = formatConversationTime(convo.lastMessage?.created_at);
+    const isActive = String(convo.id) === String(activeConversationId);
+    const initials = getInitialsFromFullName(otherName) || "--";
 
     const item = document.createElement('div');
-    item.className = 'conversation-item';
+    item.className = `conversation${isActive ? " active" : ""}`;
     item.innerHTML = `
-      <img src="${photo || "https://via.placeholder.com/50"}" alt="${otherName}">
-      <div class="info">
-        <div class="name">${otherName}</div>
-        ${itemLine}
-        <div class="last-msg">${lastText}</div>
-        <div class="time">${timeLabel}</div>
+      <span class="avatar" style="${getParticipantPhoto(other) ? `background-image:url('${getParticipantPhoto(other)}');background-size:cover;background-position:center;color:transparent;` : ""}">${getParticipantPhoto(other) ? "--" : initials}</span>
+      <div class="conversation-meta">
+        <span class="name">${otherName}</span>
+        <span class="preview">${preview}</span>
       </div>
+      <div class="conversation-time">${timeLabel}</div>
     `;
     item.onclick = () => openChat(convo.id);
     list.appendChild(item);
@@ -1212,8 +1212,10 @@ async function openChat(conversationId){
   saveBuyerViewState({ activeConversationId });
   const list = document.getElementById('conversationsList');
   const chatView = document.getElementById('chatView');
-  if (list && window.innerWidth <= 900) list.classList.add('hidden');
+  const shell = document.querySelector('.messages-shell');
+  if (list) list.classList.add('hidden');
   if (chatView) chatView.classList.remove('hidden');
+  if (shell) shell.classList.add('chat-open');
 
   const convo = conversationsCache.find(c => String(c.id) === String(activeConversationId));
   const other = (convo?.participants || []).find(p => Number(p.id) !== Number(currentBuyerId())) || {};
@@ -1251,18 +1253,48 @@ async function renderChat(conversationId){
   if (!chatDiv) return;
   chatDiv.innerHTML = '';
   const msgs = await loadBuyerMessages(conversationId);
+  const activeConvo = conversationsCache.find(c => String(c.id) === String(conversationId));
+  const activeItemInfo = getConversationItemContext(activeConvo);
   msgs.forEach(m => {
-    const msgDiv = document.createElement('div');
-    const bubbleClass = Number(m.sender_user_id) === Number(currentBuyerId()) ? 'sent' : 'received';
-    msgDiv.className = 'message ' + bubbleClass;
-    msgDiv.innerHTML = `<div class="bubble">${m.message_text || ''}</div>`;
-    chatDiv.appendChild(msgDiv);
+    const senderId = Number(m.sender_user_id || 0);
+    const bubbleType = senderId === Number(currentBuyerId()) ? "outgoing" : "incoming";
+    const messageText = m.message_text || "";
+
+    if (isApiGreetingMessage(messageText) && activeItemInfo.image) {
+      const preview = document.createElement("div");
+      preview.className = `chat-item-preview ${bubbleType}`;
+      preview.innerHTML = `<img src="${activeItemInfo.image}" alt="${activeItemInfo.name || "Item image"}">`;
+      chatDiv.appendChild(preview);
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${bubbleType}`;
+    bubble.textContent = messageText;
+    chatDiv.appendChild(bubble);
+
     const timeDiv = document.createElement('div');
-    timeDiv.className = `chat-time${bubbleClass === 'sent' ? ' right' : ''}`;
+    timeDiv.className = `chat-time${bubbleType === 'outgoing' ? ' right' : ''}`;
     timeDiv.textContent = formatBuyerMessageTime(m);
     chatDiv.appendChild(timeDiv);
   });
   chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+function formatConversationTime(raw) {
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const now = new Date();
+  const isSameDay =
+    parsed.getFullYear() === now.getFullYear() &&
+    parsed.getMonth() === now.getMonth() &&
+    parsed.getDate() === now.getDate();
+  if (isSameDay) return "Today";
+  return parsed.toLocaleDateString();
+}
+
+function isApiGreetingMessage(text) {
+  return /^Hi!\s*Thanks for reaching out about/i.test(String(text || "").trim());
 }
 
 function formatBuyerMessageTime(msg) {
@@ -1275,21 +1307,36 @@ function formatBuyerMessageTime(msg) {
 }
 
 async function sendMessage(){
-  if (!currentBuyerId()) return alert('Please login first.');
-  const input = document.getElementById('messageInput');
-  if (!input) return;
-  const text = input.value.trim();
-  if(!text) return;
-  if (!activeConversationId) return;
+  await sendChatMessage();
+}
 
+async function appendMessage(text) {
+  if (!currentBuyerId() || !activeConversationId) return;
   await apiRequest(`/conversations/${activeConversationId}/messages`, {
     method: "POST",
     body: JSON.stringify({ senderUserId: currentBuyerId(), text })
   });
-
   await loadBuyerConversations();
   await renderChat(activeConversationId);
   updateMsgBadge();
+}
+
+async function appendSystemMessage(text) {
+  if (!activeConversationId) {
+    alert("Select a conversation first.");
+    return;
+  }
+  await appendMessage(text);
+}
+
+async function sendChatMessage() {
+  if (!currentBuyerId()) return alert('Please login first.');
+  const input = document.getElementById('chatMessageInput');
+  if (!input) return;
+  const text = input.value.trim();
+  if(!text) return;
+  if (!activeConversationId) return;
+  await appendMessage(text);
 
   // Log message activity for admin (store short snippet)
   const buyer = currentBuyer();
@@ -1300,8 +1347,10 @@ async function sendMessage(){
 function backToConversations(){
   const chatView = document.getElementById('chatView');
   const list = document.getElementById('conversationsList');
+  const shell = document.querySelector('.messages-shell');
   if (chatView) chatView.classList.add('hidden');
   if (list) list.classList.remove('hidden');
+  if (shell) shell.classList.remove('chat-open');
   saveBuyerViewState({ activeConversationId: "" });
 }
 
@@ -1372,12 +1421,10 @@ async function openMessagesPanel(){
   }
   await renderMessages({ autoOpenRecent: true });
   setupBuyerChatMenu();
+  bindBuyerChatControls();
   setBuyerMessagesSectionVisible(true);
   saveBuyerViewState({ messagesOpen: true });
-  const chatView = document.getElementById('chatView');
-  if (chatView && window.innerWidth > 900) {
-    chatView.classList.remove('hidden');
-  }
+  backToConversations();
 }
 
 function closeMessagesPanel(){
@@ -1422,6 +1469,48 @@ function setupBuyerChatMenu() {
 function closeBuyerChatMenu() {
   const menuPanel = document.getElementById('buyerChatMenuPanel');
   if (menuPanel) menuPanel.classList.remove('open');
+}
+
+function bindBuyerChatControls() {
+  if (buyerChatControlsBound) return;
+  const sendBtn = document.getElementById('chatSendBtn');
+  const input = document.getElementById('chatMessageInput');
+  const attachImageBtn = document.getElementById('chatAttachImageBtn');
+  const chatImageInput = document.getElementById('chatImageInput');
+
+  if (sendBtn) {
+    sendBtn.addEventListener('click', () => {
+      sendChatMessage();
+    });
+  }
+
+  if (input) {
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        sendChatMessage();
+      }
+    });
+  }
+
+  if (attachImageBtn && chatImageInput) {
+    attachImageBtn.addEventListener('click', () => {
+      chatImageInput.click();
+    });
+
+    chatImageInput.addEventListener('change', async () => {
+      const file = chatImageInput.files?.[0];
+      if (!file) return;
+      try {
+        await appendSystemMessage(`Attached image: ${file.name}`);
+      } catch (error) {
+        alert(error.message || "Could not attach image.");
+      }
+      chatImageInput.value = '';
+    });
+  }
+
+  buyerChatControlsBound = true;
 }
 
 // Initialize badges

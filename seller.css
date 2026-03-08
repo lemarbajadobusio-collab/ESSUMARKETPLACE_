@@ -309,9 +309,10 @@ body {
   gap: 8px;
 }
 
-.icon-btn {
+.navbar .icon-btn {
   width: 38px;
   height: 38px;
+  color: #ffffff;
   border: 1px solid rgba(255,255,255,0.35);
   background: rgba(255,255,255,0.2);
   border-radius: 10px;
@@ -321,11 +322,11 @@ body {
   padding: 0;
 }
 
-.icon-btn:hover {
+.navbar .icon-btn:hover {
   background: rgba(255, 255, 255, 0.25);
 }
 
-.icon-btn:focus-visible {
+.navbar .icon-btn:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 2px;
 }
@@ -342,7 +343,7 @@ body {
   height: 18px;
   border-radius: 999px;
   padding: 0 5px;
-  background: #15803d;
+  background: #ef4444;
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
@@ -350,13 +351,19 @@ body {
   align-items: center;
   justify-content: center;
   border: 2px solid #ffffff;
+  line-height: 1;
 }
 
-.icon-btn svg {
-  width: 24px;
-  height: 24px;
-  fill: #ffffff;
+.nav-actions .icon-btn svg,
+.nav-actions .profile-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
   display: block;
+}
+
+.nav-count:empty {
+  display: none;
 }
 
 .profile {
