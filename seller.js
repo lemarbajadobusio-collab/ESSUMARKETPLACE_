@@ -412,7 +412,6 @@ async function openConversation(conversationId) {
   const otherName = otherParticipant?.fullname || getUserDisplayName(otherParticipant?.email || "") || "User";
   const otherEmail = otherParticipant?.email || "";
   const otherPhoto = getParticipantPhoto(otherParticipant);
-  const itemInfo = getConversationItemContext(convo);
 
   if (chatUserName) chatUserName.textContent = otherName;
   if (chatUserAvatar) {
@@ -421,13 +420,7 @@ async function openConversation(conversationId) {
     chatUserAvatar.style.backgroundPosition = otherPhoto ? "center" : "";
     chatUserAvatar.textContent = otherPhoto ? "" : getInitials(otherName) || "--";
   }
-  if (chatUserStatus) {
-    if (itemInfo.name) {
-      chatUserStatus.innerHTML = `<span class="chat-item-context">${itemInfo.image ? `<img src="${itemInfo.image}" alt="${itemInfo.name}">` : ""}<span>${itemInfo.name}</span></span>`;
-    } else {
-      chatUserStatus.textContent = "Online";
-    }
-  }
+  if (chatUserStatus) chatUserStatus.textContent = "Online";
 
   const messages = await loadConversationMessages(conversationId);
   renderChatMessages(messages);
@@ -453,20 +446,12 @@ async function ensureConversationForCurrentProduct() {
       })
     });
     conversationId = String(result.conversationId || "");
-  } else {
-    await apiRequest("/conversations", {
-      method: "POST",
-      body: JSON.stringify({
-        listingProductId: currentProduct.id,
-        participantUserIds: [currentUserId, otherUserId]
-      })
-    });
   }
 
   activeConversationId = conversationId;
   if (!activeConversationId) return "";
 
-  const greetingText = `Hi! Thanks for reaching out about "${currentProduct.name}" (Item #${currentProduct.id}). Let me know if you want more details.`;
+  const greetingText = "Hi! Thanks for reaching out. Let me know if you want more details.";
   const existingMessages = await loadConversationMessages(activeConversationId);
   const hasSameGreeting = existingMessages.some(m => String(m.message_text || "").trim() === greetingText);
   if (!hasSameGreeting) {
@@ -542,12 +527,7 @@ function renderConversations() {
     const otherParticipant = (convo.participants || []).find(p => Number(p.id) !== Number(currentUserId)) || {};
     const otherName = otherParticipant.fullname || getUserDisplayName(otherParticipant.email || "") || "User";
     const otherEmail = otherParticipant.email || "";
-    const itemInfo = getConversationItemContext(convo);
-    const itemLabel = itemInfo.name;
-    const previewParts = [];
-    if (itemLabel) previewParts.push(`Item: ${itemLabel}`);
-    if (convo.lastMessage?.text) previewParts.push(convo.lastMessage.text);
-    const preview = previewParts.join(" • ") || "No messages yet";
+    const preview = convo.lastMessage?.text || "No messages yet";
     const timeLabel = formatConversationTime(convo.lastMessage?.created_at);
     const isActive = String(convo.id) === String(activeConversationId);
 
@@ -644,7 +624,7 @@ function formatMessageTime(msg) {
 }
 
 function isApiGreetingMessage(text) {
-  return /^Hi!\s*Thanks for reaching out about/i.test(String(text || "").trim());
+  return /^Hi!\s*Thanks for reaching out/i.test(String(text || "").trim());
 }
 
 function formatItemPostedDate(rawDate) {
@@ -973,7 +953,7 @@ function renderCart() {
             <h4>${product.name}</h4>
             <p>Seller: ${seller}</p>
             <div class="cart-item-bottom">
-              <div class="price">${formatCurrency((Number(product.price) || 0) * product.qty)}</div>
+              <div class="price">${formatCurrency(Number(product.price) || 0)}</div>
               <div class="cart-qty-controls">
                 <button type="button" class="cart-qty-btn" data-action="decrease-qty" data-product-id="${product.id}">-</button>
                 <span class="cart-qty-value">${product.qty}</span>
@@ -1019,7 +999,7 @@ async function addToCart(productId) {
     render(products);
     renderCart();
     updateCartBadge();
-    alert("Item added to cart.");
+    showToast(`${product.name} added to cart.`);
   } catch (error) {
     alert(error.message || "Could not add to cart.");
   }
@@ -1480,6 +1460,23 @@ function loadUsers() {
 
 function saveUsers(users) {
   usersCache = Array.isArray(users) ? users.slice() : [];
+}
+
+let toastTimer = null;
+function showToast(message) {
+  let toast = document.getElementById("toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "toast";
+    toast.className = "toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = String(message || "");
+  toast.classList.add("show");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2200);
 }
 
 function applyUserProfile(user) {

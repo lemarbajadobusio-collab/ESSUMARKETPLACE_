@@ -839,12 +839,6 @@ app.post("/api/conversations", async (req, res) => {
 
   const existingId = await findExistingConversation(participantUserIds);
   if (existingId) {
-    if (listingProductId) {
-      await supabase
-        .from("conversations")
-        .update({ listing_product_id: Number(listingProductId) || null })
-        .eq("id", Number(existingId));
-    }
     return res.json({ conversationId: Number(existingId), existing: true });
   }
 

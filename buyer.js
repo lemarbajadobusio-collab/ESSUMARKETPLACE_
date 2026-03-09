@@ -22,6 +22,7 @@ let cart = [];
 let conversationsCache = [];
 let messagesCache = {};
 let activeConversationId = "";
+let buyerCheckoutProductSelection = "";
 let buyerChatMenuBound = false;
 let buyerChatControlsBound = false;
 const WISHLIST_EMPTY = "\u2661";
@@ -581,6 +582,7 @@ function normalizeCart(c){
     name: i.name,
     price: i.price,
     img: i.img,
+    seller: i.seller || i.seller_name || "Seller",
     qty: i.qty && i.qty > 0 ? i.qty : 1
   }));
 }
@@ -611,24 +613,51 @@ async function addToCart(id) {
 }
 
 function renderCart() {
-  // update any cart UI if present (backward compatible)
   const cartDiv = document.getElementById("cartItems");
+  const totalEl = document.getElementById("cartTotal");
+  const checkoutBtn = document.getElementById("checkoutCartBtn");
   if (cartDiv) {
     cartDiv.innerHTML = "";
-    let total = 0;
-    cart.forEach((item, i) => {
-      total += item.price * (item.qty || 1);
-      cartDiv.innerHTML += `
+    if (!cart.length) {
+      buyerCheckoutProductSelection = "";
+      cartDiv.innerHTML = '<div class="cart-empty">Your cart is empty.</div>';
+      if (totalEl) totalEl.innerText = "PHP 0";
+      if (checkoutBtn) checkoutBtn.disabled = true;
+    } else {
+      if (!buyerCheckoutProductSelection || !cart.some(item => String(item.id) === String(buyerCheckoutProductSelection))) {
+        buyerCheckoutProductSelection = String(cart[0].id);
+      }
+      cart.forEach((item, i) => {
+        const checked = String(item.id) === String(buyerCheckoutProductSelection) ? "checked" : "";
+        cartDiv.innerHTML += `
         <div class="cart-item">
-          <span>${item.name} x ${item.qty}</span>
-          <span>PHP ${item.price * item.qty} <button onclick="removeFromCart(${i})" style="margin-left:8px;background:transparent;border:none;color:#c23;cursor:pointer">Remove</button></span>
+          <input type="radio" class="cart-checkout-radio" name="checkoutProductChoice" value="${item.id}" ${checked} aria-label="Select ${item.name} for checkout">
+          <img src="${item.img}" alt="${item.name}">
+          <div class="cart-item-main">
+            <div>
+              <h4>${item.name}</h4>
+              <p class="cart-seller">Seller: ${item.seller || "Seller"}</p>
+            </div>
+            <div class="cart-item-bottom">
+              <strong class="price">PHP ${item.price}</strong>
+              <div class="cart-qty-controls">
+                <button class="cart-qty-btn" type="button" onclick="changeQty(${i},-1)">-</button>
+                <span class="cart-qty-value">${item.qty}</span>
+                <button class="cart-qty-btn" type="button" onclick="changeQty(${i},1)">+</button>
+              </div>
+            </div>
+          </div>
+          <button class="remove-cart-btn" type="button" onclick="removeFromCart(${i})">Remove</button>
         </div>`;
-    });
-    const totalEl = document.getElementById("cartTotal");
-    if (totalEl) totalEl.innerText = total;
+      });
+      if (totalEl) {
+        const selected = cart.find(item => String(item.id) === String(buyerCheckoutProductSelection));
+        const total = selected ? (Number(selected.price) || 0) * (Number(selected.qty) || 1) : 0;
+        totalEl.innerText = "PHP " + total;
+      }
+      if (checkoutBtn) checkoutBtn.disabled = false;
+    }
   }
-  // also update mini cart if open
-  if (document.getElementById('miniCart')) renderMiniCart();
 }
 
 async function removeFromCart(index){
@@ -645,23 +674,36 @@ async function removeFromCart(index){
 }
 
 async function changeQty(index, delta){
-  if(!cart[index]) return;
-  cart[index].qty = (cart[index].qty || 1) + delta;
-  if (cart[index].qty <= 0) {
-    await removeFromCart(index);
-    return;
-  }
-  if (!currentBuyerId()) return;
   const item = cart[index];
+  if (!item || !currentBuyerId()) return;
+  const nextQty = (Number(item.qty) || 1) + Number(delta || 0);
   try {
-    await apiRequest(`/cart/${currentBuyerId()}/items`, {
-      method: "POST",
-      body: JSON.stringify({ productId: item.id, qty: delta })
+    await apiRequest(`/cart/${currentBuyerId()}/items/${item.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ qty: nextQty })
     });
-    await loadCart();
   } catch (error) {
-    alert(error.message || "Could not update quantity.");
+    try {
+      // Backward-compatible fallback for servers without PATCH cart endpoint.
+      if (nextQty <= 0) {
+        await apiRequest(`/cart/${currentBuyerId()}/items/${item.id}`, { method: "DELETE" });
+      } else if (delta > 0) {
+        await apiRequest(`/cart/${currentBuyerId()}/items`, {
+          method: "POST",
+          body: JSON.stringify({ productId: item.id, qty: Math.max(1, Math.floor(delta)) })
+        });
+      } else {
+        await apiRequest(`/cart/${currentBuyerId()}/items/${item.id}`, { method: "DELETE" });
+        await apiRequest(`/cart/${currentBuyerId()}/items`, {
+          method: "POST",
+          body: JSON.stringify({ productId: item.id, qty: Math.max(1, Math.floor(nextQty)) })
+        });
+      }
+    } catch (legacyError) {
+      alert(legacyError.message || error.message || "Could not update quantity.");
+    }
   }
+  await loadCart();
   renderCart();
   updateCartBadge();
 }
@@ -680,6 +722,7 @@ async function loadCart(){
       name: item.name,
       price: Number(item.price),
       img: item.cover_image || "",
+      seller_name: item.seller_name || "Seller",
       qty: Number(item.qty || 1)
     })));
     return cart;
@@ -942,13 +985,13 @@ function updateCartBadge(){
 }
 
 function openMiniCart(){
-  renderMiniCart();
-  document.getElementById('miniCart').classList.add('open');
+  renderCart();
+  setBuyerCartSectionVisible(true);
   updateCartBadge();
   saveBuyerViewState({ miniCartOpen: true });
 }
 function closeMiniCart(){
-  document.getElementById('miniCart').classList.remove('open');
+  setBuyerCartSectionVisible(false);
   saveBuyerViewState({ miniCartOpen: false });
 }
 
@@ -1149,12 +1192,7 @@ async function renderMessages(options = {}){
     const other = (convo.participants || []).find(p => Number(p.id) !== Number(buyerId)) || {};
     const otherName = other.fullname || other.email || 'Seller';
     const otherEmail = other.email || "";
-    const itemInfo = getConversationItemContext(convo);
-    const itemLabel = itemInfo.name;
-    const previewParts = [];
-    if (itemLabel) previewParts.push(`Item: ${itemLabel}`);
-    if (convo.lastMessage?.text) previewParts.push(convo.lastMessage.text);
-    const preview = previewParts.join(" • ") || "No messages yet";
+    const preview = convo.lastMessage?.text || "No messages yet";
     const timeLabel = formatConversationTime(convo.lastMessage?.created_at);
     const isActive = String(convo.id) === String(activeConversationId);
     const initials = getInitialsFromFullName(otherName) || "--";
@@ -1219,17 +1257,10 @@ async function openChat(conversationId){
 
   const convo = conversationsCache.find(c => String(c.id) === String(activeConversationId));
   const other = (convo?.participants || []).find(p => Number(p.id) !== Number(currentBuyerId())) || {};
-  const itemInfo = getConversationItemContext(convo);
   const chatName = document.getElementById('chatSellerName');
   if (chatName) chatName.textContent = other.fullname || other.email || 'Seller';
   const chatStatus = document.getElementById('chatSellerStatus');
-  if (chatStatus) {
-    if (itemInfo.name) {
-      chatStatus.innerHTML = `<span class="chat-item-context">${itemInfo.image ? `<img src="${itemInfo.image}" alt="${itemInfo.name}">` : ""}<span>${itemInfo.name}</span></span>`;
-    } else {
-      chatStatus.textContent = 'Online';
-    }
-  }
+  if (chatStatus) chatStatus.textContent = 'Online';
   const chatAvatar = document.getElementById('chatAvatar');
   if (chatAvatar) {
     const photo = getParticipantPhoto(other);
@@ -1294,7 +1325,7 @@ function formatConversationTime(raw) {
 }
 
 function isApiGreetingMessage(text) {
-  return /^Hi!\s*Thanks for reaching out about/i.test(String(text || "").trim());
+  return /^Hi!\s*Thanks for reaching out/i.test(String(text || "").trim());
 }
 
 function formatBuyerMessageTime(msg) {
@@ -1348,10 +1379,20 @@ function backToConversations(){
   const chatView = document.getElementById('chatView');
   const list = document.getElementById('conversationsList');
   const shell = document.querySelector('.messages-shell');
-  if (chatView) chatView.classList.add('hidden');
-  if (list) list.classList.remove('hidden');
-  if (shell) shell.classList.remove('chat-open');
-  saveBuyerViewState({ activeConversationId: "" });
+  const isShellChatOpen = !!shell && shell.classList.contains('chat-open');
+  const isConversationListVisible = !!list && !list.classList.contains('hidden');
+  const shouldReturnToList = isShellChatOpen || !isConversationListVisible;
+
+  if (shouldReturnToList) {
+    if (chatView) chatView.classList.add('hidden');
+    if (list) list.classList.remove('hidden');
+    if (shell) shell.classList.remove('chat-open');
+    activeConversationId = "";
+    saveBuyerViewState({ activeConversationId: "" });
+    return;
+  }
+
+  closeMessagesPanel();
 }
 
 function updateNotifBadge(){
@@ -1424,7 +1465,14 @@ async function openMessagesPanel(){
   bindBuyerChatControls();
   setBuyerMessagesSectionVisible(true);
   saveBuyerViewState({ messagesOpen: true });
-  backToConversations();
+  const chatView = document.getElementById('chatView');
+  const list = document.getElementById('conversationsList');
+  const shell = document.querySelector('.messages-shell');
+  if (chatView) chatView.classList.add('hidden');
+  if (list) list.classList.remove('hidden');
+  if (shell) shell.classList.remove('chat-open');
+  activeConversationId = "";
+  saveBuyerViewState({ activeConversationId: "" });
 }
 
 function closeMessagesPanel(){
@@ -1550,19 +1598,11 @@ async function ensureConversationForProduct(product) {
       })
     });
     conversationId = String(result.conversationId || "");
-  } else {
-    await apiRequest("/conversations", {
-      method: "POST",
-      body: JSON.stringify({
-        listingProductId: product.id,
-        participantUserIds: [currentBuyerId(), otherUserId]
-      })
-    });
   }
 
   if (!conversationId) return "";
 
-  const greetingText = `Hi! Thanks for reaching out about "${product.name}" (Item #${product.id}). Let me know if you want more details.`;
+  const greetingText = "Hi! Thanks for reaching out. Let me know if you want more details.";
   const existingMessages = await loadBuyerMessages(conversationId);
   const hasSameGreeting = existingMessages.some(m => String(m.message_text || "").trim() === greetingText);
   if (!hasSameGreeting) {
@@ -1603,19 +1643,11 @@ function openItemModal(productId) {
   const detailMainImage = document.getElementById('detailMainImage');
   if (detailMainImage) detailMainImage.src = product.img;
 
-  // Set thumbnails (if multiple images exist)
+  // Buyer detail should show a single image only (main image), like seller flow.
   const detailThumbs = document.getElementById('detailThumbs');
   if (detailThumbs) {
     detailThumbs.innerHTML = '';
-    // Add main image as thumbnail
-    const thumb = document.createElement('img');
-    thumb.src = product.img;
-    thumb.className = 'detail-thumb';
-    thumb.alt = 'Thumbnail';
-    thumb.addEventListener('click', () => {
-      if (detailMainImage) detailMainImage.src = product.img;
-    });
-    detailThumbs.appendChild(thumb);
+    detailThumbs.style.display = 'none';
   }
 
   // Set product details
@@ -1842,8 +1874,9 @@ function setBuyerProfileSectionVisible(visible) {
   const profileSection = document.getElementById('buyerProfileSection');
   const sellPromptSection = document.getElementById('buyerSellPromptSection');
   const messagesSection = document.getElementById('buyerMessagesSection');
+  const cartSection = document.getElementById('buyerCartSection');
 
-  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection || !messagesSection) return;
+  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection || !messagesSection || !cartSection) return;
 
   if (visible) {
     discoverHeader.setAttribute('hidden', 'hidden');
@@ -1853,6 +1886,7 @@ function setBuyerProfileSectionVisible(visible) {
     profileSection.removeAttribute('hidden');
     sellPromptSection.setAttribute('hidden', 'hidden');
     messagesSection.setAttribute('hidden', 'hidden');
+    cartSection.setAttribute('hidden', 'hidden');
   } else {
     discoverHeader.removeAttribute('hidden');
     categories.removeAttribute('hidden');
@@ -1861,6 +1895,7 @@ function setBuyerProfileSectionVisible(visible) {
     profileSection.setAttribute('hidden', 'hidden');
     sellPromptSection.setAttribute('hidden', 'hidden');
     messagesSection.setAttribute('hidden', 'hidden');
+    cartSection.setAttribute('hidden', 'hidden');
   }
 }
 
@@ -1872,8 +1907,9 @@ function setBuyerSellPromptSectionVisible(visible) {
   const profileSection = document.getElementById('buyerProfileSection');
   const sellPromptSection = document.getElementById('buyerSellPromptSection');
   const messagesSection = document.getElementById('buyerMessagesSection');
+  const cartSection = document.getElementById('buyerCartSection');
 
-  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection || !messagesSection) return;
+  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection || !messagesSection || !cartSection) return;
 
   if (visible) {
     discoverHeader.setAttribute('hidden', 'hidden');
@@ -1883,6 +1919,7 @@ function setBuyerSellPromptSectionVisible(visible) {
     profileSection.setAttribute('hidden', 'hidden');
     sellPromptSection.removeAttribute('hidden');
     messagesSection.setAttribute('hidden', 'hidden');
+    cartSection.setAttribute('hidden', 'hidden');
   } else {
     discoverHeader.removeAttribute('hidden');
     categories.removeAttribute('hidden');
@@ -1891,6 +1928,7 @@ function setBuyerSellPromptSectionVisible(visible) {
     profileSection.setAttribute('hidden', 'hidden');
     sellPromptSection.setAttribute('hidden', 'hidden');
     messagesSection.setAttribute('hidden', 'hidden');
+    cartSection.setAttribute('hidden', 'hidden');
   }
 }
 
@@ -1902,8 +1940,9 @@ function setBuyerMessagesSectionVisible(visible) {
   const profileSection = document.getElementById('buyerProfileSection');
   const sellPromptSection = document.getElementById('buyerSellPromptSection');
   const messagesSection = document.getElementById('buyerMessagesSection');
+  const cartSection = document.getElementById('buyerCartSection');
 
-  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection || !messagesSection) return;
+  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection || !messagesSection || !cartSection) return;
 
   if (visible) {
     discoverHeader.setAttribute('hidden', 'hidden');
@@ -1913,6 +1952,7 @@ function setBuyerMessagesSectionVisible(visible) {
     profileSection.setAttribute('hidden', 'hidden');
     sellPromptSection.setAttribute('hidden', 'hidden');
     messagesSection.removeAttribute('hidden');
+    cartSection.setAttribute('hidden', 'hidden');
   } else {
     discoverHeader.removeAttribute('hidden');
     categories.removeAttribute('hidden');
@@ -1921,6 +1961,40 @@ function setBuyerMessagesSectionVisible(visible) {
     profileSection.setAttribute('hidden', 'hidden');
     sellPromptSection.setAttribute('hidden', 'hidden');
     messagesSection.setAttribute('hidden', 'hidden');
+    cartSection.setAttribute('hidden', 'hidden');
+  }
+}
+
+function setBuyerCartSectionVisible(visible) {
+  const discoverHeader = document.getElementById('buyerDiscoverHeader');
+  const categories = document.getElementById('buyerCategories');
+  const filters = document.getElementById('buyerFilters');
+  const grid = document.getElementById('itemsGrid');
+  const profileSection = document.getElementById('buyerProfileSection');
+  const sellPromptSection = document.getElementById('buyerSellPromptSection');
+  const messagesSection = document.getElementById('buyerMessagesSection');
+  const cartSection = document.getElementById('buyerCartSection');
+
+  if (!discoverHeader || !categories || !filters || !grid || !profileSection || !sellPromptSection || !messagesSection || !cartSection) return;
+
+  if (visible) {
+    discoverHeader.setAttribute('hidden', 'hidden');
+    categories.setAttribute('hidden', 'hidden');
+    filters.setAttribute('hidden', 'hidden');
+    grid.setAttribute('hidden', 'hidden');
+    profileSection.setAttribute('hidden', 'hidden');
+    sellPromptSection.setAttribute('hidden', 'hidden');
+    messagesSection.setAttribute('hidden', 'hidden');
+    cartSection.removeAttribute('hidden');
+  } else {
+    discoverHeader.removeAttribute('hidden');
+    categories.removeAttribute('hidden');
+    filters.removeAttribute('hidden');
+    grid.removeAttribute('hidden');
+    profileSection.setAttribute('hidden', 'hidden');
+    sellPromptSection.setAttribute('hidden', 'hidden');
+    messagesSection.setAttribute('hidden', 'hidden');
+    cartSection.setAttribute('hidden', 'hidden');
   }
 }
 
@@ -2200,6 +2274,8 @@ document.addEventListener('keydown', function(e) {
     modals.forEach(m => m.classList.remove('open'));
     closeProfileMenu();
     closeBuyerProfileSection();
+    closeMessagesPanel();
+    closeMiniCart();
     saveBuyerViewState({
       editProfileOpen: false,
       profileOpen: false,
@@ -2207,7 +2283,8 @@ document.addEventListener('keydown', function(e) {
       itemModalProductId: 0,
       checkoutOpen: false,
       checkoutStep: "",
-      miniCartOpen: false
+      miniCartOpen: false,
+      messagesOpen: false
     });
   }
 });
@@ -2218,5 +2295,17 @@ document.addEventListener('click', (event) => {
   if (!profileWrap.contains(event.target)) {
     profileWrap.classList.remove('open');
   }
+});
+
+document.addEventListener('change', event => {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement)) return;
+  if (target.name !== 'checkoutProductChoice') return;
+  buyerCheckoutProductSelection = target.value;
+  const totalEl = document.getElementById('cartTotal');
+  if (!totalEl) return;
+  const selected = cart.find(item => String(item.id) === String(buyerCheckoutProductSelection));
+  const total = selected ? (Number(selected.price) || 0) * (Number(selected.qty) || 1) : 0;
+  totalEl.innerText = "PHP " + total;
 });
 

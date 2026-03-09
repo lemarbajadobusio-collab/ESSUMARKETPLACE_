@@ -511,6 +511,7 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   display: grid;
   gap: 12px;
+  overflow: visible;
 }
 
 .section-header {
@@ -575,7 +576,7 @@ body {
   display: none;
   flex-direction: column;
   min-width: 140px;
-  z-index: 3;
+  z-index: 24;
 }
 
 .listing-menu.open {
@@ -1554,7 +1555,7 @@ body {
 
 .conversation-meta {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -1569,7 +1570,7 @@ body {
 .conversation-meta .preview {
   font-size: 12px;
   color: #7b8794;
-  line-height: 1.3;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1706,12 +1707,21 @@ body {
 }
 
 .chat-menu {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
   background: #f1f5f9;
-  border: none;
+  border: 1px solid #d7dde3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
 .chat-menu svg {
-  fill: #475569;
+  width: 20px;
+  height: 20px;
+  fill: #334155;
 }
 
 .chat-body {
@@ -1729,7 +1739,7 @@ body {
   padding: 12px 14px;
   border-radius: 16px;
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.25;
   box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
 
@@ -2106,6 +2116,83 @@ body {
   .messages-layout {
     grid-template-columns: 1fr;
     height: auto;
+    gap: 18px;
+  }
+
+  .messages {
+    height: auto;
+    min-height: 0;
+  }
+
+  .messages-sidebar {
+    background: #fff;
+    border-radius: 16px;
+    padding: 18px;
+    border: 1px solid #dfe4ea;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    min-height: 620px;
+  }
+
+  .messages-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 12px;
+  }
+
+  .messages-search input {
+    border: 1px solid #cdd5df;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  .messages-search input:focus {
+    border-color: #1e8e3e;
+    box-shadow: 0 0 0 2px rgba(30,142,62,0.15);
+  }
+
+  .conversation-list {
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  .conversation {
+    border: 1px solid #edf1f5;
+    border-radius: 16px;
+    background: #fff;
+    padding: 12px 10px;
+  }
+
+  .conversation.active {
+    background: #e9edf2;
+    border-color: #e3e8ee;
+  }
+
+  .avatar {
+    width: 50px;
+    height: 50px;
+    font-size: 16px;
+  }
+
+  .conversation-meta {
+    gap: 2px;
+  }
+
+  .conversation-meta .name {
+    font-size: 16px;
+    font-weight: 800;
+    color: #132944;
+  }
+
+  .conversation-meta .preview {
+    font-size: 14px;
+    line-height: 1.2;
+    color: #5f6f84;
+  }
+
+  .conversation-time {
+    font-size: 13px;
+    color: #96a3b5;
   }
 
   .messages-layout .chat-panel {
@@ -2146,6 +2233,12 @@ body {
     grid-column: 3;
     justify-self: end;
     margin-top: 4px;
+  }
+
+  .listing-menu {
+    left: 0;
+    right: auto;
+    min-width: 160px;
   }
 
   .my-order-card {
@@ -2322,6 +2415,26 @@ body {
   color: #1e8e3e;
   font-size: 13px;
   font-weight: 700;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 28px;
+  background: #111;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s;
+  z-index: 1300;
+}
+
+.toast.show {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .seller-profile-listings .empty {
