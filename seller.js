@@ -936,7 +936,7 @@ function renderCart() {
             <h4>${product.name}</h4>
             <p>Seller: ${seller}</p>
             <div class="cart-item-bottom">
-              <div class="price">${formatCurrency((Number(product.price) || 0) * product.qty)}</div>
+              <div class="price">${formatCurrency(Number(product.price) || 0)}</div>
               <div class="cart-qty-controls">
                 <button type="button" class="cart-qty-btn" data-action="decrease-qty" data-product-id="${product.id}">-</button>
                 <span class="cart-qty-value">${product.qty}</span>
@@ -982,7 +982,7 @@ async function addToCart(productId) {
     render(products);
     renderCart();
     updateCartBadge();
-    alert("Item added to cart.");
+    showToast(`${product.name} added to cart.`);
   } catch (error) {
     alert(error.message || "Could not add to cart.");
   }
@@ -1459,6 +1459,23 @@ function loadUsers() {
 
 function saveUsers(users) {
   usersCache = Array.isArray(users) ? users.slice() : [];
+}
+
+let toastTimer = null;
+function showToast(message) {
+  let toast = document.getElementById("toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "toast";
+    toast.className = "toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = String(message || "");
+  toast.classList.add("show");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2200);
 }
 
 function applyUserProfile(user) {
