@@ -1149,12 +1149,7 @@ async function renderMessages(options = {}){
     const other = (convo.participants || []).find(p => Number(p.id) !== Number(buyerId)) || {};
     const otherName = other.fullname || other.email || 'Seller';
     const otherEmail = other.email || "";
-    const itemInfo = getConversationItemContext(convo);
-    const itemLabel = itemInfo.name;
-    const previewParts = [];
-    if (itemLabel) previewParts.push(`Item: ${itemLabel}`);
-    if (convo.lastMessage?.text) previewParts.push(convo.lastMessage.text);
-    const preview = previewParts.join(" • ") || "No messages yet";
+    const preview = convo.lastMessage?.text || "No messages yet";
     const timeLabel = formatConversationTime(convo.lastMessage?.created_at);
     const isActive = String(convo.id) === String(activeConversationId);
     const initials = getInitialsFromFullName(otherName) || "--";
@@ -1219,17 +1214,10 @@ async function openChat(conversationId){
 
   const convo = conversationsCache.find(c => String(c.id) === String(activeConversationId));
   const other = (convo?.participants || []).find(p => Number(p.id) !== Number(currentBuyerId())) || {};
-  const itemInfo = getConversationItemContext(convo);
   const chatName = document.getElementById('chatSellerName');
   if (chatName) chatName.textContent = other.fullname || other.email || 'Seller';
   const chatStatus = document.getElementById('chatSellerStatus');
-  if (chatStatus) {
-    if (itemInfo.name) {
-      chatStatus.innerHTML = `<span class="chat-item-context">${itemInfo.image ? `<img src="${itemInfo.image}" alt="${itemInfo.name}">` : ""}<span>${itemInfo.name}</span></span>`;
-    } else {
-      chatStatus.textContent = 'Online';
-    }
-  }
+  if (chatStatus) chatStatus.textContent = 'Online';
   const chatAvatar = document.getElementById('chatAvatar');
   if (chatAvatar) {
     const photo = getParticipantPhoto(other);
@@ -1253,19 +1241,10 @@ async function renderChat(conversationId){
   if (!chatDiv) return;
   chatDiv.innerHTML = '';
   const msgs = await loadBuyerMessages(conversationId);
-  const activeConvo = conversationsCache.find(c => String(c.id) === String(conversationId));
-  const activeItemInfo = getConversationItemContext(activeConvo);
   msgs.forEach(m => {
     const senderId = Number(m.sender_user_id || 0);
     const bubbleType = senderId === Number(currentBuyerId()) ? "outgoing" : "incoming";
     const messageText = m.message_text || "";
-
-    if (isApiGreetingMessage(messageText) && activeItemInfo.image) {
-      const preview = document.createElement("div");
-      preview.className = `chat-item-preview ${bubbleType}`;
-      preview.innerHTML = `<img src="${activeItemInfo.image}" alt="${activeItemInfo.name || "Item image"}">`;
-      chatDiv.appendChild(preview);
-    }
 
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${bubbleType}`;
@@ -1291,10 +1270,6 @@ function formatConversationTime(raw) {
     parsed.getDate() === now.getDate();
   if (isSameDay) return "Today";
   return parsed.toLocaleDateString();
-}
-
-function isApiGreetingMessage(text) {
-  return /^Hi!\s*Thanks for reaching out about/i.test(String(text || "").trim());
 }
 
 function formatBuyerMessageTime(msg) {
@@ -1545,24 +1520,15 @@ async function ensureConversationForProduct(product) {
     const result = await apiRequest("/conversations", {
       method: "POST",
       body: JSON.stringify({
-        listingProductId: product.id,
         participantUserIds: [currentBuyerId(), otherUserId]
       })
     });
     conversationId = String(result.conversationId || "");
-  } else {
-    await apiRequest("/conversations", {
-      method: "POST",
-      body: JSON.stringify({
-        listingProductId: product.id,
-        participantUserIds: [currentBuyerId(), otherUserId]
-      })
-    });
   }
 
   if (!conversationId) return "";
 
-  const greetingText = `Hi! Thanks for reaching out about "${product.name}" (Item #${product.id}). Let me know if you want more details.`;
+  const greetingText = "Hi! Thanks for reaching out. Let me know if you want more details.";
   const existingMessages = await loadBuyerMessages(conversationId);
   const hasSameGreeting = existingMessages.some(m => String(m.message_text || "").trim() === greetingText);
   if (!hasSameGreeting) {

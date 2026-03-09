@@ -412,7 +412,6 @@ async function openConversation(conversationId) {
   const otherName = otherParticipant?.fullname || getUserDisplayName(otherParticipant?.email || "") || "User";
   const otherEmail = otherParticipant?.email || "";
   const otherPhoto = getParticipantPhoto(otherParticipant);
-  const itemInfo = getConversationItemContext(convo);
 
   if (chatUserName) chatUserName.textContent = otherName;
   if (chatUserAvatar) {
@@ -421,13 +420,7 @@ async function openConversation(conversationId) {
     chatUserAvatar.style.backgroundPosition = otherPhoto ? "center" : "";
     chatUserAvatar.textContent = otherPhoto ? "" : getInitials(otherName) || "--";
   }
-  if (chatUserStatus) {
-    if (itemInfo.name) {
-      chatUserStatus.innerHTML = `<span class="chat-item-context">${itemInfo.image ? `<img src="${itemInfo.image}" alt="${itemInfo.name}">` : ""}<span>${itemInfo.name}</span></span>`;
-    } else {
-      chatUserStatus.textContent = "Online";
-    }
-  }
+  if (chatUserStatus) chatUserStatus.textContent = "Online";
 
   const messages = await loadConversationMessages(conversationId);
   renderChatMessages(messages);
@@ -448,25 +441,16 @@ async function ensureConversationForCurrentProduct() {
     const result = await apiRequest("/conversations", {
       method: "POST",
       body: JSON.stringify({
-        listingProductId: currentProduct.id,
         participantUserIds: [currentUserId, otherUserId]
       })
     });
     conversationId = String(result.conversationId || "");
-  } else {
-    await apiRequest("/conversations", {
-      method: "POST",
-      body: JSON.stringify({
-        listingProductId: currentProduct.id,
-        participantUserIds: [currentUserId, otherUserId]
-      })
-    });
   }
 
   activeConversationId = conversationId;
   if (!activeConversationId) return "";
 
-  const greetingText = `Hi! Thanks for reaching out about "${currentProduct.name}" (Item #${currentProduct.id}). Let me know if you want more details.`;
+  const greetingText = "Hi! Thanks for reaching out. Let me know if you want more details.";
   const existingMessages = await loadConversationMessages(activeConversationId);
   const hasSameGreeting = existingMessages.some(m => String(m.message_text || "").trim() === greetingText);
   if (!hasSameGreeting) {
@@ -488,22 +472,10 @@ async function ensureConversationForCurrentProduct() {
 function renderChatMessages(messages) {
   if (!chatBody) return;
   chatBody.innerHTML = "";
-  const activeConvo = getConversationById(activeConversationId);
-  const activeItemInfo = getConversationItemContext(activeConvo);
   messages.forEach(msg => {
     const senderId = Number(msg.sender_user_id || 0);
     const bubbleType = senderId === Number(currentUserId) ? "outgoing" : "incoming";
     const messageText = msg.message_text || "";
-
-    if (isApiGreetingMessage(messageText) && activeItemInfo.image) {
-      const preview = document.createElement("div");
-      preview.className = `chat-item-preview ${bubbleType}`;
-      const previewImg = document.createElement("img");
-      previewImg.src = activeItemInfo.image;
-      previewImg.alt = activeItemInfo.name || "Item image";
-      preview.appendChild(previewImg);
-      chatBody.appendChild(preview);
-    }
 
     const bubble = document.createElement("div");
     bubble.className = `chat-bubble ${bubbleType}`;
@@ -542,12 +514,7 @@ function renderConversations() {
     const otherParticipant = (convo.participants || []).find(p => Number(p.id) !== Number(currentUserId)) || {};
     const otherName = otherParticipant.fullname || getUserDisplayName(otherParticipant.email || "") || "User";
     const otherEmail = otherParticipant.email || "";
-    const itemInfo = getConversationItemContext(convo);
-    const itemLabel = itemInfo.name;
-    const previewParts = [];
-    if (itemLabel) previewParts.push(`Item: ${itemLabel}`);
-    if (convo.lastMessage?.text) previewParts.push(convo.lastMessage.text);
-    const preview = previewParts.join(" • ") || "No messages yet";
+    const preview = convo.lastMessage?.text || "No messages yet";
     const timeLabel = formatConversationTime(convo.lastMessage?.created_at);
     const isActive = String(convo.id) === String(activeConversationId);
 
@@ -641,10 +608,6 @@ function formatMessageTime(msg) {
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return String(raw);
   return parsed.toLocaleString();
-}
-
-function isApiGreetingMessage(text) {
-  return /^Hi!\s*Thanks for reaching out about/i.test(String(text || "").trim());
 }
 
 function formatItemPostedDate(rawDate) {
@@ -1358,7 +1321,23 @@ if (savedActiveConversation) {
   activeConversationId = savedActiveConversation;
 }
 
+function isBrowserReload() {
+  const navEntry = (typeof performance !== "undefined" && performance.getEntriesByType)
+    ? performance.getEntriesByType("navigation")[0]
+    : null;
+  const legacyReload = typeof performance !== "undefined"
+    && performance.navigation
+    && performance.navigation.type === 1;
+  return (navEntry?.type || (legacyReload ? "reload" : "")) === "reload";
+}
+
 async function initSellerApp() {
+  const refreshOnAuth = isBrowserReload() && savedAppState === "auth";
+  if (refreshOnAuth) {
+    showAuth();
+    return;
+  }
+
   if (!currentUserEmail) {
     try {
       const cachedUser = JSON.parse(localStorage.getItem("currentUser") || "null");

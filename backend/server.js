@@ -194,10 +194,31 @@ async function findExistingConversation(participantUserIds) {
   const sharedIds = (secondRows.data || []).map(row => row.conversation_id);
   if (!sharedIds.length) return null;
 
+  const allParticipants = await supabase
+    .from("conversation_participants")
+    .select("conversation_id, user_id")
+    .in("conversation_id", sharedIds);
+  if (allParticipants.error) return null;
+
+  const required = new Set(participants.map(id => Number(id)));
+  const exactMatchIds = [];
+  const grouped = {};
+  (allParticipants.data || []).forEach(row => {
+    const key = String(row.conversation_id);
+    if (!grouped[key]) grouped[key] = new Set();
+    grouped[key].add(Number(row.user_id));
+  });
+  Object.entries(grouped).forEach(([conversationId, userSet]) => {
+    if (userSet.size !== required.size) return;
+    const isExactMatch = Array.from(required).every(id => userSet.has(Number(id)));
+    if (isExactMatch) exactMatchIds.push(Number(conversationId));
+  });
+  if (!exactMatchIds.length) return null;
+
   const existing = await supabase
     .from("conversations")
     .select("id")
-    .in("id", sharedIds)
+    .in("id", exactMatchIds)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -832,25 +853,19 @@ app.get("/api/conversations", async (req, res) => {
 });
 
 app.post("/api/conversations", async (req, res) => {
-  const { listingProductId = null, participantUserIds = [] } = req.body || {};
+  const { participantUserIds = [] } = req.body || {};
   if (!Array.isArray(participantUserIds) || participantUserIds.length < 2) {
     return res.status(400).json({ error: "participantUserIds must contain at least 2 users." });
   }
 
   const existingId = await findExistingConversation(participantUserIds);
   if (existingId) {
-    if (listingProductId) {
-      await supabase
-        .from("conversations")
-        .update({ listing_product_id: Number(listingProductId) || null })
-        .eq("id", Number(existingId));
-    }
     return res.json({ conversationId: Number(existingId), existing: true });
   }
 
   const convo = await supabase
     .from("conversations")
-    .insert({ listing_product_id: listingProductId, created_at: nowIso() })
+    .insert({ listing_product_id: null, created_at: nowIso() })
     .select("id")
     .single();
   if (convo.error) return res.status(500).json({ error: convo.error.message });
