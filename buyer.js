@@ -31,6 +31,12 @@ const BUYER_LAST_PAGE_KEY = "essu_last_page";
 const BUYER_VIEW_STATE_KEY = "essu_buyer_view_state";
 const PRODUCTS_UPDATED_KEY = "essu_products_updated_at";
 
+function isRemovedProduct(product) {
+  const name = String(product?.name || "").trim().toLowerCase();
+  const price = Number(product?.price || 0);
+  return name === "jersey" && price === 250;
+}
+
 function markCurrentPage() {
   localStorage.setItem(BUYER_LAST_PAGE_KEY, "buyer.html");
 }
@@ -290,7 +296,7 @@ async function refreshProducts() {
     location: p.location || "",
     posted: p.posted || "",
     createdAt: p.createdAt || ""
-  }));
+  })).filter(p => !isRemovedProduct(p));
   return products;
 }
 

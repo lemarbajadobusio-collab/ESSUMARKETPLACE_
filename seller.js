@@ -180,6 +180,12 @@ let currentProduct = null;
 let activeConversationId = "";
 let editingListingId = "";
 
+function isRemovedProduct(product) {
+  const name = String(product?.name || "").trim().toLowerCase();
+  const price = Number(product?.price || 0);
+  return name === "jersey" && price === 250;
+}
+
 function notifyProductsUpdated() {
   localStorage.setItem(PRODUCTS_UPDATED_KEY, new Date().toISOString());
 }
@@ -299,7 +305,7 @@ async function loadUserData() {
     sellerName: item.sellerName || "Seller",
     sellerEmail: item.sellerEmail || "",
     sellerUserId: Number(item.sellerUserId || 0)
-  }));
+  })).filter(item => !isRemovedProduct(item));
 
   if (currentUserId) {
     const [txnData, cartData] = await Promise.all([
