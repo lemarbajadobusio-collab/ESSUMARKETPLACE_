@@ -1290,19 +1290,10 @@ async function renderChat(conversationId){
   if (!chatDiv) return;
   chatDiv.innerHTML = '';
   const msgs = await loadBuyerMessages(conversationId);
-  const activeConvo = conversationsCache.find(c => String(c.id) === String(conversationId));
-  const activeItemInfo = getConversationItemContext(activeConvo);
   msgs.forEach(m => {
     const senderId = Number(m.sender_user_id || 0);
     const bubbleType = senderId === Number(currentBuyerId()) ? "outgoing" : "incoming";
     const messageText = m.message_text || "";
-
-    if (isApiGreetingMessage(messageText) && activeItemInfo.image) {
-      const preview = document.createElement("div");
-      preview.className = `chat-item-preview ${bubbleType}`;
-      preview.innerHTML = `<img src="${activeItemInfo.image}" alt="${activeItemInfo.name || "Item image"}">`;
-      chatDiv.appendChild(preview);
-    }
 
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${bubbleType}`;
@@ -1328,10 +1319,6 @@ function formatConversationTime(raw) {
     parsed.getDate() === now.getDate();
   if (isSameDay) return "Today";
   return parsed.toLocaleDateString();
-}
-
-function isApiGreetingMessage(text) {
-  return /^Hi!\s*Thanks for reaching out/i.test(String(text || "").trim());
 }
 
 function formatBuyerMessageTime(msg) {
@@ -1599,7 +1586,6 @@ async function ensureConversationForProduct(product) {
     const result = await apiRequest("/conversations", {
       method: "POST",
       body: JSON.stringify({
-        listingProductId: product.id,
         participantUserIds: [currentBuyerId(), otherUserId]
       })
     });

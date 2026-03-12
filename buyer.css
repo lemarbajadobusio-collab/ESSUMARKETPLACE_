@@ -44,10 +44,21 @@ body{
 
 .auth-logo {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 10px;
   margin-bottom: 8px;
+}
+
+.auth-logo-image {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto;
+  background: transparent;
 }
 
 .auth-logo h1 {

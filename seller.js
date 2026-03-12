@@ -447,7 +447,6 @@ async function ensureConversationForCurrentProduct() {
     const result = await apiRequest("/conversations", {
       method: "POST",
       body: JSON.stringify({
-        listingProductId: currentProduct.id,
         participantUserIds: [currentUserId, otherUserId]
       })
     });
@@ -479,22 +478,10 @@ async function ensureConversationForCurrentProduct() {
 function renderChatMessages(messages) {
   if (!chatBody) return;
   chatBody.innerHTML = "";
-  const activeConvo = getConversationById(activeConversationId);
-  const activeItemInfo = getConversationItemContext(activeConvo);
   messages.forEach(msg => {
     const senderId = Number(msg.sender_user_id || 0);
     const bubbleType = senderId === Number(currentUserId) ? "outgoing" : "incoming";
     const messageText = msg.message_text || "";
-
-    if (isApiGreetingMessage(messageText) && activeItemInfo.image) {
-      const preview = document.createElement("div");
-      preview.className = `chat-item-preview ${bubbleType}`;
-      const previewImg = document.createElement("img");
-      previewImg.src = activeItemInfo.image;
-      previewImg.alt = activeItemInfo.name || "Item image";
-      preview.appendChild(previewImg);
-      chatBody.appendChild(preview);
-    }
 
     const bubble = document.createElement("div");
     bubble.className = `chat-bubble ${bubbleType}`;
@@ -627,10 +614,6 @@ function formatMessageTime(msg) {
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return String(raw);
   return parsed.toLocaleString();
-}
-
-function isApiGreetingMessage(text) {
-  return /^Hi!\s*Thanks for reaching out/i.test(String(text || "").trim());
 }
 
 function formatItemPostedDate(rawDate) {
@@ -1344,7 +1327,23 @@ if (savedActiveConversation) {
   activeConversationId = savedActiveConversation;
 }
 
+function isBrowserReload() {
+  const navEntry = (typeof performance !== "undefined" && performance.getEntriesByType)
+    ? performance.getEntriesByType("navigation")[0]
+    : null;
+  const legacyReload = typeof performance !== "undefined"
+    && performance.navigation
+    && performance.navigation.type === 1;
+  return (navEntry?.type || (legacyReload ? "reload" : "")) === "reload";
+}
+
 async function initSellerApp() {
+  const refreshOnAuth = isBrowserReload() && savedAppState === "auth";
+  if (refreshOnAuth) {
+    showAuth();
+    return;
+  }
+
   if (!currentUserEmail) {
     try {
       const cachedUser = JSON.parse(localStorage.getItem("currentUser") || "null");

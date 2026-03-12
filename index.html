@@ -11,8 +11,9 @@
     const LAST_PAGE_KEY = 'essu_last_page';
     localStorage.setItem(LAST_PAGE_KEY, 'index.html');
     const forceBuyerAuth = localStorage.getItem('essu_force_buyer_auth') === 'true';
-    const navEntry = performance.getEntriesByType('navigation')[0];
-    const isReload = navEntry?.type === 'reload';
+    const navEntry = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || null;
+    const legacyNavType = (performance.navigation && performance.navigation.type === 1) ? 'reload' : '';
+    const isReload = (navEntry?.type || legacyNavType) === 'reload';
 
     const isHosted = window.location.hostname.endsWith('github.io');
     let currentUser = null;
@@ -38,6 +39,7 @@
   <section class="auth">
     <div class="auth-header">
       <div class="auth-logo">
+        <img src="logo.png" alt="ESSU Marketplace logo" class="auth-logo-image">
         <h1>ESSU MARKETPLACE</h1>
       </div>
       <p>Welcome ESSUnians! Sign in to continue.</p>
