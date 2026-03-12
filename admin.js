@@ -75,6 +75,7 @@ async function ensureAdminAccess() {
     window.location.href = "index.html";
     return false;
   }
+  window.currentAdminId = Number(user.id || 0);
   return true;
 }
 
@@ -115,6 +116,72 @@ function renderTransactionChart(orders) {
   });
 }
 
+function renderTrendChart(orders) {
+  const canvas = document.getElementById("trendChart");
+  if (!canvas || typeof Chart === "undefined") return;
+  const ctx = canvas.getContext("2d");
+  if (window.trendChart) window.trendChart.destroy();
+
+  const last = (orders || []).slice(0, 7).reverse();
+  const labels = last.map((o, idx) => `T${idx + 1}`);
+  const data = last.map(o => Number(o.amount || 0));
+
+  window.trendChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Amount",
+          data,
+          borderColor: "#6ec6ff",
+          backgroundColor: "rgba(110,198,255,0.2)",
+          tension: 0.35,
+          fill: true,
+          pointRadius: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+function renderSoldChart(totalSold, totalAvailable) {
+  const canvas = document.getElementById("soldChart");
+  if (!canvas || typeof Chart === "undefined") return;
+  const ctx = canvas.getContext("2d");
+  if (window.soldChart) window.soldChart.destroy();
+
+  window.soldChart = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["Sold", "Available"],
+      datasets: [
+        {
+          data: [totalSold, totalAvailable],
+          backgroundColor: ["#6ec6ff", "#b9f3e4"],
+          borderWidth: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: "bottom" }
+      },
+      cutout: "70%"
+    }
+  });
+}
+
 async function loadAdminData() {
   try {
     const [summaryData, usersData, productsData, transactionsData] = await Promise.all([
@@ -128,42 +195,23 @@ async function loadAdminData() {
     const products = productsData.products || [];
     const orders = transactionsData.transactions || [];
 
-    document.getElementById("totalUsers").textContent = summaryData.totalUsers ?? users.length;
-    document.getElementById("totalProducts").textContent = summaryData.totalProducts ?? products.length;
-    document.getElementById("totalTransactions").textContent = summaryData.totalTransactions ?? orders.length;
+    const totalUsers = summaryData.totalUsers ?? users.length;
+    const totalProducts = summaryData.totalProducts ?? products.length;
+    const totalTransactions = summaryData.totalTransactions ?? orders.length;
+    const totalSold = products.filter(p => String(p.status || "").toLowerCase() === "sold").length;
+    const totalAvailable = Math.max(0, totalProducts - totalSold);
+
+    document.getElementById("totalUsers").textContent = totalUsers;
+    document.getElementById("totalProducts").textContent = totalProducts;
+    document.getElementById("totalTransactions").textContent = totalTransactions;
 
     const totalRevenue = orders.reduce((sum, order) => sum + Number(order.amount || 0), 0);
     const totalRevenueEl = document.getElementById("totalRevenue");
     if (totalRevenueEl) totalRevenueEl.textContent = `Total Revenue: ₱${totalRevenue.toLocaleString()}`;
 
-    const usersBody = document.querySelector("#usersTable tbody");
-    if (usersBody) {
-      usersBody.innerHTML = "";
-      users.forEach((user, index) => {
-        usersBody.innerHTML += `
-          <tr>
-            <td>U${index + 1}</td>
-            <td>${user.fullname || user.email || "-"}</td>
-            <td>${user.role || "-"}</td>
-            <td>${user.status || "-"}</td>
-          </tr>
-        `;
-      });
-    }
+    renderUsersTable(users);
 
-    const productsBody = document.querySelector("#productsTable tbody");
-    if (productsBody) {
-      productsBody.innerHTML = "";
-      products.forEach(product => {
-        productsBody.innerHTML += `
-          <tr>
-            <td>${product.name || "-"}</td>
-            <td>${product.sellerName || "-"}</td>
-            <td>${product.status || "-"}</td>
-          </tr>
-        `;
-      });
-    }
+    renderProductsTable(products);
 
     const ordersBody = document.querySelector("#ordersTable tbody");
     if (ordersBody) {
@@ -181,10 +229,98 @@ async function loadAdminData() {
     }
 
     renderTransactionChart(orders);
+    renderTrendChart(orders);
+    renderSoldChart(totalSold, totalAvailable);
   } catch (error) {
     console.error(error);
     alert(`Failed to load admin data: ${error.message}`);
   }
+}
+
+function renderUsersTable(users) {
+  const usersBody = document.querySelector("#usersTable tbody");
+  if (!usersBody) return;
+  usersBody.innerHTML = "";
+  users.forEach((user, index) => {
+    const status = String(user.status || "-").toUpperCase();
+    const statusClass =
+      status === "ACTIVE"
+        ? "status-active"
+        : status === "SUSPENDED"
+          ? "status-suspended"
+          : "status-inactive";
+    const isAdmin = String(user.role || "").toLowerCase() === "admin";
+    const isSelf = Number(user.id || 0) === Number(window.currentAdminId || 0);
+    const disableActions = isAdmin || isSelf;
+    const reason = isSelf ? "You cannot modify your own account." : "Admin accounts cannot be modified.";
+
+    usersBody.innerHTML += `
+      <tr>
+        <td>U${index + 1}</td>
+        <td>${user.fullname || user.email || "-"}</td>
+        <td>${user.role || "-"}</td>
+        <td>
+          <span class="status-badge ${statusClass}">${status}</span>
+          <div class="action-buttons">
+            <button class="btn btn-sm btn-warning" data-action="ban" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Suspend user and remove their products"}">Ban</button>
+            <button class="btn btn-sm btn-danger" data-action="delete" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Delete user and all related data"}">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function handleUserAction(action, userId, userName) {
+  if (!userId || !action) return;
+  if (action === "ban") {
+    if (!confirm(`Ban ${userName}? This will suspend the account and remove their products.`)) return;
+    await apiRequest(`/users/${userId}/ban`, { method: "POST" });
+    await loadAdminData();
+    return;
+  }
+  if (action === "delete") {
+    if (!confirm(`Delete ${userName}? This will permanently remove the user and their products.`)) return;
+    await apiRequest(`/users/${userId}`, { method: "DELETE" });
+    await loadAdminData();
+  }
+}
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...options
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+function renderProductsTable(products) {
+  const productsBody = document.querySelector("#productsTable tbody");
+  if (!productsBody) return;
+  productsBody.innerHTML = "";
+  products.forEach(product => {
+    productsBody.innerHTML += `
+      <tr>
+        <td>${product.name || "-"}</td>
+        <td>${product.sellerName || "-"}</td>
+        <td>
+          <span class="status-badge ${String(product.status || "").toLowerCase() === "sold" ? "status-inactive" : "status-active"}">${product.status || "-"}</span>
+          <div class="action-buttons">
+            <button class="btn btn-sm btn-danger" data-action="delete-product" data-product-id="${product.id}" data-product-name="${product.name || "Product"}">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function handleProductDelete(productId, productName) {
+  if (!productId) return;
+  if (!confirm(`Delete ${productName}? This will permanently remove the product.`)) return;
+  await apiRequest(`/products/${productId}`, { method: "DELETE" });
+  await loadAdminData();
 }
 
 function setupUI() {
@@ -213,6 +349,39 @@ function setupUI() {
       document.querySelectorAll("#productsTable tbody tr").forEach(tr => {
         tr.style.display = tr.children[0].textContent.toLowerCase().includes(filter) ? "" : "none";
       });
+    });
+  }
+
+  const productsTable = document.getElementById("productsTable");
+  if (productsTable) {
+    productsTable.addEventListener("click", async event => {
+      const button = event.target.closest("button[data-action='delete-product']");
+      if (!button) return;
+      const productId = Number(button.getAttribute("data-product-id") || 0);
+      const productName = button.getAttribute("data-product-name") || "Product";
+      try {
+        await handleProductDelete(productId, productName);
+      } catch (error) {
+        console.error(error);
+        alert(error.message || "Delete failed.");
+      }
+    });
+  }
+
+  const usersTable = document.getElementById("usersTable");
+  if (usersTable) {
+    usersTable.addEventListener("click", async event => {
+      const button = event.target.closest("button[data-action]");
+      if (!button || button.disabled) return;
+      const action = button.getAttribute("data-action");
+      const userId = Number(button.getAttribute("data-user-id") || 0);
+      const userName = button.getAttribute("data-user-name") || "User";
+      try {
+        await handleUserAction(action, userId, userName);
+      } catch (error) {
+        console.error(error);
+        alert(error.message || "Action failed.");
+      }
     });
   }
 }
