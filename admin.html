@@ -30,7 +30,10 @@
 
         <a href="#" data-section="dashboard" onclick="showSection('dashboard', this); return false;" class="active">Dashboard</a>
         <a href="#" data-section="users" onclick="showSection('users', this); return false;">User Management</a>
+        <a href="#" data-section="banned-users" onclick="showSection('banned-users', this); return false;">Banned Users</a>
+        <a href="#" data-section="deleted-users" onclick="showSection('deleted-users', this); return false;">Deleted Users</a>
         <a href="#" data-section="products" onclick="showSection('products', this); return false;">Product Monitoring</a>
+        <a href="#" data-section="deleted" onclick="showSection('deleted', this); return false;">Deleted Items</a>
         <a href="#" data-section="orders" onclick="showSection('orders', this); return false;">Orders & Transactions</a>
         <a href="#" data-section="reports" onclick="showSection('reports', this); return false;">Reports</a>
 
@@ -85,6 +88,18 @@
                 </div>
             </div>
 
+            <div class="row g-3 mt-3">
+                <div class="col-lg-6 col-12">
+                    <div class="card p-3 analytics-card">
+                        <div class="analytics-header">
+                            <div class="analytics-title">Sold vs Purchased</div>
+                            <div class="analytics-subtitle">Sold items and purchases</div>
+                        </div>
+                        <canvas id="salesPurchaseChart" height="140"></canvas>
+                    </div>
+                </div>
+            </div>
+
             <div class="mt-4">
                 <canvas id="transactionChart" height="100"></canvas>
             </div>
@@ -127,6 +142,58 @@
             </div>
         </div>
 
+        <!-- BANNED USERS -->
+        <div id="banned-users" class="section d-none">
+            <h2>Banned Users</h2>
+            <p class="text-muted">Banned users will appear here when logging is enabled.</p>
+            <div class="table-wrap">
+                <table class="table table-striped mt-3" id="bannedUsersTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Banned At</th>
+                            <th>Banned By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>-</td>
+                            <td>No records yet</td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- DELETED USERS -->
+        <div id="deleted-users" class="section d-none">
+            <h2>Deleted Users</h2>
+            <p class="text-muted">Deleted users will appear here when logging is enabled.</p>
+            <div class="table-wrap">
+                <table class="table table-striped mt-3" id="deletedUsersTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Deleted At</th>
+                            <th>Deleted By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>-</td>
+                            <td>No records yet</td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- ORDERS -->
         <div id="orders" class="section d-none">
             <h2>Orders & Transactions</h2>
@@ -145,6 +212,31 @@
             </div>
         </div>
 
+                <!-- DELETED -->
+        <div id="deleted" class="section d-none">
+            <h2>Deleted Items</h2>
+            <p class="text-muted">Deleted users and products will appear here when logging is enabled.</p>
+            <div class="table-wrap">
+                <table class="table table-striped mt-3" id="deletedTable">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Name</th>
+                            <th>Deleted At</th>
+                            <th>Deleted By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>-</td>
+                            <td>No records yet</td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
         <!-- REPORTS -->
         <div id="reports" class="section d-none">
             <h2>Reports</h2>
@@ -158,3 +250,5 @@
 <script src="admin.js?v=20260217b"></script>
 </body>
 </html>
+
+
