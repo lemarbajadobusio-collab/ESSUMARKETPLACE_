@@ -45,9 +45,44 @@ body {
     font-weight: bold;
 }
 
+.sidebar-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.sidebar-logo-img {
+    height: 56px;
+    width: auto;
+    object-fit: contain;
+}
+
 .card {
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.analytics-card {
+    background: #ffffff;
+}
+
+.analytics-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.analytics-title {
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.analytics-subtitle {
+    font-size: 0.8rem;
+    color: #64748b;
 }
 
 input[type="text"] {
@@ -63,6 +98,37 @@ input[type="text"] {
 .table-wrap .table {
     min-width: 640px;
     margin-bottom: 0;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.status-active {
+    background: #eaf7ef;
+    color: #1e8e3e;
+}
+
+.status-suspended {
+    background: #fdecec;
+    color: #b42318;
+}
+
+.status-inactive {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
 }
 
 /* RESPONSIVE */
