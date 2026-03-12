@@ -23,6 +23,9 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
+        <div class="sidebar-logo">
+            <img class="sidebar-logo-img" src="logo.png" alt="ESSU Marketplace Logo">
+        </div>
         <h4 class="text-center">Admin Panel</h4>
 
         <a href="#" data-section="dashboard" onclick="showSection('dashboard', this); return false;" class="active">Dashboard</a>
@@ -57,6 +60,27 @@
                     <div class="card text-center p-3">
                         <h5>Total Transactions</h5>
                         <h3 id="totalTransactions">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-3">
+                <div class="col-lg-7 col-12">
+                    <div class="card p-3 analytics-card">
+                        <div class="analytics-header">
+                            <div class="analytics-title">Transactions Trend</div>
+                            <div class="analytics-subtitle">Last 7 records</div>
+                        </div>
+                        <canvas id="trendChart" height="140"></canvas>
+                    </div>
+                </div>
+                <div class="col-lg-5 col-12">
+                    <div class="card p-3 analytics-card">
+                        <div class="analytics-header">
+                            <div class="analytics-title">Sold Ratio</div>
+                            <div class="analytics-subtitle">Products sold vs available</div>
+                        </div>
+                        <canvas id="soldChart" height="140"></canvas>
                     </div>
                 </div>
             </div>
