@@ -128,6 +128,28 @@ function sanitizeUser(row) {
   };
 }
 
+async function deleteProductsBySeller(userId) {
+  const products = await supabase
+    .from("products")
+    .select("id, cover_image, images_json")
+    .eq("seller_user_id", userId);
+  if (products.error) throw products.error;
+  const urls = [];
+  (products.data || []).forEach(product => {
+    if (product.cover_image) urls.push(product.cover_image);
+    if (Array.isArray(product.images_json)) urls.push(...product.images_json);
+  });
+
+  if ((products.data || []).length) {
+    const removed = await supabase.from("products").delete().eq("seller_user_id", userId);
+    if (removed.error) throw removed.error;
+  }
+
+  if (urls.length) {
+    await deleteBucketFiles(urls);
+  }
+}
+
 async function ensureCart(userId) {
   const existing = await supabase.from("carts").select("id").eq("user_id", userId).maybeSingle();
   if (existing.error) throw existing.error;
@@ -384,6 +406,75 @@ app.patch("/api/users/:id", async (req, res) => {
     await deleteBucketFiles([previousPhoto]);
   }
   return res.json({ user: sanitizeUser(updated.data) });
+});
+
+app.post("/api/users/:id/ban", async (req, res) => {
+  const userId = Number(req.params.id);
+  const existingUser = await supabase.from("users").select("id, role").eq("id", userId).maybeSingle();
+  if (existingUser.error) return res.status(500).json({ error: existingUser.error.message });
+  if (!existingUser.data) return res.status(404).json({ error: "User not found." });
+  if (existingUser.data.role === "admin") {
+    return res.status(403).json({ error: "Admin accounts cannot be banned." });
+  }
+
+  const updated = await supabase
+    .from("users")
+    .update({ status: "SUSPENDED", updated_at: nowIso() })
+    .eq("id", userId)
+    .select("*")
+    .maybeSingle();
+  if (updated.error) return res.status(500).json({ error: updated.error.message });
+
+  try {
+    await deleteProductsBySeller(userId);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  return res.json({ user: sanitizeUser(updated.data) });
+});
+
+app.delete("/api/users/:id", async (req, res) => {
+  const userId = Number(req.params.id);
+  const existingUser = await supabase
+    .from("users")
+    .select("id, role, email, photo")
+    .eq("id", userId)
+    .maybeSingle();
+  if (existingUser.error) return res.status(500).json({ error: existingUser.error.message });
+  if (!existingUser.data) return res.status(404).json({ error: "User not found." });
+  if (existingUser.data.role === "admin") {
+    return res.status(403).json({ error: "Admin accounts cannot be deleted." });
+  }
+
+  const products = await supabase
+    .from("products")
+    .select("cover_image, images_json")
+    .eq("seller_user_id", userId);
+  if (products.error) return res.status(500).json({ error: products.error.message });
+
+  const deleteUser = await supabase.from("users").delete().eq("id", userId).select("id").maybeSingle();
+  if (deleteUser.error) return res.status(500).json({ error: deleteUser.error.message });
+  if (!deleteUser.data) return res.status(404).json({ error: "User not found." });
+
+  const urls = [];
+  (products.data || []).forEach(product => {
+    if (product.cover_image) urls.push(product.cover_image);
+    if (Array.isArray(product.images_json)) urls.push(...product.images_json);
+  });
+  if (existingUser.data.photo) urls.push(existingUser.data.photo);
+  if (urls.length) {
+    await deleteBucketFiles(urls);
+  }
+
+  if (supabaseAdmin && existingUser.data.email) {
+    const authUserId = await findAuthUserIdByEmail(existingUser.data.email);
+    if (authUserId) {
+      await supabaseAdmin.auth.admin.deleteUser(authUserId);
+    }
+  }
+
+  return res.json({ ok: true });
 });
 
 app.get("/api/products", async (req, res) => {
