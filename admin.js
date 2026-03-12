@@ -182,6 +182,37 @@ function renderSoldChart(totalSold, totalAvailable) {
   });
 }
 
+function renderSalesPurchaseChart(totalSold, totalTransactions) {
+  const canvas = document.getElementById("salesPurchaseChart");
+  if (!canvas || typeof Chart === "undefined") return;
+  const ctx = canvas.getContext("2d");
+  if (window.salesPurchaseChart) window.salesPurchaseChart.destroy();
+
+  window.salesPurchaseChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["Sold", "Purchased"],
+      datasets: [
+        {
+          label: "Count",
+          data: [totalSold, totalTransactions],
+          backgroundColor: ["#4ade80", "#60a5fa"],
+          borderRadius: 8
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 } }
+      }
+    }
+  });
+}
+
 async function loadAdminData() {
   try {
     const [summaryData, usersData, productsData, transactionsData] = await Promise.all([
@@ -231,6 +262,7 @@ async function loadAdminData() {
     renderTransactionChart(orders);
     renderTrendChart(orders);
     renderSoldChart(totalSold, totalAvailable);
+    renderSalesPurchaseChart(totalSold, totalTransactions);
   } catch (error) {
     console.error(error);
     alert(`Failed to load admin data: ${error.message}`);
