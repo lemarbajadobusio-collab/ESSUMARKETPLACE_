@@ -527,7 +527,7 @@ app.get("/api/products", async (req, res) => {
     .from("products")
     .select("*, seller:users!products_seller_user_id_fkey(fullname,email)")
     .order("created_at", { ascending: false });
-  if (!includeSold) q = q.neq("status", "sold");
+  if (!includeSold) q = q.eq("status", "available").gt("available_qty", 0);
   const rows = await q;
   if (rows.error) return res.status(500).json({ error: rows.error.message });
 
@@ -545,6 +545,7 @@ app.get("/api/products", async (req, res) => {
     image: row.cover_image,
     images: Array.isArray(row.images_json) ? row.images_json : [],
     status: row.status,
+    availableQty: Number(row.available_qty ?? 1),
     posted: row.posted_label,
     views: Number(row.views || 0),
     createdAt: row.created_at
@@ -562,7 +563,8 @@ app.post("/api/products", async (req, res) => {
     location = "",
     description = "",
     image = "",
-    images = []
+    images = [],
+    availableQty = 1
   } = req.body || {};
 
   if (!sellerUserId || !name || !category || price == null || !condition) {
@@ -576,6 +578,8 @@ app.post("/api/products", async (req, res) => {
   const normalizedImages = await normalizeImagesArray(images, "products");
   const normalizedCover = await normalizeImageInput(image || normalizedImages[0] || "", "products");
 
+  const normalizedQty = Math.max(0, Math.floor(Number(availableQty) || 0));
+  const normalizedStatus = normalizedQty > 0 ? "available" : "unavailable";
   const inserted = await supabase
     .from("products")
     .insert({
@@ -588,7 +592,8 @@ app.post("/api/products", async (req, res) => {
       description,
       cover_image: normalizedCover,
       images_json: normalizedImages,
-      status: "available",
+      status: normalizedStatus,
+      available_qty: normalizedQty,
       posted_label: "Just now",
       views: 0,
       created_at: nowIso(),
@@ -610,7 +615,8 @@ app.patch("/api/products/:id", async (req, res) => {
     location,
     description,
     image,
-    images
+    images,
+    availableQty
   } = req.body || {};
 
   const existing = await supabase
@@ -628,6 +634,11 @@ app.patch("/api/products/:id", async (req, res) => {
   if (typeof condition === "string") updatePayload.item_condition = condition;
   if (typeof location === "string") updatePayload.location = location;
   if (typeof description === "string") updatePayload.description = description;
+  if (availableQty != null) {
+    const normalizedQty = Math.max(0, Math.floor(Number(availableQty) || 0));
+    updatePayload.available_qty = normalizedQty;
+    updatePayload.status = normalizedQty > 0 ? "available" : "unavailable";
+  }
   if (typeof image === "string") updatePayload.cover_image = await normalizeImageInput(image, "products");
   if (Array.isArray(images)) updatePayload.images_json = await normalizeImagesArray(images, "products");
 
@@ -694,7 +705,7 @@ app.get("/api/cart/:userId", async (req, res) => {
     const cartId = await ensureCart(userId);
     const items = await supabase
       .from("cart_items")
-      .select("id, qty, product:products(id,name,price,cover_image,status,seller_user_id, seller:users!products_seller_user_id_fkey(id,fullname))")
+      .select("id, qty, product:products(id,name,price,cover_image,status,available_qty,seller_user_id, seller:users!products_seller_user_id_fkey(id,fullname))")
       .eq("cart_id", cartId)
       .order("created_at", { ascending: false });
     if (items.error) return res.status(500).json({ error: items.error.message });
@@ -707,6 +718,7 @@ app.get("/api/cart/:userId", async (req, res) => {
       price: Number(it.product?.price || 0),
       cover_image: it.product?.cover_image || "",
       status: it.product?.status || "",
+      available_qty: Number(it.product?.available_qty ?? 0),
       seller_name: it.product?.seller?.fullname || "",
       seller_user_id: Number(it.product?.seller_user_id || 0)
     }));
@@ -726,6 +738,7 @@ app.post("/api/cart/:userId/items", async (req, res) => {
     if (productRow.error) return res.status(500).json({ error: productRow.error.message });
     if (!productRow.data) return res.status(404).json({ error: "Product not found." });
     if (productRow.data.status !== "available") return res.status(400).json({ error: "Product is not available." });
+    if (Number(productRow.data.available_qty ?? 0) <= 0) return res.status(400).json({ error: "Product is out of stock." });
     if (Number(productRow.data.seller_user_id) === userId) return res.status(400).json({ error: "Cannot add your own listing." });
 
     const cartId = await ensureCart(userId);
@@ -738,10 +751,15 @@ app.post("/api/cart/:userId/items", async (req, res) => {
     if (existing.error) return res.status(500).json({ error: existing.error.message });
 
     const quantity = Math.max(1, Number(qty) || 1);
+    const availableQty = Math.max(0, Number(productRow.data.available_qty) || 0);
+    const existingQty = Number(existing.data?.qty || 0);
+    if (existingQty + quantity > availableQty) {
+      return res.status(400).json({ error: `Only ${availableQty} item(s) available.` });
+    }
     if (existing.data?.id) {
       const updated = await supabase
         .from("cart_items")
-        .update({ qty: Number(existing.data.qty) + quantity })
+        .update({ qty: existingQty + quantity })
         .eq("id", existing.data.id);
       if (updated.error) return res.status(500).json({ error: updated.error.message });
     } else {
@@ -781,6 +799,14 @@ app.patch("/api/cart/:userId/items/:productId", async (req, res) => {
       const removed = await supabase.from("cart_items").delete().eq("cart_id", cartId).eq("product_id", productId);
       if (removed.error) return res.status(500).json({ error: removed.error.message });
     } else {
+      const productRow = await supabase.from("products").select("id,status,available_qty").eq("id", productId).maybeSingle();
+      if (productRow.error) return res.status(500).json({ error: productRow.error.message });
+      if (!productRow.data) return res.status(404).json({ error: "Product not found." });
+      if (productRow.data.status !== "available") return res.status(400).json({ error: "Product is not available." });
+      const availableQty = Math.max(0, Number(productRow.data.available_qty) || 0);
+      if (qty > availableQty) {
+        return res.status(400).json({ error: `Only ${availableQty} item(s) available.` });
+      }
       const updated = await supabase
         .from("cart_items")
         .update({ qty: Math.max(1, Math.floor(qty)) })
@@ -804,7 +830,7 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
 
     const cartItems = await supabase
       .from("cart_items")
-      .select("id, qty, product:products(id,name,price,status,seller_user_id)")
+      .select("id, qty, product:products(id,name,price,status,available_qty,seller_user_id)")
       .eq("cart_id", cartId);
     if (cartItems.error) return res.status(500).json({ error: cartItems.error.message });
     if (!cartItems.data?.length) return res.status(400).json({ error: "Cart is empty." });
@@ -824,10 +850,18 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
       if (product.status !== "available") continue;
       if (Number(product.seller_user_id) === buyerUserId) continue;
       const qty = Math.max(1, Number(item.qty) || 1);
+      const availableQty = Math.max(0, Number(product.available_qty) || 0);
+      if (qty > availableQty) {
+        return res.status(400).json({ error: `Insufficient stock for ${product.name}.` });
+      }
 
       const productUpdate = await supabase
         .from("products")
-        .update({ status: "sold", updated_at: nowIso() })
+        .update({
+          available_qty: Math.max(0, availableQty - qty),
+          status: availableQty - qty <= 0 ? "sold" : "available",
+          updated_at: nowIso()
+        })
         .eq("id", product.id)
         .eq("status", "available");
       if (productUpdate.error) return res.status(500).json({ error: productUpdate.error.message });
