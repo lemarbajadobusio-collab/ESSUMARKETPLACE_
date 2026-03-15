@@ -953,7 +953,7 @@ async function confirmOrderFromModal(){
   addActivity('order_placed', buyer, { id: `TXN-${Date.now()}`, total: checkoutResult.total });
 
   // Add notifications
-  addNotification(buyer, `Your purchase has been placed successfully!`);
+  addNotification(buyer, `Your order has been placed and is pending processing.`);
 
   // Clear temp address and review
   localStorage.removeItem('tempAddress');
@@ -964,7 +964,7 @@ async function confirmOrderFromModal(){
   updateCartBadge();
   closeCheckoutModal();
   closeMiniCart();
-  showToast("Order placed - check Profile for details");
+  showToast("Order placed - status: Pending");
 }
 
 function backToPaymentStep() {
