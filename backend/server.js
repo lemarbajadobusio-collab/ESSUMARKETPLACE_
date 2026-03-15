@@ -838,7 +838,7 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
         seller_user_id: product.seller_user_id,
         item_name: qty > 1 ? `${product.name} (x${qty})` : product.name,
         amount: Number(product.price) * qty,
-        status: "Completed",
+        status: "Pending",
         created_at: nowIso()
       });
       if (txnInsert.error) return res.status(500).json({ error: txnInsert.error.message });
