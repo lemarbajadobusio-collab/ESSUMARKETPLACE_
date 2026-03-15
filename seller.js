@@ -507,6 +507,11 @@ function renderConversations() {
     const preview = String(convo.lastMessage?.text || "").toLowerCase();
     return otherName.includes(searchTerm) || otherEmail.includes(searchTerm) || preview.includes(searchTerm);
   });
+  conversations.sort((a, b) => {
+    const aTime = new Date(a.lastMessage?.created_at || 0).getTime();
+    const bTime = new Date(b.lastMessage?.created_at || 0).getTime();
+    return bTime - aTime;
+  });
 
   if (!activeConversationId && conversations.length && !isMobileMessagesView()) {
     activeConversationId = String(conversations[0].id);
@@ -1373,6 +1378,13 @@ async function initSellerApp() {
       if (user?.id && !currentUserId) {
         setCurrentUserId(user.id);
       }
+      if (user?.status && user.status !== "ACTIVE") {
+        alert("Your seller account is pending admin approval. Please wait for confirmation.");
+        setCurrentUserEmail("");
+        localStorage.removeItem("currentUser");
+        showAuth();
+        return;
+      }
       applyUserProfile(user);
       applyProfilePhoto(getUserPhoto(currentUserEmail));
       await loadConversations();
@@ -1432,7 +1444,7 @@ function updateProfileFromSignup() {
   if (profileEmail && signupEmail) profileEmail.textContent = signupEmail.value;
   if (profileMobile && signupMobile) profileMobile.textContent = signupMobile.value;
   if (profileMemberSince) profileMemberSince.textContent = String(new Date().getFullYear());
-  if (profileStatus) profileStatus.textContent = "ACTIVE";
+  if (profileStatus) profileStatus.textContent = "PENDING APPROVAL";
 }
 
 function updateProfileFromLogin(user) {
@@ -1457,6 +1469,16 @@ function fillProfileEditForm() {
 
 function isGmailEmail(email) {
   return /@gmail\.com$/i.test(email.trim());
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve("");
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Unable to read the uploaded file."));
+    reader.readAsDataURL(file);
+  });
 }
 
 function loadUsers() {
@@ -1663,6 +1685,13 @@ if (signupTab) {
 const toSignupBtn = document.getElementById("toSignupBtn");
 const toLoginBtn = document.getElementById("toLoginBtn");
 const toBuyerLoginBtn = document.getElementById("toBuyerLoginBtn");
+const commissionProofInput = document.getElementById("commissionProof");
+const commissionPreview = document.getElementById("commissionPreview");
+const commissionFileName = document.getElementById("commissionFileName");
+const signupStep1 = document.getElementById("signupStep1");
+const signupStep2 = document.getElementById("signupStep2");
+const toCommissionStepBtn = document.getElementById("toCommissionStepBtn");
+const backToAccountStepBtn = document.getElementById("backToAccountStepBtn");
 
 if (toSignupBtn) {
   toSignupBtn.addEventListener("click", () => activateTab("signup"));
@@ -1680,6 +1709,77 @@ if (toBuyerLoginBtn) {
     localStorage.removeItem("essu_current_user_id");
     localStorage.removeItem("currentUser");
     window.location.href = "index.html";
+  });
+}
+
+function showSignupStep(step) {
+  if (!signupStep1 || !signupStep2) return;
+  if (step === 2) {
+    signupStep1.setAttribute("hidden", "hidden");
+    signupStep2.removeAttribute("hidden");
+  } else {
+    signupStep2.setAttribute("hidden", "hidden");
+    signupStep1.removeAttribute("hidden");
+  }
+}
+
+if (toCommissionStepBtn) {
+  toCommissionStepBtn.addEventListener("click", () => {
+    const email = document.getElementById("signupEmail");
+    const password = document.getElementById("signupPassword");
+    const confirmPassword = document.getElementById("signupConfirmPassword");
+    const fullname = document.getElementById("signupFullname");
+    const mobile = document.getElementById("signupMobile");
+
+    if (!email || !password || !confirmPassword || !fullname || !mobile) return;
+
+    if (!fullname.value.trim() || !mobile.value.trim()) {
+      alert("Please complete all required sign up fields.");
+      return;
+    }
+    if (!isGmailEmail(email.value)) {
+      alert("Please use a valid Gmail address (name@gmail.com).");
+      return;
+    }
+    if (password.value.trim().length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+    if (password.value !== confirmPassword.value) {
+      alert("The password and confirm password fields do not match. Please re-enter both fields to proceed.");
+      return;
+    }
+
+    showSignupStep(2);
+  });
+}
+
+if (backToAccountStepBtn) {
+  backToAccountStepBtn.addEventListener("click", () => {
+    showSignupStep(1);
+  });
+}
+
+if (commissionProofInput && commissionPreview) {
+  commissionProofInput.addEventListener("change", async () => {
+    const file = commissionProofInput.files?.[0];
+    if (!file) {
+      commissionPreview.setAttribute("hidden", "hidden");
+      commissionPreview.removeAttribute("src");
+      if (commissionFileName) commissionFileName.textContent = "JPG or PNG (max 5MB)";
+      return;
+    }
+    try {
+      const previewUrl = await readFileAsDataUrl(file);
+      commissionPreview.src = previewUrl;
+      commissionPreview.removeAttribute("hidden");
+      if (commissionFileName) commissionFileName.textContent = file.name;
+    } catch (error) {
+      console.error(error);
+      commissionPreview.setAttribute("hidden", "hidden");
+      commissionPreview.removeAttribute("src");
+      if (commissionFileName) commissionFileName.textContent = "JPG or PNG (max 5MB)";
+    }
   });
 }
 
@@ -1722,6 +1822,10 @@ if (loginForm) {
         alert("This account is not a seller or admin account.");
         return;
       }
+      if (user.status && user.status !== "ACTIVE") {
+        alert("Your seller account is pending admin approval. Please wait for confirmation.");
+        return;
+      }
       setCurrentUserEmail(user.email);
       setCurrentUserId(user.id);
       localStorage.setItem("currentUser", JSON.stringify(user));
@@ -1750,6 +1854,9 @@ if (signupForm) {
     const confirmPassword = document.getElementById("signupConfirmPassword");
     const fullname = document.getElementById("signupFullname");
     const mobile = document.getElementById("signupMobile");
+    const commissionRef = document.getElementById("commissionRef");
+    const commissionProof = document.getElementById("commissionProof");
+    const termsAgree = document.getElementById("termsAgree");
 
     if (!email || !password || !confirmPassword || !fullname || !mobile) return;
 
@@ -1773,7 +1880,33 @@ if (signupForm) {
       return;
     }
 
+    if (!termsAgree || !termsAgree.checked) {
+      alert("Please accept the Terms and Conditions to continue.");
+      return;
+    }
+
+    if (!commissionRef || !commissionRef.value.trim()) {
+      alert("Please enter the GCash reference number.");
+      return;
+    }
+
+    const proofFile = commissionProof?.files?.[0];
+    if (!proofFile) {
+      alert("Please upload your proof of payment.");
+      return;
+    }
+    if (proofFile.size > 5 * 1024 * 1024) {
+      alert("Proof of payment must be 5MB or smaller.");
+      return;
+    }
+    const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+    if (!allowedTypes.includes(proofFile.type)) {
+      alert("Please upload a JPG or PNG image for proof of payment.");
+      return;
+    }
+
     try {
+      const proofDataUrl = await readFileAsDataUrl(proofFile);
       await apiRequest("/auth/register", {
         method: "POST",
         body: JSON.stringify({
@@ -1781,12 +1914,16 @@ if (signupForm) {
           email: email.value.trim(),
           password: password.value,
           mobile: mobile.value.trim(),
-          role: "seller"
+          role: "seller",
+          commissionReference: commissionRef?.value?.trim() || "",
+          commissionProof: proofDataUrl,
+          commissionAmount: 30,
+          commissionStatus: "PENDING"
         })
       });
       await loadUserData();
       updateProfileFromSignup();
-      alert("Account created. You can now Log In");
+      alert("Your account is submitted for verification. Please wait for admin approval before logging in.");
       activateTab("login");
     } catch (error) {
       alert(error.message || "Sign up failed.");

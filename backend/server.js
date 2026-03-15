@@ -124,7 +124,12 @@ function sanitizeUser(row) {
     mobile: row.mobile || "",
     status: row.status,
     photo: row.photo || "",
-    joinedAt: row.joined_at
+    joinedAt: row.joined_at,
+    commissionReference: row.commission_reference || "",
+    commissionProof: row.commission_proof || "",
+    commissionAmount: Number(row.commission_amount || 0),
+    commissionStatus: row.commission_status || "NONE",
+    commissionRejectionReason: row.commission_rejection_reason || ""
   };
 }
 
@@ -264,7 +269,17 @@ app.get("/", (_req, res) => {
 
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { fullname, email, password, role = "buyer", mobile = "" } = req.body || {};
+    const {
+      fullname,
+      email,
+      password,
+      role = "buyer",
+      mobile = "",
+      commissionReference = "",
+      commissionProof = "",
+      commissionAmount = 0,
+      commissionStatus = ""
+    } = req.body || {};
     if (!fullname || !email || !password) {
       return res.status(400).json({ error: "fullname, email, and password are required." });
     }
@@ -291,6 +306,13 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
+    const normalizedCommissionProof = commissionProof
+      ? await normalizeImageInput(commissionProof, "commissions")
+      : "";
+    const nextStatus = role === "seller" ? "INACTIVE" : "ACTIVE";
+    const nextCommissionStatus = role === "seller" ? (commissionStatus || "PENDING") : "NONE";
+    const nextCommissionAmount = role === "seller" ? Number(commissionAmount || 30) : 0;
+
     const created = await supabase
       .from("users")
       .insert({
@@ -299,6 +321,11 @@ app.post("/api/auth/register", async (req, res) => {
         password_hash: hash,
         role,
         mobile: mobile.trim(),
+        status: nextStatus,
+        commission_reference: String(commissionReference || "").trim(),
+        commission_proof: normalizedCommissionProof,
+        commission_amount: nextCommissionAmount,
+        commission_status: nextCommissionStatus,
         joined_at: nowIso(),
         updated_at: nowIso()
       })
@@ -362,7 +389,17 @@ app.get("/api/users", async (_req, res) => {
 
 app.patch("/api/users/:id", async (req, res) => {
   const userId = Number(req.params.id);
-  const { fullname, mobile, photo, status, role, email, password } = req.body || {};
+  const {
+    fullname,
+    mobile,
+    photo,
+    status,
+    role,
+    email,
+    password,
+    commissionStatus,
+    commissionRejectionReason
+  } = req.body || {};
 
   const existingUser = await supabase.from("users").select("id, photo, email").eq("id", userId).maybeSingle();
   if (existingUser.error) return res.status(500).json({ error: existingUser.error.message });
@@ -375,6 +412,13 @@ app.patch("/api/users/:id", async (req, res) => {
   if (typeof status === "string") updatePayload.status = status;
   if (typeof role === "string") updatePayload.role = role;
   if (typeof email === "string") updatePayload.email = email.trim().toLowerCase();
+  if (typeof commissionStatus === "string") {
+    updatePayload.commission_status = commissionStatus;
+    if (commissionStatus === "APPROVED") updatePayload.commission_rejection_reason = "";
+  }
+  if (typeof commissionRejectionReason === "string") {
+    updatePayload.commission_rejection_reason = commissionRejectionReason.trim();
+  }
   if (typeof password === "string" && password.trim()) {
     updatePayload.password_hash = await bcrypt.hash(password, 10);
   }

@@ -52,46 +52,115 @@
     </form>
 
     <form class="auth-form" id="signupForm" hidden>
-      <div class="input-grid signup-grid">
-        <div class="input-group">
-          <label for="signupFullname">Full Name</label>
-          <input id="signupFullname" type="text"  required />
-        </div>
-        <div class="input-group">
-          <label for="signupEmail">Email Address</label>
-          <input id="signupEmail" type="email"  required />
-        </div>
-        <div class="input-group">
-          <label for="signupMobile">Contact Number</label>
-          <input id="signupMobile" type="tel"  required />
-        </div>
-        <div class="input-group full">
-          <label for="signupPassword">Create Password</label>
-          <div class="password-field">
-            <input id="signupPassword" type="password"  required />
-            <button type="button" class="toggle-password" data-target="signupPassword" aria-label="Show password">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5c5.05 0 9.27 3.11 11 7-1.73 3.89-5.95 7-11 7S2.73 15.89 1 12c1.73-3.89 5.95-7 11-7zm0 2C8.38 7 5.25 9.09 3.7 12 5.25 14.91 8.38 17 12 17s6.75-2.09 8.3-5C18.75 9.09 15.62 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
-              </svg>
-            </button>
+      <div class="signup-step" id="signupStep1">
+        <div class="step-indicator centered">
+          <span class="step-label">Step 1 of 2 • Account Info</span>
+          <div class="step-bar">
+            <span class="step-fill" style="width: 50%;"></span>
           </div>
         </div>
-        <div class="input-group full">
-          <label for="signupConfirmPassword">Confirm password</label>
-          <div class="password-field">
-            <input id="signupConfirmPassword" type="password"  required />
-            <button type="button" class="toggle-password" data-target="signupConfirmPassword" aria-label="Show password">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5c5.05 0 9.27 3.11 11 7-1.73 3.89-5.95 7-11 7S2.73 15.89 1 12c1.73-3.89 5.95-7 11-7zm0 2C8.38 7 5.25 9.09 3.7 12 5.25 14.91 8.38 17 12 17s6.75-2.09 8.3-5C18.75 9.09 15.62 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
-              </svg>
-            </button>
+        <div class="input-grid signup-grid">
+          <div class="input-group">
+            <label for="signupFullname">Full Name</label>
+            <input id="signupFullname" type="text" required />
           </div>
+          <div class="input-group">
+            <label for="signupEmail">Email Address</label>
+            <input id="signupEmail" type="email" required />
+          </div>
+          <div class="input-group">
+            <label for="signupMobile">Contact Number</label>
+            <input id="signupMobile" type="tel" required />
+          </div>
+          <div class="input-group full">
+            <label for="signupPassword">Create Password</label>
+            <div class="password-field">
+              <input id="signupPassword" type="password" required />
+              <button type="button" class="toggle-password" data-target="signupPassword" aria-label="Show password">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5c5.05 0 9.27 3.11 11 7-1.73 3.89-5.95 7-11 7S2.73 15.89 1 12c1.73-3.89 5.95-7 11-7zm0 2C8.38 7 5.25 9.09 3.7 12 5.25 14.91 8.38 17 12 17s6.75-2.09 8.3-5C18.75 9.09 15.62 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label for="signupConfirmPassword">Confirm password</label>
+            <div class="password-field">
+              <input id="signupConfirmPassword" type="password" required />
+              <button type="button" class="toggle-password" data-target="signupConfirmPassword" aria-label="Show password">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5c5.05 0 9.27 3.11 11 7-1.73 3.89-5.95 7-11 7S2.73 15.89 1 12c1.73-3.89 5.95-7 11-7zm0 2C8.38 7 5.25 9.09 3.7 12 5.25 14.91 8.38 17 12 17s6.75-2.09 8.3-5C18.75 9.09 15.62 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="signup-nav">
+          <button class="primary-btn" type="button" id="toCommissionStepBtn">Next</button>
+        </div>
+      </div>
+      <div class="signup-step" id="signupStep2" hidden>
+        <div class="step-indicator centered">
+          <span class="step-label">Step 2 of 2 • Commission &amp; Terms</span>
+          <div class="step-bar">
+            <span class="step-fill" style="width: 100%;"></span>
+          </div>
+        </div>
+        <div class="commission-card">
+        <div class="commission-header">
+          <span class="commission-title">Commission Payment (₱30 one-time)</span>
+          <span class="commission-tag">GCash</span>
+        </div>
+        <p class="commission-sub">Send ₱30 to activate your seller account.</p>
+        <div class="commission-info">
+          <div>
+            <span class="commission-label">GCash Name</span>
+            <strong>Lemar B.</strong>
+          </div>
+          <div>
+            <span class="commission-label">GCash Number</span>
+            <strong>0905 831 5682</strong>
+          </div>
+        </div>
+        <p class="commission-note">After payment, upload proof below. Your account will be reviewed and approved by the admin before you can sell.</p>
+        </div>
+        <div class="input-group full">
+          <label for="commissionRef">GCash Reference Number</label>
+          <input id="commissionRef" type="text" placeholder="Enter the GCash reference number" required />
+        </div>
+        <div class="input-group full">
+          <label for="commissionProof">Upload Proof of Payment</label>
+          <input id="commissionProof" type="file" accept="image/*" required hidden />
+          <label class="upload-card" for="commissionProof">
+            <span class="upload-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M7 16a4 4 0 0 1 0-8 5 5 0 0 1 9.9 1.5A3.5 3.5 0 1 1 18.5 16H7zm5-9-4 4h3v4h2v-4h3l-4-4z"/>
+              </svg>
+            </span>
+            <span class="upload-text">
+              <strong>Click to upload</strong>
+              <span id="commissionFileName">JPG or PNG (max 5MB)</span>
+            </span>
+          </label>
+          <img id="commissionPreview" class="commission-preview" alt="Proof preview" hidden />
+          <small class="field-hint">Accepted: JPG, PNG (max 5MB).</small>
+        </div>
+        <div class="terms-box">
+          <h4>Terms and Conditions</h4>
+          <p>By creating a seller account, you agree to pay the ₱30 one-time commission and allow the admin to verify your payment. You also agree to provide accurate listings, respond to buyers respectfully, and follow marketplace rules. Any violations may result in account suspension.</p>
+          <label class="terms-check">
+            <input type="checkbox" id="termsAgree" required />
+            <span>I agree to the Terms and Conditions and the commission payment policy.</span>
+          </label>
+        </div>
+        <div class="signup-nav">
+          <button class="secondary-btn" type="button" id="backToAccountStepBtn">Back</button>
+          <button class="primary-btn" type="submit">Submit for verification</button>
         </div>
       </div>
       <div class="auth-note" id="signupStatusNote" hidden>
         Account created. Please log in to continue.
       </div>
-      <button class="primary-btn" type="submit">Submit for verification</button>
       <p class="auth-switch">Already have an account? <button type="button" class="link-btn" id="toLoginBtn">Log In</button></p>
       <p class="auth-hint">Seller registration requires a valid Gmail address.</p>
     </form>
@@ -367,6 +436,7 @@
 
       <div class="profile-contact">
         <div><strong>Email:</strong> <span id="profileEmail">--</span></div>
+        <div><strong>Contact Number:</strong> <span id="profileMobile">--</span></div>
         <div><strong>Member since:</strong> <span id="profileMemberSince">--</span></div>
         <div><strong>Status:</strong> <span id="profileStatus">--</span></div>
       </div>

@@ -1,4 +1,4 @@
-function resolveApiBase() {
+﻿function resolveApiBase() {
   const configured = typeof window !== "undefined" ? window.ESSU_API_BASE : "";
   if (typeof configured === "string" && configured.trim()) {
     return configured.trim().replace(/\/+$/, "");
@@ -279,10 +279,28 @@ async function loadAdminData() {
 }
 
 function renderUsersTable(users) {
-  const usersBody = document.querySelector("#usersTable tbody");
-  if (!usersBody) return;
-  usersBody.innerHTML = "";
-  users.forEach((user, index) => {
+  const sellersBody = document.getElementById("sellersTableBody");
+  const buyersBody = document.getElementById("buyersTableBody");
+  const totalSellersEl = document.getElementById("totalSellers");
+  const totalBuyersEl = document.getElementById("totalBuyers");
+  const pendingSellerBtn = document.getElementById("pendingSellerBtn");
+  if (!sellersBody || !buyersBody) return;
+
+  sellersBody.innerHTML = "";
+  buyersBody.innerHTML = "";
+
+  const sellers = (users || []).filter(u => String(u.role || "").toLowerCase() === "seller");
+  const buyers = (users || []).filter(u => String(u.role || "").toLowerCase() === "buyer");
+  const pendingSellers = sellers.filter(u => String(u.status || "").toUpperCase() === "INACTIVE");
+
+  if (totalSellersEl) totalSellersEl.textContent = String(sellers.length);
+  if (totalBuyersEl) totalBuyersEl.textContent = String(buyers.length);
+  if (pendingSellerBtn) {
+    pendingSellerBtn.textContent = `Pending seller approvals: ${pendingSellers.length}`;
+    pendingSellerBtn.dataset.target = "sellersPanel";
+  }
+
+  const renderRow = (user, index, targetBody) => {
     const status = String(user.status || "-").toUpperCase();
     const statusClass =
       status === "ACTIVE"
@@ -294,26 +312,69 @@ function renderUsersTable(users) {
     const isSelf = Number(user.id || 0) === Number(window.currentAdminId || 0);
     const disableActions = isAdmin || isSelf;
     const reason = isSelf ? "You cannot modify your own account." : "Admin accounts cannot be modified.";
+    const showApprove = String(user.role || "").toLowerCase() === "seller" && status === "INACTIVE";
 
-    usersBody.innerHTML += `
+    const commissionAmount = Number(user.commissionAmount || 0);
+    const commissionStatus = String(user.commissionStatus || "NONE").toUpperCase();
+    const commissionRef = String(user.commissionReference || "").trim();
+    const commissionProof = String(user.commissionProof || "").trim();
+    const commissionDisplay = commissionAmount
+      ? `₱${commissionAmount.toLocaleString()} • ${commissionStatus}`
+      : commissionStatus;
+
+    targetBody.innerHTML += `
       <tr>
         <td>U${index + 1}</td>
         <td>${user.fullname || user.email || "-"}</td>
+        <td>${user.email || "-"}</td>
         <td>${user.role || "-"}</td>
+        <td>${commissionDisplay || "-"}</td>
+        <td>${commissionRef || "-"}</td>
+        <td>
+          ${commissionProof ? `<a class="proof-thumb" href="${commissionProof}" target="_blank" rel="noopener"><img src="${commissionProof}" alt="Proof thumbnail"></a>` : "-"}
+        </td>
         <td>
           <span class="status-badge ${statusClass}">${status}</span>
           <div class="action-buttons">
+            ${showApprove ? `<button class="btn btn-sm btn-success" data-action="approve" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Approve seller account"}">Approve</button>` : ""}
+            ${showApprove ? `<button class="btn btn-sm btn-outline-danger" data-action="reject" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Reject proof and request re-upload"}">Reject</button>` : ""}
             <button class="btn btn-sm btn-warning" data-action="ban" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Suspend user and remove their products"}">Ban</button>
             <button class="btn btn-sm btn-danger" data-action="delete" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Delete user and all related data"}">Delete</button>
           </div>
         </td>
       </tr>
     `;
-  });
+  };
+
+  sellers.forEach((user, index) => renderRow(user, index, sellersBody));
+  buyers.forEach((user, index) => renderRow(user, index, buyersBody));
 }
 
 async function handleUserAction(action, userId, userName) {
   if (!userId || !action) return;
+  if (action === "approve") {
+    if (!confirm(`Approve ${userName}? This will activate their seller account.`)) return;
+    await apiRequest(`/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "ACTIVE", commissionStatus: "APPROVED" })
+    });
+    await loadAdminData();
+    return;
+  }
+  if (action === "reject") {
+    const reasonText = prompt(`Reject ${userName}? Enter a reason for re-upload:`) || "";
+    if (!reasonText.trim()) return;
+    await apiRequest(`/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: "INACTIVE",
+        commissionStatus: "REJECTED",
+        commissionRejectionReason: reasonText.trim()
+      })
+    });
+    await loadAdminData();
+    return;
+  }
   if (action === "ban") {
     if (!confirm(`Ban ${userName}? This will suspend the account and remove their products.`)) return;
     await apiRequest(`/users/${userId}/ban`, { method: "POST" });
@@ -384,9 +445,62 @@ function setupUI() {
   if (userSearch) {
     userSearch.addEventListener("input", function onInput() {
       const filter = this.value.toLowerCase();
-      document.querySelectorAll("#usersTable tbody tr").forEach(tr => {
-        tr.style.display = tr.children[1].textContent.toLowerCase().includes(filter) ? "" : "none";
+      document.querySelectorAll("#sellersTable tbody tr, #buyersTable tbody tr").forEach(tr => {
+        const rowText = tr.textContent.toLowerCase();
+        tr.style.display = rowText.includes(filter) ? "" : "none";
       });
+    });
+  }
+
+  const userTabs = document.querySelectorAll(".user-tab");
+  const backBtn = document.getElementById("userListBackBtn");
+  const panels = document.querySelectorAll(".user-panel");
+  const userListHeader = document.getElementById("userListHeader");
+  const userListHeading = document.getElementById("userListHeading");
+  const userStats = document.getElementById("userStats");
+  const pendingSellerBtn = document.getElementById("pendingSellerBtn");
+  const userHelper = document.querySelector(".user-helper");
+  const showPanel = targetId => {
+    panels.forEach(panel => {
+      if (panel.id === targetId) panel.classList.remove("d-none");
+      else panel.classList.add("d-none");
+    });
+    userTabs.forEach(tab => tab.classList.add("d-none"));
+    if (userStats) userStats.classList.add("d-none");
+    if (pendingSellerBtn) pendingSellerBtn.classList.add("d-none");
+    if (userHelper) userHelper.classList.add("d-none");
+    if (userListHeader) userListHeader.classList.remove("d-none");
+  };
+  const showChooser = () => {
+    panels.forEach(panel => panel.classList.add("d-none"));
+    userTabs.forEach(tab => tab.classList.remove("d-none"));
+    if (userStats) userStats.classList.remove("d-none");
+    if (pendingSellerBtn) pendingSellerBtn.classList.remove("d-none");
+    if (userHelper) userHelper.classList.remove("d-none");
+    if (userListHeader) userListHeader.classList.add("d-none");
+  };
+  if (userTabs.length) {
+    showChooser();
+    userTabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        const target = tab.getAttribute("data-target");
+        if (userListHeading) {
+          userListHeading.textContent = target === "sellersPanel" ? "Seller Users" : "Buyer Users";
+        }
+        if (target) showPanel(target);
+      });
+    });
+  }
+  if (pendingSellerBtn) {
+    pendingSellerBtn.addEventListener("click", () => {
+      if (userListHeading) userListHeading.textContent = "Seller Users";
+      showPanel("sellersPanel");
+    });
+  }
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
+      if (userListHeading) userListHeading.textContent = "Users";
+      showChooser();
     });
   }
 
@@ -416,9 +530,10 @@ function setupUI() {
     });
   }
 
-  const usersTable = document.getElementById("usersTable");
-  if (usersTable) {
-    usersTable.addEventListener("click", async event => {
+  const usersTables = [document.getElementById("sellersTable"), document.getElementById("buyersTable")];
+  usersTables.forEach(table => {
+    if (!table) return;
+    table.addEventListener("click", async event => {
       const button = event.target.closest("button[data-action]");
       if (!button || button.disabled) return;
       const action = button.getAttribute("data-action");
@@ -431,7 +546,7 @@ function setupUI() {
         alert(error.message || "Action failed.");
       }
     });
-  }
+  });
 }
 
 window.addEventListener("load", async () => {
@@ -442,3 +557,4 @@ window.addEventListener("load", async () => {
   if (!allowed) return;
   await loadAdminData();
 });
+

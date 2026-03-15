@@ -110,19 +110,59 @@
 
         <!-- USERS -->
         <div id="users" class="section d-none">
-            <h2>User Management</h2>
-            <input type="text" id="userSearch" class="form-control mb-2" placeholder="Search users...">
-            <div class="table-wrap">
-                <table class="table table-striped mt-1" id="usersTable">
+            <h2 id="userListHeading">Users</h2>
+            <p class="user-helper">Choose a list to manage users. You can search, approve, or reject sellers inside the list.</p>
+            <div class="user-stats" id="userStats">
+                <div class="user-stat-card">
+                    <span class="label">Total Sellers</span>
+                    <strong id="totalSellers">0</strong>
+                </div>
+                <div class="user-stat-card">
+                    <span class="label">Total Buyers</span>
+                    <strong id="totalBuyers">0</strong>
+                </div>
+            </div>
+            <button class="pending-chip" type="button" id="pendingSellerBtn">Pending seller approvals: 0</button>
+            <div class="user-tabs">
+                <button class="user-tab" type="button" data-target="sellersPanel">Seller Users</button>
+                <button class="user-tab" type="button" data-target="buyersPanel">Buyer Users</button>
+            </div>
+            <div class="user-list-header d-none" id="userListHeader">
+                <input type="text" id="userSearch" class="form-control" placeholder="Search users...">
+                <button class="user-back-btn" type="button" id="userListBackBtn">Back</button>
+            </div>
+            <div class="table-wrap user-panel" id="sellersPanel">
+                <table class="table table-striped mt-1" id="sellersTable">
                     <thead>
                         <tr>
                             <th>ID</th>
                             <th>Name</th>
+                            <th>Email</th>
                             <th>Role</th>
+                            <th>Commission</th>
+                            <th>GCash Ref</th>
+                            <th>Proof</th>
                             <th>Action</th>
                         </tr>
                     </thead>
-                    <tbody></tbody>
+                    <tbody id="sellersTableBody"></tbody>
+                </table>
+            </div>
+            <div class="table-wrap user-panel d-none" id="buyersPanel">
+                <table class="table table-striped mt-1" id="buyersTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Commission</th>
+                            <th>GCash Ref</th>
+                            <th>Proof</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="buyersTableBody"></tbody>
                 </table>
             </div>
         </div>

@@ -1170,6 +1170,11 @@ async function renderMessages(options = {}){
     const preview = String(convo.lastMessage?.text || "").toLowerCase();
     return otherName.includes(searchTerm) || otherEmail.includes(searchTerm) || preview.includes(searchTerm);
   });
+  filteredConversations.sort((a, b) => {
+    const aTime = new Date(a.lastMessage?.created_at || 0).getTime();
+    const bTime = new Date(b.lastMessage?.created_at || 0).getTime();
+    return bTime - aTime;
+  });
 
   if (!filteredConversations.length) {
     list.innerHTML = '<p class="muted">No messages yet.</p>';

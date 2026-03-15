@@ -10,11 +10,27 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT NOT NULL DEFAULT 'buyer' CHECK (role IN ('buyer', 'seller', 'admin')),
   mobile TEXT DEFAULT '',
   status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED')),
+  commission_reference TEXT DEFAULT '',
+  commission_proof TEXT DEFAULT '',
+  commission_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  commission_status TEXT NOT NULL DEFAULT 'NONE' CHECK (commission_status IN ('NONE', 'PENDING', 'APPROVED', 'REJECTED')),
+  commission_rejection_reason TEXT DEFAULT '',
   photo TEXT DEFAULT '',
   joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE IF EXISTS users
+  ADD COLUMN IF NOT EXISTS commission_reference TEXT DEFAULT '';
+ALTER TABLE IF EXISTS users
+  ADD COLUMN IF NOT EXISTS commission_proof TEXT DEFAULT '';
+ALTER TABLE IF EXISTS users
+  ADD COLUMN IF NOT EXISTS commission_amount NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE IF EXISTS users
+  ADD COLUMN IF NOT EXISTS commission_status TEXT NOT NULL DEFAULT 'NONE';
+ALTER TABLE IF EXISTS users
+  ADD COLUMN IF NOT EXISTS commission_rejection_reason TEXT DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS products (
   id BIGSERIAL PRIMARY KEY,
