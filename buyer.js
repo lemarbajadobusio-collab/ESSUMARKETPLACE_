@@ -30,6 +30,7 @@ const WISHLIST_FILLED = "\u2665";
 const BUYER_LAST_PAGE_KEY = "essu_last_page";
 const BUYER_VIEW_STATE_KEY = "essu_buyer_view_state";
 const PRODUCTS_UPDATED_KEY = "essu_products_updated_at";
+const BUYER_ADDRESS_KEY_PREFIX = "essu_buyer_address_";
 
 function isRemovedProduct(product) {
   const name = String(product?.name || "").trim().toLowerCase();
@@ -96,6 +97,40 @@ function currentBuyer() {
 
 function currentBuyerId() {
   return Number(localStorage.getItem("buyer_user_id") || 0);
+}
+
+function getBuyerAddressKey() {
+  const id = currentBuyerId();
+  const buyer = currentBuyer();
+  return `${BUYER_ADDRESS_KEY_PREFIX}${id || buyer || "anon"}`;
+}
+
+function getSavedBuyerAddress() {
+  try {
+    return JSON.parse(localStorage.getItem(getBuyerAddressKey()) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function hasSavedBuyerAddress(address) {
+  if (!address) return false;
+  return Boolean(
+    address.fullname ||
+    address.phone ||
+    address.city ||
+    address.campus ||
+    address.department ||
+    address.instructions
+  );
+}
+
+function saveBuyerAddress(address) {
+  if (!hasSavedBuyerAddress(address)) {
+    localStorage.removeItem(getBuyerAddressKey());
+    return;
+  }
+  localStorage.setItem(getBuyerAddressKey(), JSON.stringify(address));
 }
 
 function setBuyerSession(user) {
@@ -293,6 +328,7 @@ async function refreshProducts() {
     condition: p.condition || "Used",
     category: p.category || "Other",
     status: p.status || "available",
+    availableQty: Number(p.availableQty ?? 1),
     location: p.location || "",
     posted: p.posted || "",
     createdAt: p.createdAt || ""
@@ -426,10 +462,11 @@ function renderProductCard(p) {
   const description = p.desc ? p.desc : "No description provided.";
   const conditionLabel = String(p.condition || "N/A");
   const sold = String(p.status || "available").toLowerCase() === "sold";
+  const availableQty = Math.max(0, Number(p.availableQty ?? 0));
   const sellerPhoto = getUserPhotoByEmail(p.sellerEmail || "");
   const sellerInitials = getInitialsFromName(p.seller);
   const canInteractWithSeller = Number(p.sellerUserId || 0) !== Number(currentBuyerId() || 0);
-  const canAddToCart = canInteractWithSeller && !sold;
+  const canAddToCart = canInteractWithSeller && !sold && availableQty > 0;
   const sellerAvatarMarkup = sellerPhoto
     ? `<span class="seller-avatar" style="background-image:url('${sellerPhoto}')"></span>`
     : `<span class="seller-avatar">${sellerInitials}</span>`;
@@ -589,7 +626,8 @@ function normalizeCart(c){
     price: i.price,
     img: i.img,
     seller: i.seller || i.seller_name || "Seller",
-    qty: i.qty && i.qty > 0 ? i.qty : 1
+    qty: i.qty && i.qty > 0 ? i.qty : 1,
+    availableQty: Math.max(0, Number(i.available_qty ?? i.availableQty ?? 0))
   }));
 }
 
@@ -598,6 +636,10 @@ async function addToCart(id) {
   if (!item) return;
   if (String(item.status || "available").toLowerCase() === "sold") {
     alert("This item is already sold.");
+    return;
+  }
+  if (Number(item.availableQty ?? 0) <= 0) {
+    alert("This item is out of stock.");
     return;
   }
   if (!currentBuyerId()) {
@@ -649,7 +691,7 @@ function renderCart() {
               <div class="cart-qty-controls">
                 <button class="cart-qty-btn" type="button" onclick="changeQty(${i},-1)">-</button>
                 <span class="cart-qty-value">${item.qty}</span>
-                <button class="cart-qty-btn" type="button" onclick="changeQty(${i},1)">+</button>
+                <button class="cart-qty-btn" type="button" onclick="changeQty(${i},1)" ${item.qty >= item.availableQty ? "disabled" : ""}>+</button>
               </div>
             </div>
           </div>
@@ -683,6 +725,10 @@ async function changeQty(index, delta){
   const item = cart[index];
   if (!item || !currentBuyerId()) return;
   const nextQty = (Number(item.qty) || 1) + Number(delta || 0);
+  if (delta > 0 && Number(item.availableQty || 0) > 0 && nextQty > Number(item.availableQty)) {
+    alert(`Only ${item.availableQty} item(s) available.`);
+    return;
+  }
   try {
     await apiRequest(`/cart/${currentBuyerId()}/items/${item.id}`, {
       method: "PATCH",
@@ -729,7 +775,8 @@ async function loadCart(){
       price: Number(item.price),
       img: item.cover_image || "",
       seller_name: item.seller_name || "Seller",
-      qty: Number(item.qty || 1)
+      qty: Number(item.qty || 1),
+      available_qty: Number(item.available_qty ?? 0)
     })));
     return cart;
   } catch (error) {
@@ -803,6 +850,8 @@ function openBuyerCheckoutModal(){
   }
   const backdrop = document.getElementById('checkoutModalBackdrop');
   if (backdrop) backdrop.removeAttribute('hidden');
+  updateCheckoutAddressSelect();
+  applyCheckoutAddressSelection();
   saveBuyerViewState({ checkoutOpen: true, checkoutStep: "address" });
 }
 
@@ -810,6 +859,57 @@ function closeBuyerCheckoutModal(){
   const backdrop = document.getElementById('checkoutModalBackdrop');
   if (backdrop) backdrop.setAttribute('hidden', 'hidden');
   saveBuyerViewState({ checkoutOpen: false, checkoutStep: "" });
+}
+
+function updateCheckoutAddressSelect() {
+  const select = document.getElementById('deliveryAddressSelect');
+  const hint = document.getElementById('deliveryAddressHint');
+  if (!select) return;
+  const address = getSavedBuyerAddress();
+  const hasSaved = hasSavedBuyerAddress(address);
+  const profileOption = Array.from(select.options).find(opt => opt.value === "profile");
+  if (profileOption) profileOption.disabled = !hasSaved;
+  if (hint) {
+    hint.textContent = hasSaved
+      ? "Profile address available."
+      : "No saved profile address yet.";
+  }
+  if (!hasSaved && select.value === "profile") {
+    select.value = "manual";
+  }
+  if (hasSaved && select.value !== "manual" && select.value !== "profile") {
+    select.value = "profile";
+  }
+  if (hasSaved && select.value === "manual") {
+    const name = document.getElementById('deliveryFullname')?.value.trim() || "";
+    const phone = document.getElementById('deliveryPhone')?.value.trim() || "";
+    const city = document.getElementById('deliveryCity')?.value.trim() || "";
+    const campus = document.getElementById('deliveryCampus')?.value.trim() || "";
+    const department = document.getElementById('deliveryDepartment')?.value.trim() || "";
+    if (!name && !phone && !city && !campus && !department) {
+      select.value = "profile";
+    }
+  }
+}
+
+function applyCheckoutAddressSelection() {
+  const select = document.getElementById('deliveryAddressSelect');
+  if (!select) return;
+  if (select.value !== "profile") return;
+  const address = getSavedBuyerAddress();
+  if (!hasSavedBuyerAddress(address)) return;
+  const map = {
+    deliveryFullname: address.fullname || "",
+    deliveryPhone: address.phone || "",
+    deliveryCity: address.city || "",
+    deliveryCampus: address.campus || "",
+    deliveryDepartment: address.department || "",
+    deliveryInstructions: address.instructions || ""
+  };
+  Object.entries(map).forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  });
 }
 
 async function confirmBuyerCheckout(){
@@ -859,8 +959,13 @@ async function confirmBuyerCheckout(){
   // Log order placement for admin
   addActivity('order_placed', buyer, { id: `TXN-${Date.now()}`, total: checkoutResult.total });
 
+  const selectedProduct = products.find(p => Number(p.id) === Number(selectedProductId));
+  const orderLabel = checkoutResult?.purchased?.[0]?.item || selectedProduct?.name || "Item";
   // Add notifications
-  addNotification(buyer, `Your order has been placed and is pending processing.`);
+  addNotification(
+    buyer,
+    `Your order has been placed: ${orderLabel}. Status: Pending.`
+  );
 
   await loadCart();
   renderCart();
@@ -1578,7 +1683,6 @@ function openItemModal(productId) {
   const detailPosted = document.getElementById('detailPosted');
   if (detailPosted) detailPosted.textContent = `Posted: ${formatItemPostedDate(product.createdAt || product.posted)}`;
 
-
   const detailDescription = document.getElementById('detailDescription');
   if (detailDescription) detailDescription.textContent = product.desc || 'No description provided.';
 
@@ -1937,6 +2041,7 @@ async function updateBuyerProfileSection() {
   const memberSinceEl = document.getElementById('buyerProfileMemberSince');
   const statusEl = document.getElementById('buyerProfileStatus');
   const ordersEl = document.getElementById('buyerProfileOrders');
+  const addressEl = document.getElementById('buyerProfileAddress');
   if (!avatarDiv || !nameH3 || !emailEl || !memberSinceEl || !statusEl || !ordersEl) return;
 
   if (buyer) {
@@ -1957,10 +2062,34 @@ async function updateBuyerProfileSection() {
       avatarDiv.textContent = getInitialsFromFullName(displayName);
     }
 
+    if (addressEl) {
+      const address = getSavedBuyerAddress();
+      if (hasSavedBuyerAddress(address)) {
+        addressEl.innerHTML = `
+          <div><strong>${address.fullname || ""}</strong></div>
+          <div>${address.phone || ""}</div>
+          <div>${address.city || ""}</div>
+          <div>Campus: ${address.campus || ""}</div>
+          <div>Department: ${address.department || ""}</div>
+          ${address.instructions ? `<div>Notes: ${address.instructions}</div>` : ""}
+        `;
+      } else {
+        addressEl.textContent = "No saved address yet.";
+      }
+    }
+
     let userOrders = [];
+    let productById = {};
     try {
       const tx = await apiRequest(`/transactions?userId=${currentBuyerId()}`);
       userOrders = (tx.transactions || []).filter(o => o.type === "Purchase");
+    } catch {}
+    try {
+      const productData = await apiRequest("/products?includeSold=true");
+      productById = (productData.products || []).reduce((acc, p) => {
+        acc[Number(p.id)] = p;
+        return acc;
+      }, {});
     } catch {}
     ordersEl.innerHTML = '';
     if (userOrders.length === 0) {
@@ -1969,15 +2098,37 @@ async function updateBuyerProfileSection() {
       userOrders.forEach(order => {
         const orderDiv = document.createElement('div');
         orderDiv.className = 'sidebar-order-item';
+        let status = order.status || "Pending";
+        const statusNormalized = String(status).toLowerCase();
+        if (statusNormalized === "processing") status = "Pending";
+        const statusClass =
+          statusNormalized === "pending" || statusNormalized === "processing"
+            ? "status-pending"
+            : "status-completed";
+        const product = productById[Number(order.listingId)] || null;
+        const title = order.item || product?.name || "Item";
+        const img = product?.image || "";
+        const thumbHtml = img
+          ? `<img src="${img}" alt="${title}">`
+          : `<span>${title.slice(0, 1).toUpperCase()}</span>`;
+        const proofThumb = order.deliveryProof
+          ? `<button type="button" class="sidebar-order-proof-thumb" data-proof="${order.deliveryProof}" aria-label="View proof of receipt">
+               <img src="${order.deliveryProof}" alt="Proof of receipt">
+             </button>`
+          : `<button type="button" class="sidebar-order-upload" data-transaction-id="${order.id}">Upload receipt proof</button>`;
         orderDiv.innerHTML = `
-          <div class="sidebar-order-header">
-            <strong>${order.id}</strong>
-            <div class="sidebar-order-total">PHP ${order.amount}</div>
+          <div class="sidebar-order-main">
+            <div class="sidebar-order-thumb">${thumbHtml}</div>
+            <div class="sidebar-order-info">
+              <div class="sidebar-order-title">${title}</div>
+              <div class="sidebar-order-date">${order.date || "-"}</div>
+              <div class="sidebar-order-status ${statusClass}">${status}</div>
+            </div>
+            <div class="sidebar-order-total">PHP ${Number(order.amount || 0).toLocaleString()}</div>
           </div>
-          <div class="sidebar-order-date">${order.date || "-"}</div>
-          <div class="sidebar-order-status">${order.status}</div>
-          <div class="sidebar-order-more">Purchase</div>
-          ${order.deliveryProof ? `<button type="button" class="sidebar-order-proof" data-proof="${order.deliveryProof}">View delivery proof</button>` : ""}
+          <div class="sidebar-order-proof-row">
+            ${proofThumb}
+          </div>
         `;
         ordersEl.appendChild(orderDiv);
       });
@@ -1990,15 +2141,64 @@ async function updateBuyerProfileSection() {
     statusEl.textContent = '--';
     avatarDiv.textContent = 'B';
     ordersEl.innerHTML = '<p class="muted">No purchases yet.</p>';
+    if (addressEl) addressEl.textContent = "No saved address yet.";
   }
 }
 
 if (document.getElementById('buyerProfileOrders')) {
   document.getElementById('buyerProfileOrders').addEventListener('click', event => {
-    const btn = event.target.closest('.sidebar-order-proof');
-    if (!btn) return;
-    const proof = btn.getAttribute('data-proof');
-    if (proof) window.open(proof, '_blank', 'noopener');
+    const viewBtn = event.target.closest('.sidebar-order-proof-thumb');
+    if (viewBtn) {
+      const proof = viewBtn.getAttribute('data-proof');
+      if (proof) window.open(proof, '_blank', 'noopener');
+      return;
+    }
+    const uploadBtn = event.target.closest('.sidebar-order-upload');
+    if (!uploadBtn) return;
+    const txnId = Number(uploadBtn.getAttribute('data-transaction-id') || 0);
+    if (!txnId) return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/png,image/jpeg';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Please upload an image up to 5MB.');
+        return;
+      }
+      if (!["image/jpeg", "image/png"].includes(file.type)) {
+        alert('Please upload a JPG or PNG image.');
+        return;
+      }
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        await apiRequest(`/transactions/${txnId}/proof`, {
+          method: "PATCH",
+          body: JSON.stringify({ deliveryProof: dataUrl })
+        });
+        await apiRequest(`/transactions/${txnId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "Completed" })
+        });
+        const orderName = uploadBtn.closest('.sidebar-order-item')?.querySelector('.sidebar-order-title')?.textContent?.trim() || "Item";
+        addNotification(currentBuyer(), `Order completed: ${orderName}. Status: Completed.`);
+        await updateBuyerProfileSection();
+      } catch (error) {
+        alert(error.message || "Could not upload proof.");
+      }
+    };
+    input.click();
+  });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("Failed to read file."));
+    reader.readAsDataURL(file);
   });
 }
 
@@ -2048,6 +2248,19 @@ function openEditProfileModal() {
     document.getElementById('editPassword').value = '';
     document.getElementById('editConfirmPassword').value = '';
   }
+  const address = getSavedBuyerAddress();
+  const editAddressFullname = document.getElementById('editAddressFullname');
+  const editAddressPhone = document.getElementById('editAddressPhone');
+  const editAddressCity = document.getElementById('editAddressCity');
+  const editAddressCampus = document.getElementById('editAddressCampus');
+  const editAddressDepartment = document.getElementById('editAddressDepartment');
+  const editAddressInstructions = document.getElementById('editAddressInstructions');
+  if (editAddressFullname) editAddressFullname.value = address.fullname || "";
+  if (editAddressPhone) editAddressPhone.value = address.phone || "";
+  if (editAddressCity) editAddressCity.value = address.city || "";
+  if (editAddressCampus) editAddressCampus.value = address.campus || "";
+  if (editAddressDepartment) editAddressDepartment.value = address.department || "";
+  if (editAddressInstructions) editAddressInstructions.value = address.instructions || "";
   document.getElementById('editProfileModal').classList.add('open');
   closeProfileMenu();
   saveBuyerViewState({ editProfileOpen: true });
@@ -2075,6 +2288,14 @@ document.addEventListener('DOMContentLoaded', function() {
       const newPassword = document.getElementById('editPassword').value;
       const confirmPassword = document.getElementById('editConfirmPassword').value;
       const photoInput = document.getElementById('editPhoto');
+      const addressPayload = {
+        fullname: document.getElementById('editAddressFullname')?.value.trim() || "",
+        phone: document.getElementById('editAddressPhone')?.value.trim() || "",
+        city: document.getElementById('editAddressCity')?.value.trim() || "",
+        campus: document.getElementById('editAddressCampus')?.value.trim() || "",
+        department: document.getElementById('editAddressDepartment')?.value.trim() || "",
+        instructions: document.getElementById('editAddressInstructions')?.value.trim() || ""
+      };
 
       if (!newName) {
         alert('Please enter your full name.');
@@ -2085,6 +2306,8 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('Passwords do not match.');
         return;
       }
+
+      saveBuyerAddress(addressPayload);
 
       // Handle photo upload
       if (photoInput.files && photoInput.files[0]) {
@@ -2141,6 +2364,15 @@ document.addEventListener('DOMContentLoaded', function() {
   
   if (document.getElementById('buyerProfileSection')) {
     updateBuyerProfileSection();
+  }
+
+  const addressSelect = document.getElementById('deliveryAddressSelect');
+  if (addressSelect) {
+    addressSelect.addEventListener('change', () => {
+      updateCheckoutAddressSelect();
+      applyCheckoutAddressSelection();
+    });
+    updateCheckoutAddressSelect();
   }
 
   const profilePhotoBtn = document.getElementById('buyerChangePhotoBtn');
