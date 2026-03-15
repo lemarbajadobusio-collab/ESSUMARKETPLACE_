@@ -784,44 +784,16 @@ async function restoreBuyerViewState() {
   if (state.miniCartOpen) openMiniCart();
 
   if (state.checkoutOpen) {
-    openCheckoutModal(true);
-    if (state.checkoutStep === "login") {
-      document.getElementById('step-login')?.classList.remove('hidden');
-      document.getElementById('step-payment')?.classList.add('hidden');
-      document.getElementById('step-address')?.classList.add('hidden');
-      document.getElementById('step-review')?.classList.add('hidden');
-    } else if (state.checkoutStep === "payment") {
-      document.getElementById('step-login')?.classList.add('hidden');
-      document.getElementById('step-payment')?.classList.remove('hidden');
-      document.getElementById('step-address')?.classList.add('hidden');
-      document.getElementById('step-review')?.classList.add('hidden');
-    } else if (state.checkoutStep === "address") {
-      document.getElementById('step-login')?.classList.add('hidden');
-      document.getElementById('step-payment')?.classList.add('hidden');
-      document.getElementById('step-address')?.classList.remove('hidden');
-      document.getElementById('step-review')?.classList.add('hidden');
-    } else if (state.checkoutStep === "review") {
-      document.getElementById('step-login')?.classList.add('hidden');
-      document.getElementById('step-payment')?.classList.add('hidden');
-      document.getElementById('step-address')?.classList.add('hidden');
-      document.getElementById('step-review')?.classList.remove('hidden');
-    }
+    openBuyerCheckoutModal();
   }
 
   if (state.itemModalProductId) openItemModal(Number(state.itemModalProductId));
 }
 
-/* Checkout modal flow (modal-based stepper) */
-function openCheckoutModal(showAddressToo){
+function openBuyerCheckoutModal(){
   const buyer = currentBuyer();
-  // if not logged in, show login step first
   if(!buyer){
-    document.getElementById('checkoutModal').classList.add('open');
-    document.getElementById('step-login').classList.remove('hidden');
-    document.getElementById('step-payment').classList.add('hidden');
-    document.getElementById('step-address').classList.add('hidden');
-    document.getElementById('step-review').classList.add('hidden');
-    saveBuyerViewState({ checkoutOpen: true, checkoutStep: "login" });
+    alert('Please log in to place orders.');
     return;
   }
   if(!cart.length){
@@ -829,109 +801,38 @@ function openCheckoutModal(showAddressToo){
     showToast('Your cart is empty');
     return;
   }
-  saveBuyerViewState({ checkoutOpen: true, checkoutStep: "payment" });
-  // populate summary
-  populateCheckoutSummary();
-  document.getElementById('checkoutModal').classList.add('open');
-  document.getElementById('step-login').classList.add('hidden');
-  document.getElementById('step-payment').classList.remove('hidden');
-  // optionally show address input at the same time (combined flow)
-  if(showAddressToo){
-    document.getElementById('step-address').classList.remove('hidden');
-    saveBuyerViewState({ checkoutStep: "address" });
-  } else {
-    document.getElementById('step-address').classList.add('hidden');
-  }
-  document.getElementById('step-review').classList.add('hidden');
-}
-
-function closeCheckoutModal(){
-  document.getElementById('checkoutModal').classList.remove('open');
-  saveBuyerViewState({ checkoutOpen: false, checkoutStep: "" });
-}
-
-function populateCheckoutSummary(){
-  const summary = document.getElementById('checkoutItems');
-  summary.innerHTML = '';
-  cart.forEach((it,i)=>{
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.alignItems = 'center';
-    row.style.justifyContent = 'space-between';
-    row.style.padding = '8px 0';
-    row.innerHTML = `
-      <div style="display:flex;align-items:center;">
-        <input type="radio" name="checkoutItemChoice" id="item-${i}" value="${it.id}" ${i === 0 ? "checked" : ""} onchange="updateCheckoutTotal()">
-        <img src="${it.img}" alt="${it.name}" style="width:50px;height:50px;object-fit:cover;border-radius:4px;margin-left:10px;margin-right:10px">
-        ${it.name} <span class="muted">x ${it.qty}</span>
-      </div>
-      <div>PHP ${it.price * it.qty}</div>
-    `;
-    summary.appendChild(row);
-  });
-  updateCheckoutTotal();
-}
-
-function updateCheckoutTotal(){
-  const totalEl = document.getElementById('checkoutTotal');
-  const selected = document.querySelector('input[name="checkoutItemChoice"]:checked');
-  const selectedItem = selected ? cart.find(it => String(it.id) === String(selected.value)) : null;
-  const total = selectedItem ? (Number(selectedItem.price) || 0) * (Number(selectedItem.qty) || 1) : 0;
-  totalEl.innerText = "PHP " + total;
-}
-
-function toAddressStep(){
-  const sel = document.querySelector('input[name="pmethod"]:checked');
-  if(!sel){ alert('Please select a payment method'); return; }
-  document.getElementById('step-payment').classList.add('hidden');
-  document.getElementById('step-address').classList.remove('hidden');
+  const backdrop = document.getElementById('checkoutModalBackdrop');
+  if (backdrop) backdrop.removeAttribute('hidden');
   saveBuyerViewState({ checkoutOpen: true, checkoutStep: "address" });
 }
 
-function toReviewStep(){
-  const name = document.getElementById('addressName').value.trim();
-  const phone = document.getElementById('addressPhone').value.trim();
-  const city = document.getElementById('addressCity').value.trim();
-  const campus = document.getElementById('addressCampus').value.trim();
-  const department = document.getElementById('addressDepartment').value.trim();
+function closeBuyerCheckoutModal(){
+  const backdrop = document.getElementById('checkoutModalBackdrop');
+  if (backdrop) backdrop.setAttribute('hidden', 'hidden');
+  saveBuyerViewState({ checkoutOpen: false, checkoutStep: "" });
+}
 
-  if(!name || !phone || !city || !campus || !department){
+async function confirmBuyerCheckout(){
+  const buyer = currentBuyer();
+  if(!buyer){ alert('Please log in to place orders'); return; }
+  const sel = document.querySelector('input[name="checkoutPaymentMethod"]:checked');
+  const name = document.getElementById('deliveryFullname')?.value.trim();
+  const phone = document.getElementById('deliveryPhone')?.value.trim();
+  const city = document.getElementById('deliveryCity')?.value.trim();
+  const campus = document.getElementById('deliveryCampus')?.value.trim();
+  const department = document.getElementById('deliveryDepartment')?.value.trim();
+  const instructions = document.getElementById('deliveryInstructions')?.value.trim();
+
+  if(!sel || !name || !phone || !city || !campus || !department){
     alert('Please fill in all required address fields');
     return;
   }
 
-  const fullAddress = `${name}\n${phone}\n${city}\nCampus: ${campus}\nDepartment: ${department}`;
-  const notes = document.getElementById('addressNotes').value.trim();
-  if(notes) fullAddress += `\nNotes: ${notes}`;
-
-  localStorage.setItem('tempAddress', fullAddress);
-
-  populateCheckoutSummary();
-  document.getElementById('step-address').classList.add('hidden');
-  document.getElementById('step-review').classList.remove('hidden');
-  saveBuyerViewState({ checkoutOpen: true, checkoutStep: "review" });
-}
-
-async function confirmOrderFromModal(){
-  const buyer = currentBuyer();
-  if(!buyer){ alert('Please log in to place orders'); return; }
-  const sel = document.querySelector('input[name="pmethod"]:checked');
-  const addr = localStorage.getItem('tempAddress');
-  if(!sel || !addr){ alert('Missing payment or address'); return; }
-
-  const selectedItemRadio = document.querySelector('input[name="checkoutItemChoice"]:checked');
-  if (!selectedItemRadio) {
+  const selectedProductId = Number(buyerCheckoutProductSelection || 0);
+  if (!selectedProductId) {
     alert('Please select one item to order.');
     return;
   }
-  const selectedProductId = Number(selectedItemRadio.value || 0);
-  if (!selectedProductId) {
-    alert('Invalid selected item.');
-    return;
-  }
-
-  // Get order review
-  const review = document.getElementById('orderReview').value.trim();
 
   let checkoutResult;
   try {
@@ -939,8 +840,14 @@ async function confirmOrderFromModal(){
       method: "POST",
       body: JSON.stringify({
         paymentMethod: sel.value || "Cash on Delivery",
-        deliveryAddress: addr,
-        review,
+        deliveryAddress: {
+          fullname: name,
+          phone,
+          city,
+          campus,
+          department,
+          instructions: instructions || ""
+        },
         selectedProductId
       })
     });
@@ -955,28 +862,12 @@ async function confirmOrderFromModal(){
   // Add notifications
   addNotification(buyer, `Your purchase has been placed successfully!`);
 
-  // Clear temp address and review
-  localStorage.removeItem('tempAddress');
-  document.getElementById('orderReview').value = '';
-
   await loadCart();
   renderCart();
   updateCartBadge();
-  closeCheckoutModal();
+  closeBuyerCheckoutModal();
   closeMiniCart();
   showToast("Order placed - check Profile for details");
-}
-
-function backToPaymentStep() {
-  document.getElementById('step-address').classList.add('hidden');
-  document.getElementById('step-payment').classList.remove('hidden');
-  saveBuyerViewState({ checkoutOpen: true, checkoutStep: "payment" });
-}
-
-function backToAddressStep() {
-  document.getElementById('step-review').classList.add('hidden');
-  document.getElementById('step-address').classList.remove('hidden');
-  saveBuyerViewState({ checkoutOpen: true, checkoutStep: "address" });
 }
 
 // Ensure cart renders on page load via bootstrapBuyerData()
@@ -1068,10 +959,31 @@ function loadWishlist() {
 // ensure category buttons work on load
 attachUIHandlers();
 
+const checkoutModalBackdrop = document.getElementById('checkoutModalBackdrop');
+const closeCheckoutModalBtn = document.getElementById('closeCheckoutModalBtn');
+const cancelCheckoutBtn = document.getElementById('cancelCheckoutBtn');
+const confirmCheckoutBtn = document.getElementById('confirmCheckoutBtn');
+
+if (closeCheckoutModalBtn) {
+  closeCheckoutModalBtn.addEventListener('click', closeBuyerCheckoutModal);
+}
+if (cancelCheckoutBtn) {
+  cancelCheckoutBtn.addEventListener('click', closeBuyerCheckoutModal);
+}
+if (confirmCheckoutBtn) {
+  confirmCheckoutBtn.addEventListener('click', confirmBuyerCheckout);
+}
+if (checkoutModalBackdrop) {
+  checkoutModalBackdrop.addEventListener('click', event => {
+    if (event.target === checkoutModalBackdrop) {
+      closeBuyerCheckoutModal();
+    }
+  });
+}
+
 /* Place order from mini-cart: open modal stepper */
 function placeOrderFromMini(){
-  // Open combined checkout (payment + address) for faster flow
-  openCheckoutModal(true);
+  openBuyerCheckoutModal();
 }
 
 /* Small toast */

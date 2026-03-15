@@ -192,6 +192,11 @@ input[type="text"] {
     margin-top: 6px;
 }
 
+.action-buttons .btn {
+    min-width: 72px;
+    text-align: center;
+}
+
 .proof-link {
     display: inline-flex;
     align-items: center;
