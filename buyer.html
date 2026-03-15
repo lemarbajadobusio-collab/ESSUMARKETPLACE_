@@ -130,6 +130,10 @@
           <h3>My Orders</h3>
           <div id="buyerProfileOrders"></div>
         </div>
+        <div class="profile-section">
+          <h3>Saved Address</h3>
+          <div id="buyerProfileAddress" class="profile-address-card">No saved address yet.</div>
+        </div>
       </div>
     </div>
   </section>
@@ -253,9 +257,17 @@
       </label>
     </div>
 
-    <div class="checkout-step">
+      <div class="checkout-step">
       <p class="checkout-step-title">Step 2 &mdash; Delivery address</p>
       <form id="deliveryAddressForm" class="checkout-address-form">
+        <div class="input-group">
+          <label for="deliveryAddressSelect">Saved address</label>
+          <select id="deliveryAddressSelect">
+            <option value="manual">Enter manually</option>
+            <option value="profile">Use profile address</option>
+          </select>
+          <small class="muted" id="deliveryAddressHint">No saved profile address yet.</small>
+        </div>
         <div class="input-group">
           <label for="deliveryFullname">Full Name</label>
           <input id="deliveryFullname" type="text" placeholder="e.g. Juan Dela Cruz" />
@@ -352,6 +364,48 @@
       <div class="form-group">
         <label>Confirm New Password</label>
         <input type="password" id="editConfirmPassword" placeholder="Confirm new password">
+      </div>
+      <div class="form-group">
+        <label>Profile Address (used for checkout)</label>
+        <input type="text" id="editAddressFullname" placeholder="Full Name">
+      </div>
+      <div class="form-group">
+        <input type="text" id="editAddressPhone" placeholder="Phone Number">
+      </div>
+      <div class="form-group">
+        <input type="text" id="editAddressCity" placeholder="City / Municipality">
+      </div>
+      <div class="form-group">
+        <select id="editAddressCampus" class="address-input">
+          <option value="">Select Campus</option>
+          <option>ESSU Main Campus</option>
+          <option>ESSU Can-avid Campus</option>
+          <option>ESSU Guiuan Campus</option>
+          <option>ESSU Lawaan Campus</option>
+          <option>ESSU Salcedo Campus</option>
+          <option>ESSU Balangiga Campus</option>
+          <option>ESSU Arteche Campus</option>
+          <option>ESSU Mercedes Campus</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <select id="editAddressDepartment" class="address-input">
+          <option value="">Select Department</option>
+          <option>College of Engineering</option>
+          <option>College of Arts and Sciences</option>
+          <option>College of Business and Management</option>
+          <option>College of Education</option>
+          <option>College of Nursing</option>
+          <option>College of Information Technology</option>
+          <option>College of Agriculture</option>
+          <option>College of Law</option>
+          <option>Administration Office</option>
+          <option>Library</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <textarea id="editAddressInstructions" rows="3" placeholder="Additional instructions (optional)"></textarea>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
         <button type="button" onclick="closeEditProfileModal()" style="background:#f3f3f3;padding:10px 16px;border-radius:8px;border:none;">Cancel</button>
