@@ -240,100 +240,76 @@
   </div>
 </div>
 
-<!-- CHECKOUT MODAL (inline stepper) -->
-<div id="checkoutModal" class="modal">
-  <div class="modal-content">
-    <button class="modal-close" onclick="closeCheckoutModal()">&times;</button>
-    <h3>Checkout</h3>
+<div class="checkout-modal-backdrop" id="checkoutModalBackdrop" hidden>
+  <div class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutModalTitle">
+    <button type="button" class="checkout-close-btn" id="closeCheckoutModalBtn" aria-label="Close checkout">&times;</button>
+    <h3 id="checkoutModalTitle">Checkout</h3>
 
-    <div id="step-login" class="hidden">
-      <p class="muted">Please log in or sign up to place orders.</p>
-        <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
-        <button onclick="location.href='index.html'" style="padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff">Login</button>
-        <button onclick="location.href='buyersignin.html'" style="padding:8px 12px;border-radius:8px;border:1px solid #eee;background:#fff">Sign up</button>
-      </div>
+    <div class="checkout-step">
+      <p class="checkout-step-title">Step 1 &mdash; Choose payment method</p>
+      <label class="checkout-radio-option">
+        <input type="radio" name="checkoutPaymentMethod" value="Cash on Delivery" checked />
+        <span>Cash on Delivery</span>
+      </label>
     </div>
 
-    <div id="step-payment" class="hidden">
-      <p class="muted">Step 1 &mdash; Choose payment method</p>
-      <div style="margin:12px 0">
-        <label><input type="radio" name="pmethod" value="Cash on Delivery" checked> Cash on Delivery</label><br>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-        <button onclick="closeCheckoutModal()" style="background:#f3f3f3;padding:8px 12px;border-radius:8px;border:none;">Cancel</button>
-        <button onclick="toAddressStep()" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;">Continue</button>
-      </div>
-    </div>
-
-    <div id="step-address" class="hidden">
-      <p class="muted">Step 2 &mdash; Delivery address</p>
-      <div class="address-form">
-        <div class="form-group">
-          <label>Full Name</label>
-          <input type="text" id="addressName" placeholder="e.g. Juan Dela Cruz" class="address-input">
+    <div class="checkout-step">
+      <p class="checkout-step-title">Step 2 &mdash; Delivery address</p>
+      <form id="deliveryAddressForm" class="checkout-address-form">
+        <div class="input-group">
+          <label for="deliveryFullname">Full Name</label>
+          <input id="deliveryFullname" type="text" placeholder="e.g. Juan Dela Cruz" />
         </div>
-        <div class="form-group">
-          <label>Phone Number</label>
-          <input type="tel" id="addressPhone" placeholder="e.g. +63 912 345 6789 or 09123456789" class="address-input">
+        <div class="input-group">
+          <label for="deliveryPhone">Phone Number</label>
+          <input id="deliveryPhone" type="text" placeholder="e.g. +63 912 345 6789 or 09123456789" />
         </div>
-        <div class="form-group">
-          <label>City / Municipality</label>
-          <input type="text" id="addressCity" placeholder="e.g. City of Borongan" class="address-input">
+        <div class="input-group">
+          <label for="deliveryCity">City / Municipality</label>
+          <input id="deliveryCity" type="text" placeholder="e.g. City of Borongan" />
         </div>
-        <div class="form-group">
-          <label>CAMPUS</label>
-          <select id="addressCampus" class="address-input">
+        <div class="input-group">
+          <label for="deliveryCampus">Campus</label>
+          <select id="deliveryCampus">
             <option value="">Select Campus</option>
-            <option value="Essu Arteche">Essu Arteche</option>
-            <option value="Essu Can-Avid">Essu Can-Avid</option>
-            <option value="Essu Borongan">Essu Borongan</option>
-            <option value="Essu Maydolong">Essu Maydolong</option>
-            <option value="Essu Guiuan">Essu Guiuan</option>
-            <option value="Other">Other</option>
+            <option>ESSU Main Campus</option>
+            <option>ESSU Can-avid Campus</option>
+            <option>ESSU Guiuan Campus</option>
+            <option>ESSU Lawaan Campus</option>
+            <option>ESSU Salcedo Campus</option>
+            <option>ESSU Balangiga Campus</option>
+            <option>ESSU Arteche Campus</option>
+            <option>ESSU Mercedes Campus</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Department (Inside ESSU)</label>
-          <select id="addressDepartment" class="address-input">
+        <div class="input-group">
+          <label for="deliveryDepartment">Department (Inside ESSU)</label>
+          <select id="deliveryDepartment">
             <option value="">Select Department</option>
-            <option value="College of Engineering">College of Engineering</option>
-            <option value="College of Education">College of Education</option>
-            <option value="College of Arts and Sciences">College of Arts and Sciences</option>
-            <option value="College of Business and Management">College of Business and Management</option>
-            <option value="College of Nursing">College of Nursing</option>
-            <option value="College of Agriculture">College of Agriculture</option>
-            <option value="College of Information Technology">College of Information Technology</option>
-            <option value="Other">Other</option>
+            <option>College of Engineering</option>
+            <option>College of Arts and Sciences</option>
+            <option>College of Business and Management</option>
+            <option>College of Education</option>
+            <option>College of Nursing</option>
+            <option>College of Information Technology</option>
+            <option>College of Agriculture</option>
+            <option>College of Law</option>
+            <option>Administration Office</option>
+            <option>Library</option>
+            <option>Other</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Additional Instructions (Optional)</label>
-          <textarea id="addressNotes" placeholder="e.g. Leave at the guard house, ring the bell twice" class="address-textarea"></textarea>
+        <div class="input-group">
+          <label for="deliveryInstructions">Additional Instructions (Optional)</label>
+          <textarea id="deliveryInstructions" rows="3" placeholder="e.g. Leave at the guard house, ring the bell twice"></textarea>
         </div>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-        <button class="back-btn" onclick="backToPaymentStep()">&larr; Back</button>
-        <button onclick="toReviewStep()" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;">Continue</button>
-      </div>
+      </form>
     </div>
 
-    <div id="step-review" class="hidden">
-      <p class="muted">Review & Confirm</p>
-      <div id="checkoutItems" style="max-height:220px;overflow:auto;margin-bottom:10px"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="muted">Total</div>
-        <div id="checkoutTotal" style="font-weight:800;color:var(--accent)"></div>
-      </div>
-      <div class="form-group">
-        <label>Order Review (Optional)</label>
-        <textarea id="orderReview" placeholder="Add any review or notes for your order..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;min-height:60px;"></textarea>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button class="back-btn" onclick="backToAddressStep()">&larr; Back</button>
-        <button onclick="confirmOrderFromModal()" style="background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;">Confirm Order</button>
-      </div>
+    <div class="checkout-modal-actions">
+      <button type="button" class="secondary-btn" id="cancelCheckoutBtn">Cancel</button>
+      <button type="button" class="primary-btn" id="confirmCheckoutBtn">Continue</button>
     </div>
-
   </div>
 </div>
 

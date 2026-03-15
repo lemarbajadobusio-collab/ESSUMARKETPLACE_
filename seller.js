@@ -646,6 +646,17 @@ function renderMyListings() {
       const statusValue = item.status || "available";
       const statusClass = statusValue === "sold" ? "status-tag sold" : "status-tag";
       const itemId = item.id ?? index;
+      const pendingSale = transactions.find(
+        txn => String(txn.type) === "Sale"
+          && String(txn.status).toLowerCase() === "pending"
+          && Number(txn.listingId) === Number(itemId)
+      );
+      const proofButton = pendingSale
+        ? (pendingSale.deliveryProof
+          ? `<button type="button" class="listing-proof-btn" data-transaction-id="${pendingSale.id}" data-action="view-proof">View proof</button>
+             <button type="button" class="listing-proof-btn ghost" data-transaction-id="${pendingSale.id}" data-action="upload-proof">Replace proof</button>`
+          : `<button type="button" class="listing-proof-btn" data-transaction-id="${pendingSale.id}" data-action="upload-proof">Upload proof</button>`)
+        : "";
       listingGridCards.innerHTML += `
         <div class="listing-mini" data-id="${itemId}">
           <div class="listing-image">
@@ -661,6 +672,8 @@ function renderMyListings() {
             <h4>${item.name}</h4>
             <div class="price">${formatCurrency(item.price)}</div>
             <span class="${statusClass}">${statusValue}</span>
+            ${pendingSale ? `<div class="listing-proof-actions">${proofButton}</div>
+            <button type="button" class="listing-complete-btn" data-transaction-id="${pendingSale.id}">Confirm completed</button>` : ""}
           </div>
         </div>
       `;
@@ -729,14 +742,14 @@ function isOwnListing(product) {
 
 function updateCartBadge() {
   if (!cartCountBadge) return;
-  const totalQty = cartItems.reduce((sum, item) => sum + Math.max(1, Number(item.qty) || 1), 0);
-  if (!totalQty) {
+  const totalItems = cartItems.length;
+  if (!totalItems) {
     cartCountBadge.setAttribute("hidden", "hidden");
     cartCountBadge.textContent = "0";
     return;
   }
   cartCountBadge.removeAttribute("hidden");
-  cartCountBadge.textContent = String(totalQty);
+  cartCountBadge.textContent = String(totalItems);
 }
 
 function removeProductFromAllCarts(productId) {
@@ -1027,7 +1040,7 @@ async function checkoutCart(deliveryAddress, paymentMethod, selectedProductId) {
     renderDashboard(txnFilter?.value || "All");
     renderCart();
     updateCartBadge();
-    alert(`Purchase completed for ${result.purchasedCount} item(s), total ${formatCurrency(Number(result.total || 0))}.`);
+    alert(`Checkout successful for ${result.purchasedCount} item(s), total ${formatCurrency(Number(result.total || 0))}.`);
   } catch (error) {
     alert(error.message || "Checkout failed.");
   }
@@ -2516,6 +2529,8 @@ if (listingGridCards) {
   listingGridCards.addEventListener("click", async event => {
     const menuBtn = event.target.closest(".listing-menu-btn");
     const menuItem = event.target.closest(".listing-menu-item");
+    const completeBtn = event.target.closest(".listing-complete-btn");
+    const proofBtn = event.target.closest(".listing-proof-btn");
     const card = event.target.closest(".listing-mini");
     if (!card) return;
     const itemId = Number(card.dataset.id);
@@ -2601,6 +2616,65 @@ if (listingGridCards) {
         }
       }
       return;
+    }
+
+    if (proofBtn) {
+      const txnId = Number(proofBtn.getAttribute("data-transaction-id") || 0);
+      const action = proofBtn.getAttribute("data-action");
+      if (!txnId) return;
+      const txn = transactions.find(t => Number(t.id) === txnId);
+      if (!txn) return;
+      if (action === "view-proof" && txn.deliveryProof) {
+        window.open(txn.deliveryProof, "_blank", "noopener");
+        return;
+      }
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.addEventListener("change", async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+          alert("Proof image must be 5MB or smaller.");
+          return;
+        }
+        const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+        if (!allowedTypes.includes(file.type)) {
+          alert("Please upload a JPG or PNG image.");
+          return;
+        }
+        try {
+          const dataUrl = await readFileAsDataUrl(file);
+          await apiRequest(`/transactions/${txnId}/proof`, {
+            method: "PATCH",
+            body: JSON.stringify({ deliveryProof: dataUrl })
+          });
+          await loadUserData();
+          renderMyListings();
+          renderMyOrders();
+        } catch (error) {
+          alert(error.message || "Could not upload proof.");
+        }
+      });
+      input.click();
+      return;
+    }
+
+    if (completeBtn) {
+      const txnId = Number(completeBtn.getAttribute("data-transaction-id") || 0);
+      if (!txnId) return;
+      if (!confirm("Mark this sale as completed?")) return;
+      try {
+        await apiRequest(`/transactions/${txnId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "Completed" })
+        });
+        await loadUserData();
+        renderMyListings();
+        renderDashboard(txnFilter?.value || "All");
+      } catch (error) {
+        alert(error.message || "Could not update transaction.");
+      }
     }
   });
 }

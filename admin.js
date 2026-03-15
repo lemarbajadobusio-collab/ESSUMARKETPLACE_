@@ -300,7 +300,7 @@ function renderUsersTable(users) {
     pendingSellerBtn.dataset.target = "sellersPanel";
   }
 
-  const renderRow = (user, index, targetBody) => {
+  const renderRow = (user, index, targetBody, showCommission) => {
     const status = String(user.status || "-").toUpperCase();
     const statusClass =
       status === "ACTIVE"
@@ -322,17 +322,23 @@ function renderUsersTable(users) {
       ? `₱${commissionAmount.toLocaleString()} • ${commissionStatus}`
       : commissionStatus;
 
+    const commissionColumns = showCommission
+      ? `
+        <td>${commissionDisplay || "-"}</td>
+        <td>${commissionRef || "-"}</td>
+        <td>
+          ${commissionProof ? `<a class="proof-thumb" href="${commissionProof}" target="_blank" rel="noopener"><img src="${commissionProof}" alt="Proof thumbnail"></a>` : "-"}
+        </td>
+      `
+      : "";
+
     targetBody.innerHTML += `
       <tr>
         <td>U${index + 1}</td>
         <td>${user.fullname || user.email || "-"}</td>
         <td>${user.email || "-"}</td>
         <td>${user.role || "-"}</td>
-        <td>${commissionDisplay || "-"}</td>
-        <td>${commissionRef || "-"}</td>
-        <td>
-          ${commissionProof ? `<a class="proof-thumb" href="${commissionProof}" target="_blank" rel="noopener"><img src="${commissionProof}" alt="Proof thumbnail"></a>` : "-"}
-        </td>
+        ${commissionColumns}
         <td>
           <span class="status-badge ${statusClass}">${status}</span>
           <div class="action-buttons">
@@ -346,8 +352,8 @@ function renderUsersTable(users) {
     `;
   };
 
-  sellers.forEach((user, index) => renderRow(user, index, sellersBody));
-  buyers.forEach((user, index) => renderRow(user, index, buyersBody));
+  sellers.forEach((user, index) => renderRow(user, index, sellersBody, true));
+  buyers.forEach((user, index) => renderRow(user, index, buyersBody, false));
 }
 
 async function handleUserAction(action, userId, userName) {
