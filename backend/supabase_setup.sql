@@ -32,6 +32,9 @@ ALTER TABLE IF EXISTS users
 ALTER TABLE IF EXISTS users
   ADD COLUMN IF NOT EXISTS commission_rejection_reason TEXT DEFAULT '';
 
+ALTER TABLE IF EXISTS transactions
+  ADD COLUMN IF NOT EXISTS delivery_proof TEXT DEFAULT '';
+
 CREATE TABLE IF NOT EXISTS products (
   id BIGSERIAL PRIMARY KEY,
   seller_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -74,6 +77,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   item_name TEXT NOT NULL,
   amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
   status TEXT NOT NULL DEFAULT 'Completed' CHECK (status IN ('Pending', 'Completed', 'Cancelled')),
+  delivery_proof TEXT DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

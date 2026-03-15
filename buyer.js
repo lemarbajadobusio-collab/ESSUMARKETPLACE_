@@ -986,8 +986,8 @@ function backToAddressStep() {
 function updateCartBadge(){
   const badge = document.getElementById('cartBadge');
   if(!badge) return;
-  const count = cart.reduce((s,i)=>s + (i.qty || 1),0);
-  badge.innerText = count || '';
+  const count = cart.length;
+  badge.innerText = count ? String(count) : '';
 }
 
 function openMiniCart(){
@@ -2065,6 +2065,7 @@ async function updateBuyerProfileSection() {
           <div class="sidebar-order-date">${order.date || "-"}</div>
           <div class="sidebar-order-status">${order.status}</div>
           <div class="sidebar-order-more">Purchase</div>
+          ${order.deliveryProof ? `<button type="button" class="sidebar-order-proof" data-proof="${order.deliveryProof}">View delivery proof</button>` : ""}
         `;
         ordersEl.appendChild(orderDiv);
       });
@@ -2078,6 +2079,15 @@ async function updateBuyerProfileSection() {
     avatarDiv.textContent = 'B';
     ordersEl.innerHTML = '<p class="muted">No purchases yet.</p>';
   }
+}
+
+if (document.getElementById('buyerProfileOrders')) {
+  document.getElementById('buyerProfileOrders').addEventListener('click', event => {
+    const btn = event.target.closest('.sidebar-order-proof');
+    if (!btn) return;
+    const proof = btn.getAttribute('data-proof');
+    if (proof) window.open(proof, '_blank', 'noopener');
+  });
 }
 
 async function openBuyerProfileSection() {

@@ -838,7 +838,7 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
         seller_user_id: product.seller_user_id,
         item_name: qty > 1 ? `${product.name} (x${qty})` : product.name,
         amount: Number(product.price) * qty,
-        status: "Completed",
+        status: "Pending",
         created_at: nowIso()
       });
       if (txnInsert.error) return res.status(500).json({ error: txnInsert.error.message });
@@ -894,9 +894,50 @@ app.get("/api/transactions", async (req, res) => {
     status: row.status,
     amount: Number(row.amount),
     buyerName: row.buyer?.fullname || "",
-    sellerName: row.seller?.fullname || ""
+    sellerName: row.seller?.fullname || "",
+    deliveryProof: row.delivery_proof || ""
   }));
   return res.json({ transactions });
+});
+
+app.patch("/api/transactions/:id/status", async (req, res) => {
+  const txnId = Number(req.params.id);
+  const { status } = req.body || {};
+  const allowed = ["Pending", "Completed", "Cancelled"];
+  if (!allowed.includes(status)) {
+    return res.status(400).json({ error: "Invalid status." });
+  }
+  const updated = await supabase
+    .from("transactions")
+    .update({ status, updated_at: nowIso() })
+    .eq("id", txnId)
+    .select("*")
+    .maybeSingle();
+  if (updated.error) return res.status(500).json({ error: updated.error.message });
+  if (!updated.data) return res.status(404).json({ error: "Transaction not found." });
+  return res.json({ transaction: updated.data });
+});
+
+app.patch("/api/transactions/:id/proof", async (req, res) => {
+  const txnId = Number(req.params.id);
+  const { deliveryProof } = req.body || {};
+  if (typeof deliveryProof !== "string" || !deliveryProof.trim()) {
+    return res.status(400).json({ error: "deliveryProof is required." });
+  }
+  try {
+    const normalized = await normalizeImageInput(deliveryProof, "deliveries");
+    const updated = await supabase
+      .from("transactions")
+      .update({ delivery_proof: normalized, updated_at: nowIso() })
+      .eq("id", txnId)
+      .select("*")
+      .maybeSingle();
+    if (updated.error) return res.status(500).json({ error: updated.error.message });
+    if (!updated.data) return res.status(404).json({ error: "Transaction not found." });
+    return res.json({ transaction: updated.data });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 app.get("/api/conversations", async (req, res) => {

@@ -992,6 +992,22 @@ select.address-input { cursor: pointer; }
   color: #16a34a;
 }
 
+.sidebar-order-proof {
+  margin-top: 8px;
+  border: none;
+  background: #e8f5ee;
+  color: #166534;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sidebar-order-proof:hover {
+  background: #d9f1e2;
+}
+
 /* Mobile-first responsive additions */
 /* Small tablets / large phones */
 @media (max-width: 900px) {

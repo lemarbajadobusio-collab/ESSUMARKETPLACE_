@@ -1112,6 +1112,49 @@ body {
   gap: 14px;
 }
 
+.listing-complete-btn {
+  margin-top: 8px;
+  background: #16a34a;
+  color: #ffffff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.listing-complete-btn:hover {
+  background: #15803d;
+}
+
+.listing-proof-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.listing-proof-btn {
+  border: none;
+  background: #e8f5ee;
+  color: #166534;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.listing-proof-btn.ghost {
+  background: #f3f4f6;
+  color: #475569;
+}
+
+.listing-proof-btn:hover {
+  background: #d9f1e2;
+}
+
 .profile-edit-grid {
   grid-template-columns: 1fr;
 }
