@@ -849,6 +849,13 @@ body {
   margin: 0 0 4px;
 }
 
+.listing-availability {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
 .status-tag {
   display: inline-block;
   background: #e7f6ec;
