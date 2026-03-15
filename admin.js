@@ -18,6 +18,7 @@ function resolveApiBase() {
 const API_BASE = resolveApiBase();
 const ADMIN_SECTION_KEY = "essu_admin_section";
 const LAST_PAGE_KEY = "essu_last_page";
+const chartInstances = {};
 
 function markCurrentPage() {
   localStorage.setItem(LAST_PAGE_KEY, "admin.html");
@@ -93,9 +94,11 @@ function renderTransactionChart(orders) {
   const canvas = document.getElementById("transactionChart");
   if (!canvas || typeof Chart === "undefined") return;
   const ctx = canvas.getContext("2d");
-  if (window.transactionChart) window.transactionChart.destroy();
+  if (chartInstances.transaction && typeof chartInstances.transaction.destroy === "function") {
+    chartInstances.transaction.destroy();
+  }
 
-  window.transactionChart = new Chart(ctx, {
+  chartInstances.transaction = new Chart(ctx, {
     type: "bar",
     data: {
       labels: orders.map(o => String(o.id)),
@@ -120,13 +123,15 @@ function renderTrendChart(orders) {
   const canvas = document.getElementById("trendChart");
   if (!canvas || typeof Chart === "undefined") return;
   const ctx = canvas.getContext("2d");
-  if (window.trendChart) window.trendChart.destroy();
+  if (chartInstances.trend && typeof chartInstances.trend.destroy === "function") {
+    chartInstances.trend.destroy();
+  }
 
   const last = (orders || []).slice(0, 7).reverse();
   const labels = last.map((o, idx) => `T${idx + 1}`);
   const data = last.map(o => Number(o.amount || 0));
 
-  window.trendChart = new Chart(ctx, {
+  chartInstances.trend = new Chart(ctx, {
     type: "line",
     data: {
       labels,
@@ -158,9 +163,11 @@ function renderSoldChart(totalSold, totalAvailable) {
   const canvas = document.getElementById("soldChart");
   if (!canvas || typeof Chart === "undefined") return;
   const ctx = canvas.getContext("2d");
-  if (window.soldChart) window.soldChart.destroy();
+  if (chartInstances.sold && typeof chartInstances.sold.destroy === "function") {
+    chartInstances.sold.destroy();
+  }
 
-  window.soldChart = new Chart(ctx, {
+  chartInstances.sold = new Chart(ctx, {
     type: "doughnut",
     data: {
       labels: ["Sold", "Available"],
@@ -186,9 +193,11 @@ function renderSalesPurchaseChart(totalSold, totalTransactions) {
   const canvas = document.getElementById("salesPurchaseChart");
   if (!canvas || typeof Chart === "undefined") return;
   const ctx = canvas.getContext("2d");
-  if (window.salesPurchaseChart) window.salesPurchaseChart.destroy();
+  if (chartInstances.salesPurchase && typeof chartInstances.salesPurchase.destroy === "function") {
+    chartInstances.salesPurchase.destroy();
+  }
 
-  window.salesPurchaseChart = new Chart(ctx, {
+  chartInstances.salesPurchase = new Chart(ctx, {
     type: "bar",
     data: {
       labels: ["Sold", "Purchased"],
@@ -361,6 +370,13 @@ function setupUI() {
   if (toggleBtn && sidebar) {
     toggleBtn.addEventListener("click", () => {
       sidebar.classList.toggle("show");
+    });
+
+    document.addEventListener("click", event => {
+      if (!sidebar.classList.contains("show")) return;
+      const target = event.target;
+      if (sidebar.contains(target) || toggleBtn.contains(target)) return;
+      sidebar.classList.remove("show");
     });
   }
 

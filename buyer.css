@@ -11,11 +11,9 @@
 *{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;}
 
 img {
-  width: 200px;
-  height: 200px;
-  object-fit: contain;
+  max-width: 100%;
+  height: auto;
   display: block;
-  margin: 0 auto;
 }
 body{margin:0;background:white;color:#fff}
 body.profile-open{margin-right:320px}
@@ -52,8 +50,8 @@ body{
 }
 
 .auth-logo-image {
-  width: 88px;
-  height: 88px;
+  width: 56px !important;
+  height: 56px !important;
   border-radius: 50%;
   object-fit: cover;
   display: block;
@@ -404,6 +402,20 @@ footer {
   font-weight: bold;
   font-size: 18px;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar .nav-logo {
+  width: 26px !important;
+  height: 26px !important;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #ffffff;
+  margin: 0;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .navbar > #searchInput {

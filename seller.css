@@ -287,6 +287,17 @@ body {
 .logo {
   font-weight: bold;
   font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar .nav-logo {
+  width: 26px !important;
+  height: 26px !important;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #ffffff;
 }
 
 .navbar input {

@@ -9,7 +9,13 @@
 <body>
   <script>
     const LAST_PAGE_KEY = 'essu_last_page';
+    const FIRST_VISIT_KEY = 'essu_first_visit_done';
     localStorage.setItem(LAST_PAGE_KEY, 'index.html');
+    const hasVisited = localStorage.getItem(FIRST_VISIT_KEY) === 'true';
+    if (!hasVisited) {
+      localStorage.setItem(FIRST_VISIT_KEY, 'true');
+      localStorage.setItem('essu_force_buyer_auth', 'true');
+    }
     const forceBuyerAuth = localStorage.getItem('essu_force_buyer_auth') === 'true';
     const navEntry = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || null;
     const legacyNavType = (performance.navigation && performance.navigation.type === 1) ? 'reload' : '';
