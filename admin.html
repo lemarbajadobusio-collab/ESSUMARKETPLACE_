@@ -14,6 +14,19 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <script>
+        const FIRST_VISIT_KEY = "essu_first_visit_done";
+        const hasVisited = localStorage.getItem(FIRST_VISIT_KEY) === "true";
+        if (!hasVisited) {
+            localStorage.setItem(FIRST_VISIT_KEY, "true");
+            localStorage.setItem("essu_force_buyer_auth", "true");
+            window.location.href = "index.html";
+        }
+        const forceBuyerAuth = localStorage.getItem("essu_force_buyer_auth") === "true";
+        if (forceBuyerAuth) {
+            window.location.href = "index.html";
+        }
+    </script>
 
 <header class="admin-topbar">
     <button class="sidebar-toggle" type="button" aria-label="Toggle sidebar">

@@ -1995,6 +1995,9 @@ if (signoutBtn) {
     setCurrentUserEmail("");
     setCurrentUserId(0);
     localStorage.removeItem(STORAGE_KEYS.activeConversation);
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("essu_force_buyer_auth");
+    localStorage.setItem("essu_preferred_role", "seller");
     activeConversationId = "";
     products.length = 0;
     myListings.length = 0;

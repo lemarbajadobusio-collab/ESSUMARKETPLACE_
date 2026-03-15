@@ -266,11 +266,11 @@ function logout() {
   const b = currentBuyer();
   localStorage.removeItem("buyer");
   localStorage.removeItem("buyer_user_id");
-  localStorage.removeItem("essu_force_buyer_auth");
   resetBuyerViewState();
-  localStorage.setItem("essu_preferred_role", "seller");
+  localStorage.setItem("essu_force_buyer_auth", "true");
+  localStorage.setItem("essu_preferred_role", "buyer");
   if (b && typeof addActivity === 'function') addActivity('logout', b, {});
-  window.location.href = "seller.html";
+  window.location.href = "index.html";
 }
 
 // DASHBOARD AUTH CHECK
