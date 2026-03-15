@@ -672,6 +672,7 @@ function renderMyListings() {
             <h4>${item.name}</h4>
             <div class="price">${formatCurrency(item.price)}</div>
             <span class="${statusClass}">${statusValue}</span>
+            <div class="listing-availability">Available: ${Math.max(0, Number(item.availableQty ?? 0))}</div>
             ${pendingSale ? `<div class="listing-proof-actions">${proofButton}</div>
             <button type="button" class="listing-complete-btn" data-transaction-id="${pendingSale.id}">Confirm completed</button>` : ""}
           </div>
@@ -2129,16 +2130,18 @@ if (listingForm) {
       const category = document.getElementById("listingCategory");
       const price = document.getElementById("listingPrice");
       const condition = document.getElementById("listingCondition");
+      const availability = document.getElementById("listingAvailability");
       const location = document.getElementById("listingLocation");
       const details = document.getElementById("listingDetails");
 
-      if (!title || !category || !price || !condition || !location || !details || !listingImages) return;
+      if (!title || !category || !price || !condition || !availability || !location || !details || !listingImages) return;
 
       if (
         !title.value.trim() ||
         !category.value ||
         !price.value ||
         !condition.value ||
+        availability.value === "" ||
         !location.value ||
         !details.value.trim()
       ) {
@@ -2167,6 +2170,8 @@ if (listingForm) {
         }
       }
 
+      const availableQty = Math.max(0, Math.floor(Number(availability.value) || 0));
+
       if (isEditing) {
         const existing = products.find(item => String(item.id) === String(editingListingId));
         const updatedImages = imageDataUrls.length ? imageDataUrls : existing?.images || [existing?.image].filter(Boolean);
@@ -2177,6 +2182,7 @@ if (listingForm) {
             category: category.value,
             price: Number(price.value),
             condition: condition.value,
+            availableQty,
             location: location.value,
             image: updatedImages[0] || "",
             images: updatedImages,
@@ -2193,6 +2199,7 @@ if (listingForm) {
             category: category.value,
             price: Number(price.value),
             condition: condition.value,
+            availableQty,
             location: location.value,
             image: imageDataUrls[0],
             images: imageDataUrls,
@@ -2583,6 +2590,7 @@ if (listingGridCards) {
         const price = document.getElementById("listingPrice");
         const category = document.getElementById("listingCategory");
         const condition = document.getElementById("listingCondition");
+        const availability = document.getElementById("listingAvailability");
         const location = document.getElementById("listingLocation");
         const details = document.getElementById("listingDetails");
 
@@ -2591,6 +2599,7 @@ if (listingGridCards) {
         if (price) price.value = productItem.price || "";
         if (category && productItem.category) category.value = productItem.category;
         if (condition && productItem.condition) condition.value = productItem.condition;
+        if (availability) availability.value = Number(productItem.availableQty ?? 1);
         if (location && productItem.location) location.value = productItem.location;
         if (details) details.value = productItem.description || "";
 
