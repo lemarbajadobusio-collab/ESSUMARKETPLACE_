@@ -6,6 +6,7 @@
   --accent-dark:#149140;
   --shadow: 0 2px 8px rgba(0,0,0,0.08);
   --radius:12px;
+  --navbar-height: 72px;
 }
 
 *{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;}
@@ -15,7 +16,7 @@ img {
   height: auto;
   display: block;
 }
-body{margin:0;background:white;color:#fff}
+body{margin:0;background:white;color:#fff;padding-top:var(--navbar-height)}
 body.profile-open{margin-right:320px}
 html,
 body{
@@ -1170,6 +1171,7 @@ select.address-input { cursor: pointer; }
   :root { --radius: 10px; }
   html, body { -webkit-text-size-adjust: 100%; }
   .container { padding: 124px 14px 20px 14px; max-width: 100%; }
+  #itemModal.modal { padding-top: 88px; }
   .grid { gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card { padding: 9px; margin: 4px 0; min-width: 0; overflow: hidden; }
   .card img { width: 100% !important; height: 124px !important; max-height: 124px !important; object-fit: cover !important; display: block; margin: 0 auto 8px auto; border-radius: 10px; }
@@ -1768,7 +1770,9 @@ select.address-input { cursor: pointer; }
   align-items: flex-start;
   justify-content: center;
   overflow-y: auto;
-  background: #f3f5f7;
+  background: transparent;
+  padding-top: 76px;
+  z-index: 900;
 }
 
 #itemModal .item-modal-content {
@@ -1804,14 +1808,15 @@ select.address-input { cursor: pointer; }
 .product-gallery {
   display: grid;
   gap: 12px;
+  justify-items: center;
 }
 
 .detail-main {
   width: 100%;
   height: 360px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 12px;
-  background: #e2e8f0;
+  background: #ffffff;
 }
 
 .detail-thumbs {
@@ -2160,6 +2165,10 @@ select.address-input { cursor: pointer; }
 
 /* Match seller-like mobile listing density: 2 cards per row */
 @media (max-width: 768px) {
+  :root {
+    --navbar-height: 88px;
+  }
+
   .container,
   main.container,
   .main.container {

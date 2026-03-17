@@ -105,6 +105,16 @@ function setBuyerSession(user) {
   localStorage.removeItem("essu_force_buyer_auth");
 }
 
+function redirectToSellerAuth(tab = "login", email = "") {
+  localStorage.removeItem("essu_force_buyer_auth");
+  localStorage.setItem("essu_preferred_role", "seller");
+  localStorage.setItem("essu_seller_auth_tab", tab);
+  if (email) {
+    localStorage.setItem("essu_seller_prefill_email", email);
+  }
+  window.location.href = "seller.html";
+}
+
 async function refreshUsers() {
   const data = await apiRequest("/users");
   usersCache = data.users || [];
@@ -114,6 +124,12 @@ async function refreshUsers() {
 function getUserByEmail(email) {
   if (!email) return null;
   return usersCache.find(u => String(u.email || "").toLowerCase() === String(email).toLowerCase()) || null;
+}
+
+function getUserById(id) {
+  const normalizedId = Number(id || 0);
+  if (!normalizedId) return null;
+  return usersCache.find(u => Number(u.id || 0) === normalizedId) || null;
 }
 
 function getUserPhotoByEmail(email) {
@@ -191,6 +207,13 @@ async function signup() {
   }
 
   try {
+    await refreshUsers();
+    const existingUser = getUserByEmail(email);
+    if (existingUser?.role === "seller") {
+      if (errEl) errEl.innerText = "This email is registered as a seller. Redirecting to seller sign in.";
+      setTimeout(() => redirectToSellerAuth("login", email), 400);
+      return;
+    }
     await apiRequest("/auth/register", {
       method: "POST",
       body: JSON.stringify({
@@ -247,6 +270,11 @@ async function login() {
     }
 
     // Buyer login flow (unchanged)
+    if (data.user.role === "seller") {
+      if (errEl) errEl.innerText = "This email is registered as a seller. Redirecting to seller login.";
+      setTimeout(() => redirectToSellerAuth("login", email), 400);
+      return;
+    }
     if (data.user.role !== "buyer") {
       if (errEl) errEl.innerText = "This account is not a buyer account";
       return;
@@ -279,7 +307,7 @@ if (document.getElementById("itemsGrid")) {
 }
 
 async function refreshProducts() {
-  const data = await apiRequest("/products");
+  const data = await apiRequest("/products?includeSold=true");
   products = (data.products || []).map(p => ({
     id: Number(p.id),
     name: p.name,
@@ -296,7 +324,7 @@ async function refreshProducts() {
     location: p.location || "",
     posted: p.posted || "",
     createdAt: p.createdAt || ""
-  })).filter(p => !isRemovedProduct(p));
+  }));
   return products;
 }
 
@@ -353,11 +381,17 @@ function closeSellerProfileModal() {
 function openSellerProfileModal(product) {
   if (!product) return;
 
-  const seller = getUserByEmail(product.sellerEmail) || null;
+  const seller = getUserById(product.sellerUserId) || getUserByEmail(product.sellerEmail) || null;
   const sellerName = seller?.fullname || product.seller || "Seller";
   const sellerEmail = seller?.email || product.sellerEmail || "-";
   const sellerPhoto = seller?.photo || getUserPhotoByEmail(product.sellerEmail || "") || "";
   const sellerListings = products.filter(p => {
+    if (seller?.id) {
+      return Number(p.sellerUserId || 0) === Number(seller.id || 0);
+    }
+    if (product.sellerUserId) {
+      return Number(p.sellerUserId || 0) === Number(product.sellerUserId || 0);
+    }
     if (product.sellerEmail) {
       return String(p.sellerEmail || "").toLowerCase() === String(product.sellerEmail).toLowerCase();
     }
@@ -2021,11 +2055,18 @@ function openBuyerSellPromptSection() {
 }
 
 function proceedToSellerAuth() {
-  localStorage.removeItem("buyer");
-  localStorage.removeItem("buyer_user_id");
+  const currentUserRaw = localStorage.getItem("currentUser");
+  let currentUser = null;
+  try {
+    currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
+  } catch {}
+  const buyerEmail = currentUser?.email || localStorage.getItem("buyer") || "";
+  const buyerName = currentUser?.fullname || "";
   localStorage.removeItem("essu_force_buyer_auth");
-  localStorage.removeItem("currentUser");
   localStorage.setItem("essu_preferred_role", "seller");
+  localStorage.setItem("essu_seller_auth_tab", "signup");
+  if (buyerEmail) localStorage.setItem("essu_seller_prefill_email", buyerEmail);
+  if (buyerName) localStorage.setItem("essu_seller_prefill_name", buyerName);
   window.location.href = "seller.html";
 }
 

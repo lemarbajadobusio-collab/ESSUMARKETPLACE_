@@ -164,6 +164,21 @@ const STORAGE_KEYS = {
 
 localStorage.setItem(STORAGE_KEYS.lastPage, "seller.html");
 
+function applySellerPrefill() {
+  const prefillEmail = localStorage.getItem("essu_seller_prefill_email") || "";
+  const prefillName = localStorage.getItem("essu_seller_prefill_name") || "";
+  const loginEmail = document.getElementById("loginEmail");
+  const signupEmail = document.getElementById("signupEmail");
+  const signupFullname = document.getElementById("signupFullname");
+  if (prefillEmail) {
+    if (loginEmail && !loginEmail.value) loginEmail.value = prefillEmail;
+    if (signupEmail && !signupEmail.value) signupEmail.value = prefillEmail;
+  }
+  if (prefillName && signupFullname && !signupFullname.value) {
+    signupFullname.value = prefillName;
+  }
+}
+
 let transactions = []
 let cartItems = []
 let checkoutAddressSelection = "";
@@ -1446,6 +1461,7 @@ function activateTab(tab) {
     signupForm.removeAttribute("hidden");
     loginForm.setAttribute("hidden", "hidden");
   }
+  applySellerPrefill();
 }
 
 function updateProfileFromSignup() {
@@ -1920,11 +1936,57 @@ if (signupForm) {
 
     try {
       const proofDataUrl = await readFileAsDataUrl(proofFile);
+      const normalizedEmail = email.value.trim().toLowerCase();
+      const allUsers = await apiRequest("/users");
+      const matchedUser = (allUsers.users || []).find(u => String(u.email || "").toLowerCase() === normalizedEmail);
+
+      // If the email already exists as a buyer, upgrade to seller instead of failing.
+      try {
+        const loginCheck = await apiRequest("/auth/login", {
+          method: "POST",
+          body: JSON.stringify({
+            email: normalizedEmail,
+            password: password.value
+          })
+        });
+        const existingUser = loginCheck.user;
+        if (existingUser?.role === "seller") {
+          alert("This email already has a seller account. Please log in.");
+          activateTab("login");
+          return;
+        }
+        if (existingUser?.role === "buyer") {
+          await apiRequest(`/users/${existingUser.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              role: "seller",
+              status: "INACTIVE",
+              fullname: fullname.value.trim(),
+              mobile: mobile.value.trim(),
+              commissionStatus: "PENDING",
+              commissionReference: commissionRef?.value?.trim() || "",
+              commissionProof: proofDataUrl,
+              commissionAmount: 30
+            })
+          });
+          await loadUserData();
+          updateProfileFromSignup();
+          alert("Your seller account request has been submitted. Please wait for admin approval before logging in.");
+          activateTab("login");
+          return;
+        }
+      } catch {
+        if (matchedUser?.id && matchedUser.role === "buyer") {
+          alert("This email already exists as a buyer. Please use your buyer password to upgrade to seller.");
+          return;
+        }
+      }
+
       await apiRequest("/auth/register", {
         method: "POST",
         body: JSON.stringify({
           fullname: fullname.value.trim(),
-          email: email.value.trim(),
+          email: normalizedEmail,
           password: password.value,
           mobile: mobile.value.trim(),
           role: "seller",
