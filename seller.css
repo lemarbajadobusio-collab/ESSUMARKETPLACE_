@@ -126,9 +126,12 @@ body {
 }
 
 .signup-nav {
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
   gap: 10px;
+}
+
+.signup-nav .primary-btn {
+  width: 100%;
 }
 
 .step-indicator {
@@ -923,6 +926,38 @@ body {
   margin: 0 0 6px;
   color: #64748b;
   font-size: 12px;
+}
+
+.my-order-proof {
+  margin-top: 6px;
+  border: none;
+  background: #e8f5ee;
+  color: #166534;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.my-order-proof:hover {
+  background: #d9f1e2;
+}
+
+.txn-proof-link {
+  border: none;
+  background: #e8f5ee;
+  color: #166534;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.txn-proof-link:hover {
+  background: #d9f1e2;
 }
 
 .my-order-amount {

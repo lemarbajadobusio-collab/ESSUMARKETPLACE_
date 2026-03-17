@@ -668,7 +668,7 @@ function renderMyListings() {
       );
       const proofButton = pendingSale
         ? (pendingSale.deliveryProof
-          ? `<button type="button" class="listing-proof-btn" data-transaction-id="${pendingSale.id}" data-action="view-proof">View proof</button>
+          ? `<button type="button" class="listing-proof-btn" data-transaction-id="${pendingSale.id}" data-action="view-proof">View delivery proof</button>
              <button type="button" class="listing-proof-btn ghost" data-transaction-id="${pendingSale.id}" data-action="upload-proof">Replace proof</button>`
           : `<button type="button" class="listing-proof-btn" data-transaction-id="${pendingSale.id}" data-action="upload-proof">Upload proof</button>`)
         : "";
@@ -733,6 +733,7 @@ function renderMyOrders() {
             <h4>${order.item}</h4>
             <p>${order.date}</p>
             <span class="badge ${statusClass}">${order.status || "Completed"}</span>
+            ${order.deliveryProof ? `<button type="button" class="my-order-proof" data-proof="${order.deliveryProof}">View delivery proof</button>` : ""}
           </div>
           <div class="my-order-amount">${formatCurrency(Number(order.amount) || 0)}</div>
         </div>
@@ -1282,6 +1283,9 @@ function renderDashboard(filter) {
         <span class="${typeClass}">${t.type}</span>
         <span class="badge ${statusClass}">${t.status}</span>
         <span>${formatCurrency(t.amount)}</span>
+        <span>
+          ${t.deliveryProof ? `<button type="button" class="txn-proof-link" data-proof="${t.deliveryProof}">View delivery proof</button>` : ""}
+        </span>
       </div>
     `;
   });
@@ -2747,6 +2751,24 @@ if (listingGridCards) {
         alert(error.message || "Could not update transaction.");
       }
     }
+  });
+}
+
+if (myOrdersList) {
+  myOrdersList.addEventListener("click", event => {
+    const proofBtn = event.target.closest(".my-order-proof");
+    if (!proofBtn) return;
+    const proof = proofBtn.getAttribute("data-proof");
+    if (proof) window.open(proof, "_blank", "noopener");
+  });
+}
+
+if (transactionRows) {
+  transactionRows.addEventListener("click", event => {
+    const proofBtn = event.target.closest(".txn-proof-link");
+    if (!proofBtn) return;
+    const proof = proofBtn.getAttribute("data-proof");
+    if (proof) window.open(proof, "_blank", "noopener");
   });
 }
 

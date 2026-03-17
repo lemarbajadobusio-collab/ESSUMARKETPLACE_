@@ -2146,9 +2146,7 @@ async function updateBuyerProfileSection() {
           ? `<img src="${img}" alt="${title}">`
           : `<span>${title.slice(0, 1).toUpperCase()}</span>`;
         const proofThumb = order.deliveryProof
-          ? `<button type="button" class="sidebar-order-proof-thumb" data-proof="${order.deliveryProof}" aria-label="View proof of receipt">
-               <img src="${order.deliveryProof}" alt="Proof of receipt">
-             </button>`
+          ? `<button type="button" class="sidebar-order-proof-link" data-proof="${order.deliveryProof}">View delivery proof</button>`
           : `<button type="button" class="sidebar-order-upload" data-transaction-id="${order.id}">Upload receipt proof</button>`;
         orderDiv.innerHTML = `
           <div class="sidebar-order-main">
@@ -2181,7 +2179,7 @@ async function updateBuyerProfileSection() {
 
 if (document.getElementById('buyerProfileOrders')) {
   document.getElementById('buyerProfileOrders').addEventListener('click', event => {
-    const viewBtn = event.target.closest('.sidebar-order-proof-thumb');
+    const viewBtn = event.target.closest('.sidebar-order-proof-link, .sidebar-order-proof, .sidebar-order-proof-thumb');
     if (viewBtn) {
       const proof = viewBtn.getAttribute('data-proof');
       if (proof) window.open(proof, '_blank', 'noopener');
@@ -2271,6 +2269,16 @@ function proceedToSellerAuth() {
 }
 
 function cancelSellPrompt() {
+  const buyerEmail = localStorage.getItem("buyer");
+  if (!buyerEmail) {
+    try {
+      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
+      if (currentUser?.email) {
+        localStorage.setItem("buyer", currentUser.email);
+        if (currentUser.id) localStorage.setItem("buyer_user_id", String(currentUser.id));
+      }
+    } catch {}
+  }
   openBuyerProfileSection();
 }
 
