@@ -6,7 +6,7 @@
   <title>ESSU Marketplace | Sign In / Sign Up</title>
   <link rel="stylesheet" href="buyer.css?v=20260218f">
 </head>
-<body>
+<body class="auth-page">
   <script>
     const LAST_PAGE_KEY = 'essu_last_page';
     const FIRST_VISIT_KEY = 'essu_first_visit_done';
@@ -60,12 +60,8 @@
       <!-- LOGIN (keeps original input ids for JS compatibility) -->
       <form id="loginForm" class="auth-form" onsubmit="event.preventDefault(); login();">
         <div class="input-group">
-          <label for="name">Full Name</label>
-          <input id="name" type="text"  required />
-        </div>
-        <div class="input-group">
-          <label for="email">Email Address</label>
-          <input id="email" type="email"  required />
+          <label for="email">Gmail Address</label>
+          <input id="email" type="email" required />
         </div>
         <div class="input-group">
           <label for="password">Password</label>

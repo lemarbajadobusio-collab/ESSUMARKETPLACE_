@@ -17,6 +17,10 @@ img {
   display: block;
 }
 body{margin:0;background:white;color:#fff;padding-top:var(--navbar-height)}
+body.auth-page{
+  padding-top: 0;
+  background: linear-gradient(180deg, #1fb04d 0%, #149140 100%);
+}
 body.profile-open{margin-right:320px}
 html,
 body{
