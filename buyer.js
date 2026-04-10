@@ -23,6 +23,7 @@ let conversationsCache = [];
 let messagesCache = {};
 let activeConversationId = "";
 let buyerCheckoutProductSelection = "";
+let buyerCheckoutUseSavedAddress = true;
 let buyerChatMenuBound = false;
 let buyerChatControlsBound = false;
 const WISHLIST_EMPTY = "\u2661";
@@ -131,6 +132,16 @@ function saveBuyerAddress(address) {
     return;
   }
   localStorage.setItem(getBuyerAddressKey(), JSON.stringify(address));
+}
+
+function formatBuyerAddressInline(address) {
+  if (!hasSavedBuyerAddress(address)) return "No saved address yet.";
+  const parts = [
+    address.city,
+    address.campus,
+    address.department
+  ].filter(value => String(value || "").trim());
+  return parts.join(", ") || "No saved address yet.";
 }
 
 function setBuyerSession(user) {
@@ -884,8 +895,8 @@ function openBuyerCheckoutModal(){
   }
   const backdrop = document.getElementById('checkoutModalBackdrop');
   if (backdrop) backdrop.removeAttribute('hidden');
-  updateCheckoutAddressSelect();
-  applyCheckoutAddressSelection();
+  buyerCheckoutUseSavedAddress = hasSavedBuyerAddress(getSavedBuyerAddress());
+  renderBuyerCheckoutAddress();
   saveBuyerViewState({ checkoutOpen: true, checkoutStep: "address" });
 }
 
@@ -895,43 +906,7 @@ function closeBuyerCheckoutModal(){
   saveBuyerViewState({ checkoutOpen: false, checkoutStep: "" });
 }
 
-function updateCheckoutAddressSelect() {
-  const select = document.getElementById('deliveryAddressSelect');
-  const hint = document.getElementById('deliveryAddressHint');
-  if (!select) return;
-  const address = getSavedBuyerAddress();
-  const hasSaved = hasSavedBuyerAddress(address);
-  const profileOption = Array.from(select.options).find(opt => opt.value === "profile");
-  if (profileOption) profileOption.disabled = !hasSaved;
-  if (hint) {
-    hint.textContent = hasSaved
-      ? "Profile address available."
-      : "No saved profile address yet.";
-  }
-  if (!hasSaved && select.value === "profile") {
-    select.value = "manual";
-  }
-  if (hasSaved && select.value !== "manual" && select.value !== "profile") {
-    select.value = "profile";
-  }
-  if (hasSaved && select.value === "manual") {
-    const name = document.getElementById('deliveryFullname')?.value.trim() || "";
-    const phone = document.getElementById('deliveryPhone')?.value.trim() || "";
-    const city = document.getElementById('deliveryCity')?.value.trim() || "";
-    const campus = document.getElementById('deliveryCampus')?.value.trim() || "";
-    const department = document.getElementById('deliveryDepartment')?.value.trim() || "";
-    if (!name && !phone && !city && !campus && !department) {
-      select.value = "profile";
-    }
-  }
-}
-
-function applyCheckoutAddressSelection() {
-  const select = document.getElementById('deliveryAddressSelect');
-  if (!select) return;
-  if (select.value !== "profile") return;
-  const address = getSavedBuyerAddress();
-  if (!hasSavedBuyerAddress(address)) return;
+function fillBuyerCheckoutForm(address = {}) {
   const map = {
     deliveryFullname: address.fullname || "",
     deliveryPhone: address.phone || "",
@@ -944,6 +919,53 @@ function applyCheckoutAddressSelection() {
     const el = document.getElementById(id);
     if (el) el.value = value;
   });
+}
+
+function clearBuyerCheckoutForm() {
+  fillBuyerCheckoutForm({});
+}
+
+function renderBuyerCheckoutAddress() {
+  const savedAddressEl = document.getElementById('savedDeliveryAddresses');
+  const addressForm = document.getElementById('deliveryAddressForm');
+  const toggleBtn = document.getElementById('toggleNewAddressBtn');
+  if (!savedAddressEl || !addressForm || !toggleBtn) return;
+
+  const address = getSavedBuyerAddress();
+  const hasSaved = hasSavedBuyerAddress(address);
+  buyerCheckoutUseSavedAddress = hasSaved && buyerCheckoutUseSavedAddress;
+
+  if (hasSaved) {
+    savedAddressEl.innerHTML = `
+      <label class="saved-address-option">
+        <span class="saved-checkout-address-details">
+          <input type="radio" name="savedAddressChoice" value="saved" ${buyerCheckoutUseSavedAddress ? "checked" : ""}>
+          <span>
+            <strong>${address.fullname || ""}</strong>
+            <span class="muted-line">${address.phone || ""}</span>
+            <span class="muted-line">${[address.city, address.campus, address.department].filter(Boolean).join(" • ")}</span>
+          </span>
+        </span>
+      </label>
+    `;
+    savedAddressEl.removeAttribute('hidden');
+  } else {
+    savedAddressEl.innerHTML = "";
+    savedAddressEl.setAttribute('hidden', 'hidden');
+    buyerCheckoutUseSavedAddress = false;
+  }
+
+  if (buyerCheckoutUseSavedAddress && hasSaved) {
+    fillBuyerCheckoutForm(address);
+    addressForm.setAttribute('hidden', 'hidden');
+    toggleBtn.textContent = "+ Add new delivery address";
+  } else {
+    addressForm.removeAttribute('hidden');
+    if (!hasSaved) {
+      clearBuyerCheckoutForm();
+    }
+    toggleBtn.textContent = hasSaved ? "+ Add new delivery address" : "+ Save delivery address";
+  }
 }
 
 async function confirmBuyerCheckout(){
@@ -960,6 +982,11 @@ async function confirmBuyerCheckout(){
   if(!sel || !name || !phone || !city || !campus || !department){
     alert('Please fill in all required address fields');
     return;
+  }
+
+  const addressPayload = { fullname: name, phone, city, campus, department, instructions };
+  if (!buyerCheckoutUseSavedAddress) {
+    saveBuyerAddress(addressPayload);
   }
 
   const selectedProductId = Number(buyerCheckoutProductSelection || 0);
@@ -2071,6 +2098,7 @@ async function updateBuyerProfileSection() {
   const avatarDiv = document.getElementById('buyerProfileAvatar');
   const nameH3 = document.getElementById('buyerProfileName');
   const emailEl = document.getElementById('buyerProfileEmail');
+  const inlineAddressEl = document.getElementById('buyerProfileInlineAddress');
   const mobileEl = document.getElementById('buyerProfileMobile');
   const memberSinceEl = document.getElementById('buyerProfileMemberSince');
   const statusEl = document.getElementById('buyerProfileStatus');
@@ -2086,6 +2114,7 @@ async function updateBuyerProfileSection() {
     }
     nameH3.textContent = displayName;
     emailEl.textContent = buyer;
+    if (inlineAddressEl) inlineAddressEl.textContent = formatBuyerAddressInline(getSavedBuyerAddress());
     if (mobileEl) mobileEl.textContent = user?.mobile || '--';
     memberSinceEl.textContent = formatMemberSince(user?.joinedAt);
     statusEl.textContent = user?.status || 'ACTIVE';
@@ -2168,6 +2197,7 @@ async function updateBuyerProfileSection() {
   } else {
     nameH3.textContent = 'Buyer';
     emailEl.textContent = '--';
+    if (inlineAddressEl) inlineAddressEl.textContent = "No saved address yet.";
     if (mobileEl) mobileEl.textContent = '--';
     memberSinceEl.textContent = '--';
     statusEl.textContent = '--';
@@ -2415,13 +2445,24 @@ document.addEventListener('DOMContentLoaded', function() {
     updateBuyerProfileSection();
   }
 
-  const addressSelect = document.getElementById('deliveryAddressSelect');
-  if (addressSelect) {
-    addressSelect.addEventListener('change', () => {
-      updateCheckoutAddressSelect();
-      applyCheckoutAddressSelection();
+  const savedDeliveryAddresses = document.getElementById('savedDeliveryAddresses');
+  if (savedDeliveryAddresses) {
+    savedDeliveryAddresses.addEventListener('change', event => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      if (target.name !== 'savedAddressChoice') return;
+      buyerCheckoutUseSavedAddress = target.value === 'saved';
+      renderBuyerCheckoutAddress();
     });
-    updateCheckoutAddressSelect();
+  }
+
+  const toggleNewAddressBtn = document.getElementById('toggleNewAddressBtn');
+  if (toggleNewAddressBtn) {
+    toggleNewAddressBtn.addEventListener('click', () => {
+      buyerCheckoutUseSavedAddress = false;
+      clearBuyerCheckoutForm();
+      renderBuyerCheckoutAddress();
+    });
   }
 
   const profilePhotoBtn = document.getElementById('buyerChangePhotoBtn');
