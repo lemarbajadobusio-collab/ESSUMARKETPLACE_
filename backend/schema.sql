@@ -79,23 +79,8 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS admin_user_actions (
-  id BIGSERIAL PRIMARY KEY,
-  action_type TEXT NOT NULL CHECK (action_type IN ('BANNED', 'DELETED')),
-  target_user_id BIGINT,
-  target_name TEXT NOT NULL DEFAULT '',
-  target_email TEXT NOT NULL DEFAULT '',
-  target_role TEXT NOT NULL DEFAULT '',
-  admin_user_id BIGINT,
-  admin_name TEXT NOT NULL DEFAULT '',
-  admin_email TEXT NOT NULL DEFAULT '',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 CREATE INDEX IF NOT EXISTS idx_products_seller ON products(seller_user_id);
 CREATE INDEX IF NOT EXISTS idx_products_status ON products(status);
 CREATE INDEX IF NOT EXISTS idx_transactions_buyer ON transactions(buyer_user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_seller ON transactions(seller_user_id);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_admin_user_actions_type ON admin_user_actions(action_type);
-CREATE INDEX IF NOT EXISTS idx_admin_user_actions_created_at ON admin_user_actions(created_at);
