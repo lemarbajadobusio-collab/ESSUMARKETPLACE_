@@ -34,6 +34,7 @@ const backFromProfile = document.getElementById("backFromProfile");
 const backFromProfileEdit = document.getElementById("backFromProfileEdit");
 const profilePageName = document.getElementById("profilePageName");
 const profileEmail = document.getElementById("profileEmail");
+const profileAddress = document.getElementById("profileAddress");
 const profileMobile = document.getElementById("profileMobile");
 const profileMemberSince = document.getElementById("profileMemberSince");
 const profileStatus = document.getElementById("profileStatus");
@@ -240,6 +241,45 @@ function getUserStorageKey(baseKey) {
 
 function getPhotoStorageKey(email) {
   return email ? `essu_user_photo:${email.toLowerCase()}` : "essu_user_photo";
+}
+
+function getSellerAddressStorageKey(email = getCurrentUserEmail()) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  return normalizedEmail ? `essu_seller_address:${normalizedEmail}` : "essu_seller_address";
+}
+
+function loadSellerAddress(email = getCurrentUserEmail()) {
+  return localStorage.getItem(getSellerAddressStorageKey(email)) || "";
+}
+
+function saveSellerAddress(address, email = getCurrentUserEmail()) {
+  const normalizedAddress = String(address || "").trim();
+  const storageKey = getSellerAddressStorageKey(email);
+  if (normalizedAddress) {
+    localStorage.setItem(storageKey, normalizedAddress);
+  } else {
+    localStorage.removeItem(storageKey);
+  }
+}
+
+function migrateSellerAddress(oldEmail, newEmail, address) {
+  const oldKey = getSellerAddressStorageKey(oldEmail);
+  const newKey = getSellerAddressStorageKey(newEmail);
+  const normalizedAddress = String(address || "").trim();
+  if (oldKey !== newKey) {
+    localStorage.removeItem(oldKey);
+  }
+  if (normalizedAddress) {
+    localStorage.setItem(newKey, normalizedAddress);
+  } else {
+    localStorage.removeItem(newKey);
+  }
+}
+
+function updateSellerAddressDisplay(address) {
+  if (profileAddress) {
+    profileAddress.textContent = String(address || "").trim() || "--";
+  }
 }
 
 let conversationsCache = [];
@@ -873,12 +913,12 @@ function renderSavedDeliveryAddresses() {
   savedDeliveryAddressesEl.innerHTML = addresses
     .map(address => `
       <label class="saved-address-option">
-        <span class="checkout-radio-option">
+        <span class="saved-checkout-address-details">
           <input type="radio" name="savedAddressChoice" value="${address.id}" ${address.id === checkoutAddressSelection ? "checked" : ""}>
           <span>
-            <strong>${address.fullname}</strong><br>
-            <small>${address.phone}</small><br>
-            <small>${formatAddressSingleLine(address)}</small>
+            <strong>${address.fullname}</strong>
+            <span class="muted-line">${address.phone}</span>
+            <span class="muted-line">${formatAddressSingleLine(address)}</span>
           </span>
         </span>
       </label>
@@ -1476,6 +1516,7 @@ function updateProfileFromSignup() {
 
   if (profilePageName && signupFullname) profilePageName.textContent = signupFullname.value;
   if (profileEmail && signupEmail) profileEmail.textContent = signupEmail.value;
+  updateSellerAddressDisplay(loadSellerAddress(signupEmail?.value || ""));
   if (profileMobile && signupMobile) profileMobile.textContent = signupMobile.value;
   if (profileMemberSince) profileMemberSince.textContent = String(new Date().getFullYear());
   if (profileStatus) profileStatus.textContent = "PENDING APPROVAL";
@@ -1485,6 +1526,7 @@ function updateProfileFromLogin(user) {
   if (!user) return;
   if (profilePageName) profilePageName.textContent = user.fullname || "";
   if (profileEmail) profileEmail.textContent = user.email || "";
+  updateSellerAddressDisplay(loadSellerAddress(user.email || ""));
   if (profileMobile) profileMobile.textContent = user.mobile || "";
   if (profileMemberSince) profileMemberSince.textContent = getMemberSinceYear(user);
   if (profileStatus) profileStatus.textContent = user.status || "ACTIVE";
@@ -1495,10 +1537,12 @@ function fillProfileEditForm() {
   const editFullname = document.getElementById("editFullname");
   const editMobile = document.getElementById("editMobile");
   const editEmail = document.getElementById("editEmail");
+  const editAddress = document.getElementById("editAddress");
 
   if (editFullname && profilePageName) editFullname.value = profilePageName.textContent;
   if (editMobile && profileMobile) editMobile.value = profileMobile.textContent;
   if (editEmail && profileEmail) editEmail.value = profileEmail.textContent;
+  if (editAddress) editAddress.value = loadSellerAddress(profileEmail?.textContent || getCurrentUserEmail());
 }
 
 function isGmailEmail(email) {
@@ -1544,6 +1588,7 @@ function applyUserProfile(user) {
   if (!user) return;
   if (profilePageName) profilePageName.textContent = user.fullname || "";
   if (profileEmail) profileEmail.textContent = user.email || "";
+  updateSellerAddressDisplay(loadSellerAddress(user.email || ""));
   if (profileMobile) profileMobile.textContent = user.mobile || "";
   if (profileMemberSince) profileMemberSince.textContent = getMemberSinceYear(user);
   if (profileStatus) profileStatus.textContent = user.status || "ACTIVE";
@@ -2798,9 +2843,14 @@ if (profileEditForm) {
     const editFullname = document.getElementById("editFullname");
     const editMobile = document.getElementById("editMobile");
     const editEmail = document.getElementById("editEmail");
+    const editAddress = document.getElementById("editAddress");
+    const previousEmail = getCurrentUserEmail();
+    const nextEmail = editEmail?.value?.trim() || "";
+    const nextAddress = editAddress?.value?.trim() || "";
 
     if (profilePageName && editFullname) profilePageName.textContent = editFullname.value;
     if (profileEmail && editEmail) profileEmail.textContent = editEmail.value;
+    updateSellerAddressDisplay(nextAddress);
     if (profileMobile && editMobile) profileMobile.textContent = editMobile.value;
 
     if (profileName && editFullname) profileName.textContent = editFullname.value;
@@ -2817,7 +2867,10 @@ if (profileEditForm) {
           })
         });
         if (editEmail?.value) {
+          migrateSellerAddress(previousEmail, nextEmail, nextAddress);
           setCurrentUserEmail(editEmail.value.trim());
+        } else {
+          saveSellerAddress(nextAddress, previousEmail);
         }
         await loadUserData();
         render(products);
