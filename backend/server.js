@@ -133,6 +133,44 @@ function sanitizeUser(row) {
   };
 }
 
+function sanitizeAdminUserAction(row) {
+  if (!row) return null;
+  return {
+    id: Number(row.id),
+    actionType: row.action_type || "",
+    targetUserId: Number(row.target_user_id || 0),
+    targetName: row.target_name || "",
+    targetEmail: row.target_email || "",
+    targetRole: row.target_role || "",
+    adminUserId: Number(row.admin_user_id || 0),
+    adminName: row.admin_name || "",
+    adminEmail: row.admin_email || "",
+    createdAt: row.created_at || ""
+  };
+}
+
+async function logAdminUserAction(actionType, targetUser, adminMeta = {}) {
+  const normalizedAction = String(actionType || "").trim().toUpperCase();
+  if (!["BANNED", "DELETED"].includes(normalizedAction)) return;
+
+  const insertPayload = {
+    action_type: normalizedAction,
+    target_user_id: Number(targetUser?.id || 0) || null,
+    target_name: String(targetUser?.fullname || targetUser?.email || "").trim(),
+    target_email: String(targetUser?.email || "").trim().toLowerCase(),
+    target_role: String(targetUser?.role || "").trim().toLowerCase(),
+    admin_user_id: Number(adminMeta?.id || 0) || null,
+    admin_name: String(adminMeta?.name || "").trim(),
+    admin_email: String(adminMeta?.email || "").trim().toLowerCase(),
+    created_at: nowIso()
+  };
+
+  const inserted = await supabase.from("admin_user_actions").insert(insertPayload);
+  if (inserted.error) {
+    throw inserted.error;
+  }
+}
+
 async function deleteProductsBySeller(userId) {
   const products = await supabase
     .from("products")
@@ -454,7 +492,10 @@ app.patch("/api/users/:id", async (req, res) => {
 
 app.post("/api/users/:id/ban", async (req, res) => {
   const userId = Number(req.params.id);
-  const existingUser = await supabase.from("users").select("id, role").eq("id", userId).maybeSingle();
+  const adminUserId = Number(req.body?.adminUserId || 0);
+  const adminName = String(req.body?.adminName || "").trim();
+  const adminEmail = String(req.body?.adminEmail || "").trim().toLowerCase();
+  const existingUser = await supabase.from("users").select("id, role, fullname, email").eq("id", userId).maybeSingle();
   if (existingUser.error) return res.status(500).json({ error: existingUser.error.message });
   if (!existingUser.data) return res.status(404).json({ error: "User not found." });
   if (existingUser.data.role === "admin") {
@@ -471,6 +512,11 @@ app.post("/api/users/:id/ban", async (req, res) => {
 
   try {
     await deleteProductsBySeller(userId);
+    await logAdminUserAction("BANNED", existingUser.data, {
+      id: adminUserId,
+      name: adminName,
+      email: adminEmail
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -480,9 +526,12 @@ app.post("/api/users/:id/ban", async (req, res) => {
 
 app.delete("/api/users/:id", async (req, res) => {
   const userId = Number(req.params.id);
+  const adminUserId = Number(req.body?.adminUserId || 0);
+  const adminName = String(req.body?.adminName || "").trim();
+  const adminEmail = String(req.body?.adminEmail || "").trim().toLowerCase();
   const existingUser = await supabase
     .from("users")
-    .select("id, role, email, photo")
+    .select("id, role, fullname, email, photo")
     .eq("id", userId)
     .maybeSingle();
   if (existingUser.error) return res.status(500).json({ error: existingUser.error.message });
@@ -518,7 +567,33 @@ app.delete("/api/users/:id", async (req, res) => {
     }
   }
 
+  try {
+    await logAdminUserAction("DELETED", existingUser.data, {
+      id: adminUserId,
+      name: adminName,
+      email: adminEmail
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
   return res.json({ ok: true });
+});
+
+app.get("/api/admin/user-actions", async (req, res) => {
+  const actionType = String(req.query.type || "").trim().toUpperCase();
+  let query = supabase
+    .from("admin_user_actions")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (["BANNED", "DELETED"].includes(actionType)) {
+    query = query.eq("action_type", actionType);
+  }
+
+  const rows = await query;
+  if (rows.error) return res.status(500).json({ error: rows.error.message });
+  return res.json({ actions: (rows.data || []).map(sanitizeAdminUserAction) });
 });
 
 app.get("/api/products", async (req, res) => {
