@@ -1729,32 +1729,47 @@ body {
 
 .saved-delivery-addresses {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .saved-address-option {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px;
-  display: grid;
-  gap: 4px;
+  border: 1px solid #dbe4ee;
+  border-radius: 16px;
+  background: #fff;
+  padding: 14px 18px;
+  display: block;
+  cursor: pointer;
 }
 
-.saved-address-option strong {
-  color: #0f172a;
-}
-
-.saved-address-option small {
-  color: #64748b;
-}
-
-.saved-address-option .checkout-radio-option {
+.saved-checkout-address-details {
+  display: flex;
   align-items: flex-start;
+  gap: 12px;
+  color: #0f172a;
+  line-height: 1.45;
+}
+
+.saved-checkout-address-details input {
+  margin-top: 4px;
+}
+
+.saved-checkout-address-details strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.saved-checkout-address-details .muted-line {
+  display: block;
+  color: #64748b;
 }
 
 .checkout-add-address-btn {
   justify-self: start;
   font-size: 14px;
+  margin: 4px 0 10px;
+  color: #1e8e3e;
+  font-weight: 700;
 }
 
 .checkout-address-form {
