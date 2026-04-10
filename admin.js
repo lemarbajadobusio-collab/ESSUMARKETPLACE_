@@ -40,10 +40,7 @@ function showSection(id, element) {
 }
 
 function restoreAdminSection() {
-  const savedSection = localStorage.getItem(ADMIN_SECTION_KEY) || "dashboard";
-  const saved = ["banned-users", "deleted-users"].includes(savedSection)
-    ? "user-history"
-    : savedSection;
+  const saved = localStorage.getItem(ADMIN_SECTION_KEY) || "dashboard";
   const link = document.querySelector(`.sidebar a[data-section="${saved}"]`);
   showSection(saved, link || undefined);
 }
@@ -80,51 +77,7 @@ async function ensureAdminAccess() {
     return false;
   }
   window.currentAdminId = Number(user.id || 0);
-  window.currentAdminName = String(user.fullname || "").trim();
-  window.currentAdminEmail = String(user.email || "").trim().toLowerCase();
   return true;
-}
-
-function formatAdminActionDate(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString();
-}
-
-function renderAdminUserHistory(actions) {
-  const bannedBody = document.querySelector("#bannedUsersTable tbody");
-  const deletedBody = document.querySelector("#deletedUsersTable tbody");
-  if (!bannedBody || !deletedBody) return;
-
-  const bannedActions = (actions || []).filter(action => String(action.actionType || "").toUpperCase() === "BANNED");
-  const deletedActions = (actions || []).filter(action => String(action.actionType || "").toUpperCase() === "DELETED");
-
-  const renderRows = (targetBody, rows, emptyLabel, actionLabel) => {
-    if (!rows.length) {
-      targetBody.innerHTML = `
-        <tr>
-          <td>-</td>
-          <td>${emptyLabel}</td>
-          <td>-</td>
-          <td>-</td>
-        </tr>
-      `;
-      return;
-    }
-
-    targetBody.innerHTML = rows.map(row => `
-      <tr>
-        <td>${row.targetName || "-"}</td>
-        <td>${row.targetEmail || "-"}</td>
-        <td>${formatAdminActionDate(row.createdAt)}</td>
-        <td>${row.adminName || row.adminEmail || actionLabel}</td>
-      </tr>
-    `).join("");
-  };
-
-  renderRows(bannedBody, bannedActions, "No banned users yet", "System");
-  renderRows(deletedBody, deletedActions, "No deleted users yet", "System");
 }
 
 function logout() {
@@ -271,12 +224,11 @@ function renderSalesPurchaseChart(totalSold, totalTransactions) {
 
 async function loadAdminData() {
   try {
-    const [summaryData, usersData, productsData, transactionsData, userActionsData] = await Promise.all([
+    const [summaryData, usersData, productsData, transactionsData] = await Promise.all([
       apiGet("/admin/summary"),
       apiGet("/users"),
       apiGet("/products?includeSold=true"),
-      apiGet("/transactions"),
-      apiGet("/admin/user-actions")
+      apiGet("/transactions")
     ]);
 
     const users = usersData.users || [];
@@ -298,7 +250,6 @@ async function loadAdminData() {
     if (totalRevenueEl) totalRevenueEl.textContent = `Total Revenue: ₱${totalRevenue.toLocaleString()}`;
 
     renderUsersTable(users);
-    renderAdminUserHistory(userActionsData.actions || []);
 
     renderProductsTable(products);
 
@@ -432,27 +383,13 @@ async function handleUserAction(action, userId, userName) {
   }
   if (action === "ban") {
     if (!confirm(`Ban ${userName}? This will suspend the account and remove their products.`)) return;
-    await apiRequest(`/users/${userId}/ban`, {
-      method: "POST",
-      body: JSON.stringify({
-        adminUserId: Number(window.currentAdminId || 0),
-        adminName: window.currentAdminName || "",
-        adminEmail: window.currentAdminEmail || ""
-      })
-    });
+    await apiRequest(`/users/${userId}/ban`, { method: "POST" });
     await loadAdminData();
     return;
   }
   if (action === "delete") {
     if (!confirm(`Delete ${userName}? This will permanently remove the user and their products.`)) return;
-    await apiRequest(`/users/${userId}`, {
-      method: "DELETE",
-      body: JSON.stringify({
-        adminUserId: Number(window.currentAdminId || 0),
-        adminName: window.currentAdminName || "",
-        adminEmail: window.currentAdminEmail || ""
-      })
-    });
+    await apiRequest(`/users/${userId}`, { method: "DELETE" });
     await loadAdminData();
   }
 }
