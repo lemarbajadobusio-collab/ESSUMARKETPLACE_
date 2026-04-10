@@ -46,8 +46,7 @@
     <div class="sidebar">
         <a href="#" data-section="dashboard" onclick="showSection('dashboard', this); return false;" class="active">Dashboard</a>
         <a href="#" data-section="users" onclick="showSection('users', this); return false;">User Management</a>
-        <a href="#" data-section="banned-users" onclick="showSection('banned-users', this); return false;">Banned Users</a>
-        <a href="#" data-section="deleted-users" onclick="showSection('deleted-users', this); return false;">Deleted Users</a>
+        <a href="#" data-section="user-history" onclick="showSection('user-history', this); return false;">Banned & Deleted Users</a>
         <a href="#" data-section="products" onclick="showSection('products', this); return false;">Product Monitoring</a>
         <a href="#" data-section="deleted" onclick="showSection('deleted', this); return false;">Deleted Items</a>
         <a href="#" data-section="orders" onclick="showSection('orders', this); return false;">Orders & Transactions</a>
@@ -195,10 +194,12 @@
             </div>
         </div>
 
-        <!-- BANNED USERS -->
-        <div id="banned-users" class="section d-none">
-            <h2>Banned Users</h2>
-            <p class="text-muted">Banned users will appear here when logging is enabled.</p>
+        <!-- BANNED AND DELETED USERS -->
+        <div id="user-history" class="section d-none">
+            <h2>Banned & Deleted Users</h2>
+            <p class="text-muted">Banned and deleted users will appear here when logging is enabled.</p>
+
+            <h4 class="mt-4">Banned Users</h4>
             <div class="table-wrap">
                 <table class="table table-striped mt-3" id="bannedUsersTable">
                     <thead>
@@ -219,12 +220,8 @@
                     </tbody>
                 </table>
             </div>
-        </div>
 
-        <!-- DELETED USERS -->
-        <div id="deleted-users" class="section d-none">
-            <h2>Deleted Users</h2>
-            <p class="text-muted">Deleted users will appear here when logging is enabled.</p>
+            <h4 class="mt-4">Deleted Users</h4>
             <div class="table-wrap">
                 <table class="table table-striped mt-3" id="deletedUsersTable">
                     <thead>
