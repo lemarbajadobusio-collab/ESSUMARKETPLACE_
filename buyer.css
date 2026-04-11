@@ -2171,6 +2171,83 @@ select.address-input { cursor: pointer; }
   width: 100%;
 }
 
+/* ===== Item modal fixes: keep back button visible and prevent modal from overlapping page on small screens ===== */
+/* Specific to #itemModal so other modals/panels keep their existing behavior */
+#itemModal.modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-start; /* pin modal to top so it doesn't visually float over header */
+  justify-content: center;
+  padding-top: var(--navbar-height, 88px); /* leave space for top navbar */
+  background: rgba(15, 23, 42, 0.6);
+  z-index: 1200; /* higher than panels so it sits above other UI */
+  overflow-y: auto;
+}
+
+#itemModal .item-modal-content {
+  margin: 8px 12px;
+  width: min(1200px, calc(100% - 24px));
+  max-width: 1200px;
+  max-height: calc(100vh - var(--navbar-height, 88px) - 24px);
+  overflow: auto;
+  box-sizing: border-box;
+  border-radius: 12px;
+  padding: 12px 16px 20px;
+}
+
+/* Make back button sticky at the top of the modal content so it remains visible while scrolling */
+#itemModal .back-btn {
+  position: sticky;
+  top: 0;
+  z-index: 1210;
+  background: linear-gradient(180deg, rgba(255,255,255,1), rgba(255,255,255,0.98));
+  padding: 8px 0;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+
+/* Slightly reduce main image height on very small screens so content fits without hiding the back button */
+@media (max-width: 420px) {
+  #itemModal .item-modal-content {
+    padding: 10px;
+  }
+  #itemModal .detail-main {
+    height: 220px !important;
+  }
+}
+
+/* Make the clicked item view use full width on small screens and allow seller profile to float above it */
+@media (max-width: 900px) {
+  /* Expand item modal content to near full viewport width on mobile */
+  #itemModal .item-modal-content {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    left: 8px;
+    right: 8px;
+    margin: 0;
+    border-radius: 10px;
+  }
+
+  /* Ensure the overlay sits below the navbar but fills the rest of the screen */
+  #itemModal.modal {
+    padding-top: var(--navbar-height, 88px);
+    align-items: flex-start;
+  }
+}
+
+/* Ensure seller profile modal floats above the item modal (so it appears on top) */
+#sellerProfileModal.modal {
+  z-index: 1350; /* higher than #itemModal (1200) so it appears above */
+}
+#sellerProfileModal .seller-profile-modal-content {
+  width: min(420px, 92vw);
+  max-width: 420px;
+  margin: 12px auto;
+  border-radius: 12px;
+}
+
 .ghost-btn:hover {
   background: #f0f0f0;
 }

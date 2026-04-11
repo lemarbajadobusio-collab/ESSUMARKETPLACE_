@@ -1714,29 +1714,18 @@ function openItemModal(productId) {
   if (!product) return;
   saveBuyerViewState({ itemModalProductId: Number(productId) });
 
-  // Set main image
-  const detailMainImage = document.getElementById('detailMainImage');
-  if (detailMainImage) detailMainImage.src = product.img;
-
-  // Buyer detail should show a single image only (main image), like seller flow.
-  const detailThumbs = document.getElementById('detailThumbs');
-  if (detailThumbs) {
-    detailThumbs.innerHTML = '';
-    detailThumbs.style.display = 'none';
-  }
-
-  // Set product details
+  // Set product details (titles, meta)
   const detailTitle = document.getElementById('detailTitle');
-  if (detailTitle) detailTitle.textContent = product.name;
+  if (detailTitle) detailTitle.textContent = product.name || '';
 
   const detailPrice = document.getElementById('detailPrice');
-  if (detailPrice) detailPrice.textContent = "PHP " + product.price;
+  if (detailPrice) detailPrice.textContent = "PHP " + (product.price || 0);
 
   const detailCategory = document.getElementById('detailCategory');
-  if (detailCategory) detailCategory.textContent = product.category;
+  if (detailCategory) detailCategory.textContent = product.category || '';
 
   const detailCondition = document.getElementById('detailCondition');
-  if (detailCondition) detailCondition.textContent = `Condition: ${product.condition}`;
+  if (detailCondition) detailCondition.textContent = `Condition: ${product.condition || '--'}`;
 
   const detailLocation = document.getElementById('detailLocation');
   if (detailLocation) detailLocation.textContent = `Location: ${product.location || "--"}`;
@@ -1745,59 +1734,82 @@ function openItemModal(productId) {
   if (detailPosted) detailPosted.textContent = `Posted: ${formatItemPostedDate(product.createdAt || product.posted)}`;
 
   const detailDescription = document.getElementById('detailDescription');
-  if (detailDescription) detailDescription.textContent = product.desc || 'No description provided.';
+  if (detailDescription) detailDescription.textContent = product.desc || product.description || 'No description provided.';
 
-  const sellerFromEmail = getUserByEmail(product.sellerEmail || "")?.fullname || "";
-  const sellerFromId =
-    getUsers().find(u => Number(u.id || 0) === Number(product.sellerUserId || 0))?.fullname || "";
-  const sellerDisplayName =
-    String(
-      sellerFromEmail ||
-      sellerFromId ||
-      product.sellerName ||
-      product.seller ||
-      "Seller"
-    ).trim() || "Seller";
   const detailSellerName = document.getElementById('detailSellerName');
-  if (detailSellerName) detailSellerName.textContent = sellerDisplayName;
+  const sellerDisplayName = String((getUserByEmail(product.sellerEmail || "")?.fullname) || (getUsers().find(u => Number(u.id || 0) === Number(product.sellerUserId || 0))?.fullname) || product.sellerName || product.seller || "Seller").trim();
+  if (detailSellerName) detailSellerName.textContent = sellerDisplayName || 'Seller';
 
   const detailSellerRole = document.getElementById('detailSellerRole');
   if (detailSellerRole) detailSellerRole.textContent = 'Seller';
 
-  // Set buttons
+  // Buttons: disable Add to Cart for sold or own listings (match seller behavior)
   const addToCartBtn = document.getElementById('addToCartBtn');
   if (addToCartBtn) {
-    addToCartBtn.textContent = 'Add to Cart';
-    addToCartBtn.disabled = false;
+    const sold = String(product.status || "available").toLowerCase() === 'sold';
+    const own = Number(product.sellerUserId || 0) === Number(currentBuyerId() || 0);
+    addToCartBtn.disabled = sold || own;
+    if (sold) addToCartBtn.textContent = 'Sold';
+    else if (own) addToCartBtn.textContent = 'Your listing';
+    else addToCartBtn.textContent = 'Add to Cart';
     addToCartBtn.onclick = () => {
-      addToCart(product.id);
-      showToast(product.name + ' added to cart');
+      if (!addToCartBtn.disabled) {
+        addToCart(product.id);
+        showToast(product.name + ' added to cart');
+      }
     };
   }
 
   const contactSellerBtn = document.getElementById('contactSellerBtn');
   if (contactSellerBtn) {
     const ownListing = Number(product.sellerUserId || 0) === Number(currentBuyerId() || 0);
-    if (ownListing) {
-      contactSellerBtn.style.display = 'none';
-      contactSellerBtn.onclick = null;
-    } else {
-      contactSellerBtn.style.display = '';
-      contactSellerBtn.textContent = 'Contact Seller';
-      contactSellerBtn.onclick = async () => {
-        const convoId = await ensureConversationForProduct(product);
-        openMessagesPanel();
-        if (convoId) {
-          openChat(convoId);
-        }
-        closeItemModal();
-      };
-    }
+    contactSellerBtn.style.display = ownListing ? 'none' : '';
+    contactSellerBtn.textContent = 'Contact Seller';
+    contactSellerBtn.onclick = async () => {
+      const convoId = await ensureConversationForProduct(product);
+      openMessagesPanel();
+      if (convoId) openChat(convoId);
+      closeItemModal();
+    };
   }
 
   const viewSellerProfileBtn = document.getElementById('viewSellerProfileBtn');
-  if (viewSellerProfileBtn) {
-    viewSellerProfileBtn.onclick = () => openSellerProfileModal(product);
+  if (viewSellerProfileBtn) viewSellerProfileBtn.onclick = () => openSellerProfileModal(product);
+
+  // Images & thumbnails: mirror seller flow (support product.images or product.img/image)
+  const rawImages = Array.isArray(product.images) && product.images.length ? product.images : [product.img || product.image || product.imgUrl || product.imageUrl || product.img];
+  const uniqueImages = [];
+  const seen = new Set();
+  rawImages.map(i => String(i || '').trim()).filter(Boolean).forEach(img => {
+    const key = img;
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    uniqueImages.push(img);
+  });
+
+  const mainImage = uniqueImages[0] || '';
+  const thumbnailImages = uniqueImages.slice(1);
+  const detailMainImage = document.getElementById('detailMainImage');
+  if (detailMainImage) detailMainImage.src = mainImage || (product.img || product.image || '');
+
+  const detailThumbs = document.getElementById('detailThumbs');
+  if (detailThumbs) {
+    detailThumbs.innerHTML = '';
+    if (!thumbnailImages.length) {
+      detailThumbs.style.display = 'none';
+    } else {
+      detailThumbs.style.display = '';
+      thumbnailImages.forEach(img => {
+        const thumb = document.createElement('img');
+        thumb.src = img;
+        thumb.className = 'detail-thumb';
+        thumb.alt = 'Thumbnail';
+        thumb.addEventListener('click', () => {
+          if (detailMainImage) detailMainImage.src = img;
+        });
+        detailThumbs.appendChild(thumb);
+      });
+    }
   }
 
   document.getElementById('itemModal').classList.add('open');
