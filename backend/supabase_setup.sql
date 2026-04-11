@@ -34,6 +34,8 @@ ALTER TABLE IF EXISTS users
 
 ALTER TABLE IF EXISTS transactions
   ADD COLUMN IF NOT EXISTS delivery_proof TEXT DEFAULT '';
+ALTER TABLE IF EXISTS transactions
+  ADD COLUMN IF NOT EXISTS delivery_address JSONB DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS products (
   id BIGSERIAL PRIMARY KEY,
@@ -79,6 +81,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
   status TEXT NOT NULL DEFAULT 'Completed' CHECK (status IN ('Pending', 'Completed', 'Cancelled')),
   delivery_proof TEXT DEFAULT '',
+  delivery_address JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -857,6 +857,21 @@ function formatAddressSingleLine(address) {
   return fields.join(" • ");
 }
 
+function renderTransactionAddress(address) {
+  if (!address || typeof address !== "object") {
+    return `<span class="muted">--</span>`;
+  }
+  const name = address.fullname ? `<div><strong>${address.fullname}</strong></div>` : "";
+  const phone = address.phone ? `<div>${address.phone}</div>` : "";
+  const locationParts = [address.city, address.campus, address.department].filter(Boolean);
+  const location = locationParts.length ? `<div>${locationParts.join(" • ")}</div>` : "";
+  const instructions = address.instructions ? `<div class="txn-address-note">Notes: ${address.instructions}</div>` : "";
+  if (!name && !phone && !location && !instructions) {
+    return `<span class="muted">--</span>`;
+  }
+  return `<div class="txn-address">${name}${phone}${location}${instructions}</div>`;
+}
+
 function getSelectedPaymentMethod() {
   return document.querySelector("input[name='checkoutPaymentMethod']:checked")?.value || "Cash on Delivery";
 }
@@ -1308,6 +1323,7 @@ function renderDashboard(filter) {
         <span>--</span>
         <span>--</span>
         <span>${formatCurrency(0)}</span>
+        <span>--</span>
       </div>
     `;
     return;
@@ -1316,6 +1332,15 @@ function renderDashboard(filter) {
   filtered.forEach(t => {
     const statusClass = t.status === "Pending" ? "pending" : "completed";
     const typeClass = t.type === "Sale" ? "type-sale" : "type-purchase";
+    const proofButton = t.deliveryProof
+      ? `<button type="button" class="txn-proof-link" data-proof="${t.deliveryProof}">View delivery proof</button>`
+      : "";
+    const deliveryCell = `
+      <div class="txn-delivery">
+        ${renderTransactionAddress(t.deliveryAddress)}
+        ${proofButton}
+      </div>
+    `;
     transactionRows.innerHTML += `
       <div class="table-row">
         <span>${t.date}</span>
@@ -1323,9 +1348,7 @@ function renderDashboard(filter) {
         <span class="${typeClass}">${t.type}</span>
         <span class="badge ${statusClass}">${t.status}</span>
         <span>${formatCurrency(t.amount)}</span>
-        <span>
-          ${t.deliveryProof ? `<button type="button" class="txn-proof-link" data-proof="${t.deliveryProof}">View delivery proof</button>` : ""}
-        </span>
+        <span>${deliveryCell}</span>
       </div>
     `;
   });

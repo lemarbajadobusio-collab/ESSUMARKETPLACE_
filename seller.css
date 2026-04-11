@@ -2287,7 +2287,7 @@ body {
 
 .table-row {
   display: grid;
-  grid-template-columns: 120px 1.6fr 100px 120px 120px;
+  grid-template-columns: 120px 1.6fr 100px 120px 120px 1.8fr;
   gap: 10px;
   align-items: center;
   padding: 10px 6px;
@@ -2299,6 +2299,25 @@ body {
   font-weight: 600;
   color: #3b4552;
   border-bottom: 2px solid #e0e6eb;
+}
+
+.txn-delivery {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.txn-address {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.txn-address-note {
+  color: #64748b;
 }
 
 .badge {
@@ -2558,8 +2577,8 @@ body {
   }
 
   .transactions .table-row {
-    min-width: 560px;
-    grid-template-columns: 120px 1.6fr 100px 120px 120px;
+    min-width: 720px;
+    grid-template-columns: 120px 1.6fr 100px 120px 120px 1.8fr;
   }
 
   .cart-item {

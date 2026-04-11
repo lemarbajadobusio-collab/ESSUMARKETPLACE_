@@ -114,6 +114,21 @@ async function normalizeImagesArray(images, folder) {
   return normalized;
 }
 
+function normalizeDeliveryAddress(address) {
+  if (!address || typeof address !== "object") return null;
+  const fields = ["fullname", "phone", "city", "campus", "department", "instructions"];
+  const normalized = {};
+  let hasValue = false;
+  fields.forEach(field => {
+    const value = String(address[field] || "").trim();
+    if (value) {
+      normalized[field] = value;
+      hasValue = true;
+    }
+  });
+  return hasValue ? normalized : null;
+}
+
 function sanitizeUser(row) {
   if (!row) return null;
   return {
@@ -826,6 +841,7 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
   try {
     const buyerUserId = Number(req.params.buyerUserId);
     const selectedProductId = Number(req.body?.selectedProductId || 0);
+    const deliveryAddress = normalizeDeliveryAddress(req.body?.deliveryAddress);
     const cartId = await ensureCart(buyerUserId);
 
     const cartItems = await supabase
@@ -873,6 +889,7 @@ app.post("/api/checkout/:buyerUserId", async (req, res) => {
         item_name: qty > 1 ? `${product.name} (x${qty})` : product.name,
         amount: Number(product.price) * qty,
         status: "Pending",
+        delivery_address: deliveryAddress || {},
         created_at: nowIso()
       });
       if (txnInsert.error) return res.status(500).json({ error: txnInsert.error.message });
@@ -929,7 +946,8 @@ app.get("/api/transactions", async (req, res) => {
     amount: Number(row.amount),
     buyerName: row.buyer?.fullname || "",
     sellerName: row.seller?.fullname || "",
-    deliveryProof: row.delivery_proof || ""
+    deliveryProof: row.delivery_proof || "",
+    deliveryAddress: row.delivery_address || null
   }));
   return res.json({ transactions });
 });
