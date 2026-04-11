@@ -1985,7 +1985,7 @@ select.address-input { cursor: pointer; }
 .detail-main {
   width: 100%;
   height: 360px;
-  object-fit: contain;
+  object-fit: cover;
   border-radius: 12px;
   background: #ffffff;
 }
