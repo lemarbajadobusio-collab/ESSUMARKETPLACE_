@@ -616,7 +616,6 @@ function renderProducts(){
 
 // Event delegation for card clicks
 function setupCardClickHandlers() {
-  if (!grid) return;
   grid.addEventListener('click', (event) => {
     const card = event.target.closest('.card');
     if (!card) return;

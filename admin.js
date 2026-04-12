@@ -250,6 +250,7 @@ async function loadAdminData() {
     if (totalRevenueEl) totalRevenueEl.textContent = `Total Revenue: ₱${totalRevenue.toLocaleString()}`;
 
     renderUsersTable(users);
+    renderBannedUsersTable(users);
 
     renderProductsTable(products);
 
@@ -344,8 +345,7 @@ function renderUsersTable(users) {
           <div class="action-buttons">
             ${showApprove ? `<button class="btn btn-sm btn-success" data-action="approve" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Approve seller account"}">Approve</button>` : ""}
             ${showApprove ? `<button class="btn btn-sm btn-outline-danger" data-action="reject" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Reject proof and request re-upload"}">Reject</button>` : ""}
-            <button class="btn btn-sm btn-warning" data-action="ban" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Suspend user and remove their products"}">Ban</button>
-            <button class="btn btn-sm btn-danger" data-action="delete" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Delete user and all related data"}">Delete</button>
+            <button class="btn btn-sm btn-danger" data-action="ban" data-user-id="${user.id}" data-user-name="${user.fullname || user.email || "User"}" ${disableActions ? "disabled" : ""} title="${disableActions ? reason : "Suspend user and remove their products"}">Ban/Remove</button>
           </div>
         </td>
       </tr>
@@ -355,6 +355,38 @@ function renderUsersTable(users) {
   sellers.forEach((user, index) => renderRow(user, index, sellersBody, true));
   // Render commission columns for sellers only; buyers should not show commission columns
   buyers.forEach((user, index) => renderRow(user, index, buyersBody, false));
+}
+
+function renderBannedUsersTable(users) {
+  const bannedBody = document.querySelector("#bannedUsersTable tbody");
+  if (!bannedBody) return;
+
+  bannedBody.innerHTML = "";
+
+  const bannedUsers = (users || []).filter(u => String(u.status || "").toUpperCase() === "SUSPENDED");
+
+  if (bannedUsers.length === 0) {
+    bannedBody.innerHTML = `
+      <tr>
+        <td>-</td>
+        <td>No banned users</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+    `;
+    return;
+  }
+
+  bannedUsers.forEach(user => {
+    bannedBody.innerHTML += `
+      <tr>
+        <td>${user.fullname || user.email || "-"}</td>
+        <td>${user.email || "-"}</td>
+        <td>${user.updated_at ? new Date(user.updated_at).toLocaleDateString() : "-"}</td>
+        <td>Admin</td>
+      </tr>
+    `;
+  });
 }
 
 async function handleUserAction(action, userId, userName) {
@@ -383,15 +415,10 @@ async function handleUserAction(action, userId, userName) {
     return;
   }
   if (action === "ban") {
-    if (!confirm(`Ban ${userName}? This will suspend the account and remove their products.`)) return;
+    if (!confirm(`Ban/Remove ${userName}? This will suspend the account and remove their products from the marketplace.`)) return;
     await apiRequest(`/users/${userId}/ban`, { method: "POST" });
     await loadAdminData();
     return;
-  }
-  if (action === "delete") {
-    if (!confirm(`Delete ${userName}? This will permanently remove the user and their products.`)) return;
-    await apiRequest(`/users/${userId}`, { method: "DELETE" });
-    await loadAdminData();
   }
 }
 
