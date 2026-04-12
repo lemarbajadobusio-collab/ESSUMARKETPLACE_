@@ -353,6 +353,7 @@ function renderUsersTable(users) {
   };
 
   sellers.forEach((user, index) => renderRow(user, index, sellersBody, true));
+  // Render commission columns for sellers only; buyers should not show commission columns
   buyers.forEach((user, index) => renderRow(user, index, buyersBody, false));
 }
 

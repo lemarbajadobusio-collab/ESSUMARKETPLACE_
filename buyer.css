@@ -2218,22 +2218,31 @@ select.address-input { cursor: pointer; }
   }
 }
 
-/* Make the clicked item view use full width on small screens and allow seller profile to float above it */
+/* Adjust item modal on small screens: centered with side gutters (not full-bleed) */
 @media (max-width: 900px) {
-  /* Expand item modal content to near full viewport width on mobile */
+  /* Keep modal content centered and narrower on mobile so it doesn't occupy the whole viewport */
   #itemModal .item-modal-content {
-    width: calc(100vw - 16px) !important;
-    max-width: calc(100vw - 16px) !important;
-    left: 8px;
-    right: 8px;
-    margin: 0;
-    border-radius: 10px;
+    width: min(600px, 94vw) !important;
+    max-width: 600px !important;
+    margin: 20px auto !important;
+    border-radius: 12px;
+    padding: 16px 16px 20px;
+    box-shadow: 0 18px 50px rgba(16,24,40,0.28);
   }
 
-  /* Ensure the overlay sits below the navbar but fills the rest of the screen */
+  /* Keep the overlay slightly below navbar and center the modal vertically when possible */
   #itemModal.modal {
-    padding-top: var(--navbar-height, 88px);
-    align-items: flex-start;
+    padding-top: var(--navbar-height, 48px);
+    align-items: center;
+  }
+
+  /* Keep the back button visible at the top inside the modal content */
+  #itemModal .back-btn {
+    position: sticky;
+    top: 0;
+    background: rgba(255,255,255,0.98);
+    padding-left: 12px;
+    z-index: 1220;
   }
 }
 
